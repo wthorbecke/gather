@@ -1,0 +1,1819 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gather</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #FAF9F7;
+            --bg-warm: #F5F3EF;
+            --bg-card: #FFFFFF;
+            --border: #E8E4DD;
+            --border-light: #F0EDE8;
+            --text: #2C2825;
+            --text-soft: #6B635A;
+            --text-muted: #9B9389;
+            --accent: #8B7355;
+            --accent-soft: #C4B5A0;
+            --sage: #7D8B75;
+            --sage-soft: #E8EBE6;
+            --rose: #C4A07A;
+            --rose-soft: #F5EDE4;
+            --sky: #7A95A8;
+            --sky-soft: #E8EEF2;
+            --shadow: 0 2px 8px rgba(44, 40, 37, 0.04);
+            --shadow-hover: 0 4px 16px rgba(44, 40, 37, 0.08);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        /* Subtle grain texture */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0.03;
+            pointer-events: none;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 3rem 2rem;
+            position: relative;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+
+        .date {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 0.95rem;
+            color: var(--text-muted);
+            letter-spacing: 0.05em;
+            margin-bottom: 0.5rem;
+        }
+
+        h1 {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 2.5rem;
+            font-weight: 400;
+            color: var(--text);
+            letter-spacing: -0.02em;
+        }
+
+        .tabs {
+            display: flex;
+            justify-content: center;
+            gap: 0.25rem;
+            margin-bottom: 3rem;
+            background: var(--bg-warm);
+            padding: 0.35rem;
+            border-radius: 100px;
+            width: fit-content;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .tab {
+            padding: 0.6rem 1.5rem;
+            background: transparent;
+            border: none;
+            color: var(--text-soft);
+            cursor: pointer;
+            border-radius: 100px;
+            font-family: inherit;
+            font-size: 0.85rem;
+            transition: all 0.3s ease;
+        }
+
+        .tab:hover {
+            color: var(--text);
+        }
+
+        .tab.active {
+            background: var(--bg-card);
+            color: var(--text);
+            box-shadow: var(--shadow);
+        }
+
+        .panel {
+            display: none;
+            animation: fadeIn 0.4s ease;
+        }
+
+        .panel.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* QUOTE */
+        .quote {
+            text-align: center;
+            padding: 2.5rem;
+            margin-bottom: 2.5rem;
+            background: linear-gradient(135deg, var(--rose-soft) 0%, var(--bg) 100%);
+            border-radius: 20px;
+        }
+
+        .quote-text {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 1.5rem;
+            font-style: italic;
+            color: var(--text);
+            margin-bottom: 0.75rem;
+            line-height: 1.5;
+        }
+
+        .quote-author {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+        }
+
+        /* SECTIONS */
+        .section {
+            margin-bottom: 2.5rem;
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 1px solid var(--border-light);
+        }
+
+        .section-title {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 1.25rem;
+            font-weight: 500;
+            color: var(--text);
+        }
+
+        .section-count {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-left: auto;
+        }
+
+        /* HABIT ITEMS */
+        .items {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .item {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1rem 1.25rem;
+            background: var(--bg-card);
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: 1px solid var(--border-light);
+        }
+
+        .item:hover {
+            box-shadow: var(--shadow-hover);
+            transform: translateY(-1px);
+        }
+
+        .item.completed {
+            opacity: 0.5;
+        }
+
+        .item.completed .item-text {
+            text-decoration: line-through;
+            color: var(--text-muted);
+        }
+
+        .checkbox {
+            width: 22px;
+            height: 22px;
+            border: 2px solid var(--border);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            transition: all 0.2s ease;
+        }
+
+        .item.completed .checkbox {
+            background: var(--sage);
+            border-color: var(--sage);
+        }
+
+        .checkbox svg {
+            width: 12px;
+            height: 12px;
+            opacity: 0;
+            color: white;
+            stroke-width: 3;
+        }
+
+        .item.completed .checkbox svg {
+            opacity: 1;
+        }
+
+        .item-content {
+            flex: 1;
+        }
+
+        .item-text {
+            font-size: 0.95rem;
+            color: var(--text);
+        }
+
+        .item-sub {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-top: 0.15rem;
+        }
+
+        .item-link {
+            font-size: 0.8rem;
+            color: var(--accent);
+            text-decoration: none;
+            opacity: 0.7;
+            transition: opacity 0.2s;
+        }
+
+        .item-link:hover {
+            opacity: 1;
+        }
+
+        /* SOUL ITEMS */
+        .soul-item {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1.25rem;
+            background: var(--bg-card);
+            border-radius: 16px;
+            border: 1px solid var(--border-light);
+            transition: all 0.2s ease;
+        }
+
+        .soul-item:hover {
+            box-shadow: var(--shadow-hover);
+        }
+
+        .soul-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            flex-shrink: 0;
+        }
+
+        .soul-icon.cats { background: var(--rose-soft); }
+        .soul-icon.piano { background: var(--sky-soft); }
+        .soul-icon.walk { background: var(--sage-soft); }
+        .soul-icon.grandpa { background: var(--rose-soft); }
+        .soul-icon.uncle { background: var(--sky-soft); }
+        .soul-icon.friends { background: var(--sage-soft); }
+        .soul-icon.cook { background: var(--rose-soft); }
+
+        .soul-content {
+            flex: 1;
+        }
+
+        .soul-title {
+            font-size: 0.95rem;
+            color: var(--text);
+            margin-bottom: 0.2rem;
+        }
+
+        .soul-last {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        .soul-btn {
+            padding: 0.5rem 1rem;
+            background: var(--bg-warm);
+            border: 1px solid var(--border);
+            border-radius: 100px;
+            font-family: inherit;
+            font-size: 0.8rem;
+            color: var(--text-soft);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .soul-btn:hover {
+            background: var(--sage-soft);
+            border-color: var(--sage);
+            color: var(--sage);
+        }
+
+        /* TASK CARDS */
+        .task-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-light);
+            border-radius: 16px;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            transition: all 0.2s ease;
+        }
+
+        .task-card:hover {
+            box-shadow: var(--shadow-hover);
+        }
+
+        .task-card.urgent {
+            border-left: 3px solid var(--rose);
+        }
+
+        .task-card.soon {
+            border-left: 3px solid var(--accent);
+        }
+
+        .task-card.waiting {
+            border-left: 3px solid var(--sage);
+            opacity: 0.7;
+        }
+
+        .task-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 0.75rem;
+        }
+
+        .task-title {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 1.15rem;
+            font-weight: 500;
+            color: var(--text);
+        }
+
+        .task-badge {
+            font-size: 0.7rem;
+            padding: 0.3rem 0.75rem;
+            border-radius: 100px;
+            white-space: nowrap;
+        }
+
+        .task-badge.urgent {
+            background: var(--rose-soft);
+            color: var(--rose);
+        }
+
+        .task-badge.soon {
+            background: var(--bg-warm);
+            color: var(--accent);
+        }
+
+        .task-badge.waiting {
+            background: var(--sage-soft);
+            color: var(--sage);
+        }
+
+        .task-desc {
+            font-size: 0.9rem;
+            color: var(--text-soft);
+            margin-bottom: 1rem;
+            line-height: 1.6;
+        }
+
+        .task-actions {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .task-btn {
+            padding: 0.6rem 1rem;
+            font-size: 0.8rem;
+            font-family: inherit;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        .task-btn.primary {
+            background: var(--text);
+            border: 1px solid var(--text);
+            color: white;
+        }
+
+        .task-btn.primary:hover {
+            background: var(--text-soft);
+        }
+
+        .task-btn.secondary {
+            background: var(--bg-warm);
+            border: 1px solid var(--border);
+            color: var(--text-soft);
+        }
+
+        .task-btn.secondary:hover {
+            background: var(--bg);
+            color: var(--text);
+        }
+
+        /* FINANCES */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-light);
+            border-radius: 16px;
+            padding: 1.25rem;
+            text-align: center;
+        }
+
+        .stat-label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-value {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 1.75rem;
+            font-weight: 500;
+            color: var(--text);
+        }
+
+        .stat-value.positive { color: var(--sage); }
+        .stat-value.negative { color: var(--rose); }
+
+        .upload-area {
+            border: 2px dashed var(--border);
+            border-radius: 16px;
+            padding: 3rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            background: var(--bg-card);
+        }
+
+        .upload-area:hover {
+            border-color: var(--accent-soft);
+            background: var(--bg-warm);
+        }
+
+        .upload-icon {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+
+        .upload-text {
+            font-size: 0.95rem;
+            color: var(--text-soft);
+            margin-bottom: 0.5rem;
+        }
+
+        .upload-hint {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        /* SIMULATOR */
+        .simulator {
+            background: var(--bg-card);
+            border: 1px solid var(--border-light);
+            border-radius: 16px;
+            padding: 1.5rem;
+            margin-top: 1.5rem;
+        }
+
+        .simulator-title {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 1.1rem;
+            margin-bottom: 1rem;
+            color: var(--text);
+        }
+
+        .sim-row {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .sim-field {
+            flex: 1;
+            min-width: 150px;
+        }
+
+        .sim-field label {
+            display: block;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-bottom: 0.4rem;
+        }
+
+        .sim-field input, .sim-field select {
+            width: 100%;
+            padding: 0.7rem 1rem;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 0.9rem;
+            background: var(--bg);
+            color: var(--text);
+        }
+
+        .sim-field input:focus, .sim-field select:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .sim-result {
+            background: var(--bg-warm);
+            border-radius: 12px;
+            padding: 1.25rem;
+            font-size: 0.9rem;
+            color: var(--text-soft);
+            line-height: 1.7;
+        }
+
+        /* AI CHAT MODAL */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(44, 40, 37, 0.4);
+            backdrop-filter: blur(4px);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            padding: 1.5rem;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal {
+            background: var(--bg-card);
+            border-radius: 20px;
+            max-width: 600px;
+            width: 100%;
+            max-height: 85vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 25px 50px rgba(44, 40, 37, 0.15);
+        }
+
+        .modal-header {
+            padding: 1.25rem 1.5rem;
+            border-bottom: 1px solid var(--border-light);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-title {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 1.25rem;
+            font-weight: 500;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            color: var(--text-muted);
+            cursor: pointer;
+            padding: 0.25rem;
+            line-height: 1;
+        }
+
+        .modal-close:hover {
+            color: var(--text);
+        }
+
+        .modal-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1.5rem;
+        }
+
+        .chat-messages {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .chat-message {
+            padding: 1rem;
+            border-radius: 12px;
+            font-size: 0.9rem;
+            line-height: 1.6;
+        }
+
+        .chat-message.user {
+            background: var(--bg-warm);
+            margin-left: 2rem;
+        }
+
+        .chat-message.assistant {
+            background: var(--sage-soft);
+            margin-right: 2rem;
+        }
+
+        .chat-message.assistant h4 {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 1rem;
+            margin-bottom: 0.5rem;
+            color: var(--text);
+        }
+
+        .chat-message.assistant ul {
+            margin-left: 1.25rem;
+            margin-top: 0.5rem;
+        }
+
+        .chat-message.assistant li {
+            margin-bottom: 0.4rem;
+        }
+
+        .chat-message.assistant code {
+            background: rgba(0,0,0,0.05);
+            padding: 0.15rem 0.4rem;
+            border-radius: 4px;
+            font-size: 0.85rem;
+        }
+
+        .chat-input-area {
+            padding: 1rem 1.5rem 1.5rem;
+            border-top: 1px solid var(--border-light);
+        }
+
+        .chat-input-wrapper {
+            display: flex;
+            gap: 0.75rem;
+        }
+
+        .chat-input {
+            flex: 1;
+            padding: 0.8rem 1rem;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            font-family: inherit;
+            font-size: 0.9rem;
+            background: var(--bg);
+            color: var(--text);
+            resize: none;
+        }
+
+        .chat-input:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .chat-send {
+            padding: 0.8rem 1.25rem;
+            background: var(--text);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-family: inherit;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .chat-send:hover {
+            background: var(--text-soft);
+        }
+
+        .chat-send:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .api-key-notice {
+            background: var(--rose-soft);
+            padding: 1rem;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            color: var(--text-soft);
+            margin-bottom: 1rem;
+        }
+
+        .api-key-notice input {
+            width: 100%;
+            margin-top: 0.75rem;
+            padding: 0.7rem;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 0.85rem;
+        }
+
+        /* EMAIL MODAL */
+        .email-template {
+            background: var(--bg);
+            border-radius: 12px;
+            padding: 1.25rem;
+            font-size: 0.85rem;
+            line-height: 1.7;
+            white-space: pre-wrap;
+            margin: 1rem 0;
+            border: 1px solid var(--border-light);
+        }
+
+        .email-field {
+            margin-bottom: 1rem;
+        }
+
+        .email-field label {
+            display: block;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-bottom: 0.4rem;
+        }
+
+        .email-field input {
+            width: 100%;
+            padding: 0.7rem 1rem;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 0.9rem;
+            background: var(--bg);
+        }
+
+        .modal-actions {
+            padding: 1rem 1.5rem;
+            border-top: 1px solid var(--border-light);
+            display: flex;
+            gap: 0.75rem;
+            justify-content: flex-end;
+        }
+
+        /* Apartment */
+        .zone-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1rem;
+        }
+
+        .zone-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-light);
+            border-radius: 16px;
+            padding: 1.25rem;
+        }
+
+        .zone-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 1px solid var(--border-light);
+        }
+
+        .zone-title {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 1.1rem;
+            font-weight: 500;
+        }
+
+        .zone-progress {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        .zone-items {
+            display: flex;
+            flex-direction: column;
+            gap: 0.4rem;
+        }
+
+        .zone-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.6rem 0.75rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+
+        .zone-item:hover {
+            background: var(--bg-warm);
+        }
+
+        .zone-item.done {
+            opacity: 0.5;
+            text-decoration: line-through;
+        }
+
+        .zone-check {
+            width: 18px;
+            height: 18px;
+            border: 2px solid var(--border);
+            border-radius: 50%;
+            flex-shrink: 0;
+            transition: all 0.2s;
+        }
+
+        .zone-item.done .zone-check {
+            background: var(--sage);
+            border-color: var(--sage);
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        /* Loading state */
+        .loading {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 1rem;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+
+        .loading-dots {
+            display: flex;
+            gap: 4px;
+        }
+
+        .loading-dots span {
+            width: 6px;
+            height: 6px;
+            background: var(--accent-soft);
+            border-radius: 50%;
+            animation: bounce 1.4s ease-in-out infinite;
+        }
+
+        .loading-dots span:nth-child(2) { animation-delay: 0.2s; }
+        .loading-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+        @keyframes bounce {
+            0%, 80%, 100% { transform: translateY(0); }
+            40% { transform: translateY(-6px); }
+        }
+
+        /* Responsive */
+        @media (max-width: 600px) {
+            .container {
+                padding: 1.5rem 1rem;
+            }
+            
+            h1 {
+                font-size: 2rem;
+            }
+            
+            .tabs {
+                width: 100%;
+            }
+            
+            .tab {
+                flex: 1;
+                padding: 0.5rem 0.75rem;
+                font-size: 0.8rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="date" id="currentDate"></div>
+            <h1>Gather</h1>
+        </header>
+
+        <div class="tabs">
+            <button class="tab active" data-tab="today">Today</button>
+            <button class="tab" data-tab="soul">Soul</button>
+            <button class="tab" data-tab="tasks">Tasks</button>
+            <button class="tab" data-tab="money">Money</button>
+            <button class="tab" data-tab="space">Space</button>
+        </div>
+
+        <!-- TODAY -->
+        <div class="panel active" id="today">
+            <div class="quote">
+                <div class="quote-text">"You could leave life right now. Let that determine what you do and say and think."</div>
+                <div class="quote-author">Marcus Aurelius</div>
+            </div>
+
+            <div class="section">
+                <div class="section-header">
+                    <div class="section-title">Morning</div>
+                    <div class="section-count" id="morningCount">0 / 3</div>
+                </div>
+                <div class="items" id="morningItems">
+                    <div class="item" data-habit="meditation">
+                        <div class="checkbox">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                        </div>
+                        <div class="item-content">
+                            <div class="item-text">Meditation</div>
+                            <div class="item-sub">10 minutes of stillness</div>
+                        </div>
+                    </div>
+                    <div class="item" data-habit="sunlight">
+                        <div class="checkbox">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                        </div>
+                        <div class="item-content">
+                            <div class="item-text">Sunlight</div>
+                            <div class="item-sub">15 minutes outside</div>
+                        </div>
+                    </div>
+                    <div class="item" data-habit="skincare">
+                        <div class="checkbox">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                        </div>
+                        <div class="item-content">
+                            <div class="item-text">Skincare</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="section-header">
+                    <div class="section-title">Daily play</div>
+                    <div class="section-count" id="gamesCount">0 / 2</div>
+                </div>
+                <div class="items" id="gameItems">
+                    <div class="item" data-habit="connections">
+                        <div class="checkbox">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                        </div>
+                        <div class="item-content">
+                            <div class="item-text">Connections</div>
+                        </div>
+                        <a href="https://www.nytimes.com/games/connections" target="_blank" class="item-link">play →</a>
+                    </div>
+                    <div class="item" data-habit="wordle">
+                        <div class="checkbox">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                        </div>
+                        <div class="item-content">
+                            <div class="item-text">Wordle</div>
+                        </div>
+                        <a href="https://www.nytimes.com/games/wordle" target="_blank" class="item-link">play →</a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="section-header">
+                    <div class="section-title">When you can</div>
+                    <div class="section-count" id="optionalCount">0 / 2</div>
+                </div>
+                <div class="items" id="optionalItems">
+                    <div class="item" data-habit="gym">
+                        <div class="checkbox">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                        </div>
+                        <div class="item-content">
+                            <div class="item-text">Move your body</div>
+                            <div class="item-sub">Gym, walk, stretch — something</div>
+                        </div>
+                    </div>
+                    <div class="item" data-habit="plants">
+                        <div class="checkbox">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                        </div>
+                        <div class="item-content">
+                            <div class="item-text">Water the plants</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SOUL -->
+        <div class="panel" id="soul">
+            <div class="section">
+                <div class="section-header">
+                    <div class="section-title">Things that matter</div>
+                </div>
+                <p style="font-size: 0.9rem; color: var(--text-soft); margin-bottom: 1.5rem; line-height: 1.6;">
+                    These don't have deadlines. But they're why you're doing everything else.
+                </p>
+                <div class="items" id="soulItems">
+                    <div class="soul-item" data-soul="cats">
+                        <div class="soul-icon cats">🐱</div>
+                        <div class="soul-content">
+                            <div class="soul-title">Play with the cats</div>
+                            <div class="soul-last" id="cats-last">Tap "Done" when you do</div>
+                        </div>
+                        <button class="soul-btn" onclick="logSoul('cats')">Done</button>
+                    </div>
+                    <div class="soul-item" data-soul="piano">
+                        <div class="soul-icon piano">🎹</div>
+                        <div class="soul-content">
+                            <div class="soul-title">Piano practice</div>
+                            <div class="soul-last" id="piano-last">Even 10 minutes counts</div>
+                        </div>
+                        <button class="soul-btn" onclick="logSoul('piano')">Done</button>
+                    </div>
+                    <div class="soul-item" data-soul="walk">
+                        <div class="soul-icon walk">🚶</div>
+                        <div class="soul-content">
+                            <div class="soul-title">Go for a walk</div>
+                            <div class="soul-last" id="walk-last">Outside, no destination</div>
+                        </div>
+                        <button class="soul-btn" onclick="logSoul('walk')">Done</button>
+                    </div>
+                    <div class="soul-item" data-soul="cook">
+                        <div class="soul-icon cook">🍳</div>
+                        <div class="soul-content">
+                            <div class="soul-title">Cook something real</div>
+                            <div class="soul-last" id="cook-last">You have Costco — use it</div>
+                        </div>
+                        <button class="soul-btn" onclick="logSoul('cook')">Done</button>
+                    </div>
+                    <div class="soul-item" data-soul="grandpa">
+                        <div class="soul-icon grandpa">📞</div>
+                        <div class="soul-content">
+                            <div class="soul-title">Call Grandpa</div>
+                            <div class="soul-last" id="grandpa-last">He won't be here forever</div>
+                        </div>
+                        <button class="soul-btn" onclick="logSoul('grandpa')">Done</button>
+                    </div>
+                    <div class="soul-item" data-soul="uncle">
+                        <div class="soul-icon uncle">☕</div>
+                        <div class="soul-content">
+                            <div class="soul-title">Coffee with uncle</div>
+                            <div class="soul-last" id="uncle-last">Local family matters</div>
+                        </div>
+                        <button class="soul-btn" onclick="logSoul('uncle')">Done</button>
+                    </div>
+                    <div class="soul-item" data-soul="friends">
+                        <div class="soul-icon friends">👋</div>
+                        <div class="soul-content">
+                            <div class="soul-title">See a friend</div>
+                            <div class="soul-last" id="friends-last">Not many locally — protect them</div>
+                        </div>
+                        <button class="soul-btn" onclick="logSoul('friends')">Done</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TASKS -->
+        <div class="panel" id="tasks">
+            <div class="section">
+                <div class="section-header">
+                    <div class="section-title">Needs attention</div>
+                </div>
+
+                <div class="task-card urgent">
+                    <div class="task-header">
+                        <div class="task-title">Medical bill disputes</div>
+                        <div class="task-badge urgent">In collections</div>
+                    </div>
+                    <div class="task-desc">
+                        BCBS confirmed they never received claims. Providers violated the No Surprises Act by sending you to collections without billing insurance first. Send dispute emails to potentially invalidate the debt.
+                    </div>
+                    <div class="task-actions">
+                        <button class="task-btn primary" onclick="openEmailModal('vituity')">✉️ Vituity ($3,801)</button>
+                        <button class="task-btn primary" onclick="openEmailModal('igt')">✉️ IGT ($66)</button>
+                        <button class="task-btn primary" onclick="openEmailModal('ucsf')">✉️ UCSF ($5,479)</button>
+                        <button class="task-btn secondary" onclick="openAIChat('medical')">Help me understand this</button>
+                    </div>
+                </div>
+
+                <div class="task-card soon">
+                    <div class="task-header">
+                        <div class="task-title">File 2024 taxes</div>
+                        <div class="task-badge soon">Get your refund</div>
+                    </div>
+                    <div class="task-desc">
+                        You're owed money. No penalty since you're getting a refund — just free money sitting there.
+                    </div>
+                    <div class="task-actions">
+                        <a href="https://www.freetaxusa.com" target="_blank" class="task-btn primary">FreeTaxUSA →</a>
+                        <a href="https://www.irs.gov/individuals/get-transcript" target="_blank" class="task-btn secondary">IRS Transcripts</a>
+                        <button class="task-btn secondary" onclick="openAIChat('taxes')">Help me with this</button>
+                    </div>
+                </div>
+
+                <div class="task-card soon">
+                    <div class="task-header">
+                        <div class="task-title">Speeding ticket + traffic school</div>
+                        <div class="task-badge soon">Due March 13</div>
+                    </div>
+                    <div class="task-desc">
+                        Pay $301 to the court, then complete online traffic school within 60 days (~$25-40 extra). Keeps the point off your record.
+                    </div>
+                    <div class="task-actions">
+                        <a href="https://mycitations.courts.ca.gov" target="_blank" class="task-btn primary">Pay online →</a>
+                        <button class="task-btn secondary" onclick="openAIChat('traffic')">Help me with this</button>
+                    </div>
+                </div>
+
+                <div class="task-card soon">
+                    <div class="task-header">
+                        <div class="task-title">Downgrade Costco membership</div>
+                        <div class="task-badge soon">Save money</div>
+                    </div>
+                    <div class="task-desc">
+                        You don't have a car anymore. Executive membership probably isn't worth it — downgrade to Gold Star ($65/yr vs $130/yr).
+                    </div>
+                    <div class="task-actions">
+                        <button class="task-btn secondary" onclick="openAIChat('costco')">Help me with this</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="section-header">
+                    <div class="section-title">Waiting on</div>
+                </div>
+
+                <div class="task-card waiting">
+                    <div class="task-header">
+                        <div class="task-title">Therapy reimbursement</div>
+                        <div class="task-badge waiting">Submitted Jan 20</div>
+                    </div>
+                    <div class="task-desc">
+                        $5,000 claim submitted to BCBS for out-of-network therapy. Watch your portal for the EOB. Potential reimbursement: $1,500-3,000+
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- MONEY -->
+        <div class="panel" id="money">
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-label">Monthly income</div>
+                    <div class="stat-value positive">$6,340</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Fixed costs</div>
+                    <div class="stat-value">$2,400+</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Flexible</div>
+                    <div class="stat-value">~$3,900</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Upcoming</div>
+                    <div class="stat-value negative">$341</div>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="section-header">
+                    <div class="section-title">Import transactions</div>
+                </div>
+                <div class="upload-area" id="uploadArea">
+                    <div class="upload-icon">📄</div>
+                    <div class="upload-text">Drop CSV files here or click to upload</div>
+                    <div class="upload-hint">Bank of America, credit cards — I'll sort it out</div>
+                </div>
+                <input type="file" id="csvInput" class="hidden" accept=".csv" multiple>
+                <div id="transactionsArea" class="hidden"></div>
+            </div>
+
+            <div class="simulator">
+                <div class="simulator-title">What if I bought...</div>
+                <div class="sim-row">
+                    <div class="sim-field">
+                        <label>Amount</label>
+                        <input type="number" id="simAmount" value="400" placeholder="400">
+                    </div>
+                    <div class="sim-field">
+                        <label>How</label>
+                        <select id="simType">
+                            <option value="cash">Pay now</option>
+                            <option value="monthly">Monthly</option>
+                        </select>
+                    </div>
+                    <div class="sim-field hidden" id="monthlyField">
+                        <label>Per month</label>
+                        <input type="number" id="simMonthly" value="50" placeholder="50">
+                    </div>
+                </div>
+                <div class="sim-result" id="simResult">
+                    A $400 purchase is about 10% of your monthly flexible budget. If you saved 25% of your flexible income, you'd have this in ~3 weeks.
+                </div>
+            </div>
+        </div>
+
+        <!-- SPACE -->
+        <div class="panel" id="space">
+            <p style="font-size: 0.95rem; color: var(--text-soft); margin-bottom: 1.5rem; line-height: 1.6;">
+                Your apartment should feel like yours — not haunted by what was. One zone at a time.
+            </p>
+
+            <div class="zone-grid">
+                <div class="zone-card">
+                    <div class="zone-header">
+                        <div class="zone-title">🧹 Deep clean</div>
+                        <div class="zone-progress" id="cleanProgress">0/4</div>
+                    </div>
+                    <div class="zone-items" data-zone="clean">
+                        <div class="zone-item" data-task="vacuum">
+                            <div class="zone-check"></div>
+                            <span>Vacuum everything (cat fur)</span>
+                        </div>
+                        <div class="zone-item" data-task="surfaces">
+                            <div class="zone-check"></div>
+                            <span>Wipe down surfaces</span>
+                        </div>
+                        <div class="zone-item" data-task="bathroom">
+                            <div class="zone-check"></div>
+                            <span>Clean bathroom</span>
+                        </div>
+                        <div class="zone-item" data-task="kitchen">
+                            <div class="zone-check"></div>
+                            <span>Deep clean kitchen</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="zone-card">
+                    <div class="zone-header">
+                        <div class="zone-title">✨ Make it yours</div>
+                        <div class="zone-progress" id="yoursProgress">0/4</div>
+                    </div>
+                    <div class="zone-items" data-zone="yours">
+                        <div class="zone-item" data-task="rug">
+                            <div class="zone-check"></div>
+                            <span>Put the rug back (or new one)</span>
+                        </div>
+                        <div class="zone-item" data-task="plantscare">
+                            <div class="zone-check"></div>
+                            <span>Repot plants, help them thrive</span>
+                        </div>
+                        <div class="zone-item" data-task="lighting">
+                            <div class="zone-check"></div>
+                            <span>Better lighting (lamps?)</span>
+                        </div>
+                        <div class="zone-item" data-task="walls">
+                            <div class="zone-check"></div>
+                            <span>Put something on the walls</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="zone-card">
+                    <div class="zone-header">
+                        <div class="zone-title">📦 Let go</div>
+                        <div class="zone-progress" id="letgoProgress">0/3</div>
+                    </div>
+                    <div class="zone-items" data-zone="letgo">
+                        <div class="zone-item" data-task="closet">
+                            <div class="zone-check"></div>
+                            <span>Closet purge — donate pile</span>
+                        </div>
+                        <div class="zone-item" data-task="papers">
+                            <div class="zone-check"></div>
+                            <span>Sort the mail/paper pile</span>
+                        </div>
+                        <div class="zone-item" data-task="notmine">
+                            <div class="zone-check"></div>
+                            <span>Box up what's not yours</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="zone-card">
+                    <div class="zone-header">
+                        <div class="zone-title">🤖 Cat fur solution</div>
+                        <div class="zone-progress">Research</div>
+                    </div>
+                    <div style="font-size: 0.9rem; color: var(--text-soft); line-height: 1.6;">
+                        <p style="margin-bottom: 0.75rem;">Your robot vacuum broke. Options:</p>
+                        <p style="margin-bottom: 0.5rem;">• Budget: Eufy 11S (~$150)</p>
+                        <p style="margin-bottom: 0.5rem;">• Mid: Roborock Q5 (~$300)</p>
+                        <p style="margin-bottom: 0.75rem;">• Premium: Roomba j7+ (~$500)</p>
+                        <p style="color: var(--accent); font-size: 0.85rem;">Use the "What if" calculator in Money →</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- AI CHAT MODAL -->
+    <div class="modal-overlay" id="aiModal">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title" id="aiModalTitle">Help with this</div>
+                <button class="modal-close" onclick="closeAIModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="api-key-notice" id="apiKeyNotice">
+                    <strong>First time?</strong> To get AI help with web search, add your Anthropic API key. Get one at <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a> — $5 of credit lasts months.
+                    <input type="password" id="apiKeyInput" placeholder="sk-ant-..." onchange="saveApiKey()">
+                </div>
+                <div class="chat-messages" id="chatMessages"></div>
+                <div class="loading hidden" id="chatLoading">
+                    <div class="loading-dots">
+                        <span></span><span></span><span></span>
+                    </div>
+                    <span>Thinking & searching...</span>
+                </div>
+            </div>
+            <div class="chat-input-area">
+                <div class="chat-input-wrapper">
+                    <textarea class="chat-input" id="chatInput" rows="2" placeholder="What's confusing or scary about this?"></textarea>
+                    <button class="chat-send" id="chatSend" onclick="sendChat()">Send</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- EMAIL MODAL -->
+    <div class="modal-overlay" id="emailModal">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title" id="emailModalTitle">Dispute Email</div>
+                <button class="modal-close" onclick="closeEmailModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="email-field">
+                    <label>To</label>
+                    <input type="text" id="emailTo" readonly>
+                </div>
+                <div class="email-field">
+                    <label>Subject</label>
+                    <input type="text" id="emailSubject" readonly>
+                </div>
+                <div class="email-field">
+                    <label>Your BCBS Member ID</label>
+                    <input type="text" id="memberId" placeholder="Enter your member ID">
+                </div>
+                <div class="email-field">
+                    <label>Your Group Number</label>
+                    <input type="text" id="groupNumber" placeholder="Enter your group number">
+                </div>
+                <label style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.5rem; display: block;">Email body — copy this:</label>
+                <div class="email-template" id="emailBody"></div>
+            </div>
+            <div class="modal-actions">
+                <button class="task-btn secondary" onclick="closeEmailModal()">Close</button>
+                <button class="task-btn primary" onclick="copyEmail()">Copy to clipboard</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ========== DATE ==========
+        const now = new Date();
+        const options = { weekday: 'long', month: 'long', day: 'numeric' };
+        document.getElementById('currentDate').textContent = now.toLocaleDateString('en-US', options);
+
+        // ========== TABS ==========
+        const tabs = document.querySelectorAll('.tab');
+        const panels = document.querySelectorAll('.panel');
+
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                tabs.forEach(t => t.classList.remove('active'));
+                panels.forEach(p => p.classList.remove('active'));
+                tab.classList.add('active');
+                document.getElementById(tab.dataset.tab).classList.add('active');
+            });
+        });
+
+        // ========== HABITS ==========
+        const today = now.toDateString();
+        let habits = JSON.parse(localStorage.getItem('habits_' + today)) || {};
+
+        function updateHabits() {
+            document.querySelectorAll('.item[data-habit]').forEach(item => {
+                const habit = item.dataset.habit;
+                item.classList.toggle('completed', !!habits[habit]);
+            });
+            
+            const morning = ['meditation', 'sunlight', 'skincare'];
+            const games = ['connections', 'wordle'];
+            const optional = ['gym', 'plants'];
+            
+            document.getElementById('morningCount').textContent = `${morning.filter(h => habits[h]).length} / 3`;
+            document.getElementById('gamesCount').textContent = `${games.filter(h => habits[h]).length} / 2`;
+            document.getElementById('optionalCount').textContent = `${optional.filter(h => habits[h]).length} / 2`;
+        }
+
+        document.querySelectorAll('.item[data-habit]').forEach(item => {
+            item.addEventListener('click', (e) => {
+                if (e.target.tagName === 'A') return;
+                const habit = item.dataset.habit;
+                habits[habit] = !habits[habit];
+                localStorage.setItem('habits_' + today, JSON.stringify(habits));
+                updateHabits();
+            });
+        });
+
+        updateHabits();
+
+        // ========== SOUL TRACKING ==========
+        let soulLog = JSON.parse(localStorage.getItem('soulLog')) || {};
+
+        function logSoul(activity) {
+            soulLog[activity] = Date.now();
+            localStorage.setItem('soulLog', JSON.stringify(soulLog));
+            updateSoulUI();
+        }
+
+        function updateSoulUI() {
+            const activities = ['cats', 'piano', 'walk', 'cook', 'grandpa', 'uncle', 'friends'];
+            activities.forEach(act => {
+                const lastTime = soulLog[act];
+                const el = document.getElementById(act + '-last');
+                if (lastTime) {
+                    const days = Math.floor((Date.now() - lastTime) / (1000 * 60 * 60 * 24));
+                    if (days === 0) {
+                        el.textContent = 'Today ✓';
+                        el.style.color = 'var(--sage)';
+                    } else if (days === 1) {
+                        el.textContent = 'Yesterday';
+                        el.style.color = 'var(--text-muted)';
+                    } else {
+                        el.textContent = `${days} days ago`;
+                        el.style.color = days > 7 ? 'var(--rose)' : 'var(--text-muted)';
+                    }
+                }
+            });
+        }
+
+        updateSoulUI();
+
+        // ========== APARTMENT TASKS ==========
+        let zoneTasks = JSON.parse(localStorage.getItem('zoneTasks')) || {};
+
+        function updateZones() {
+            document.querySelectorAll('.zone-item[data-task]').forEach(item => {
+                const task = item.dataset.task;
+                item.classList.toggle('done', !!zoneTasks[task]);
+            });
+
+            // Update counts
+            const zones = {
+                clean: ['vacuum', 'surfaces', 'bathroom', 'kitchen'],
+                yours: ['rug', 'plantscare', 'lighting', 'walls'],
+                letgo: ['closet', 'papers', 'notmine']
+            };
+
+            Object.keys(zones).forEach(zone => {
+                const done = zones[zone].filter(t => zoneTasks[t]).length;
+                const total = zones[zone].length;
+                const progressId = zone === 'clean' ? 'cleanProgress' : zone === 'yours' ? 'yoursProgress' : 'letgoProgress';
+                document.getElementById(progressId).textContent = `${done}/${total}`;
+            });
+        }
+
+        document.querySelectorAll('.zone-item[data-task]').forEach(item => {
+            item.addEventListener('click', () => {
+                const task = item.dataset.task;
+                zoneTasks[task] = !zoneTasks[task];
+                localStorage.setItem('zoneTasks', JSON.stringify(zoneTasks));
+                updateZones();
+            });
+        });
+
+        updateZones();
+
+        // ========== SIMULATOR ==========
+        const simAmount = document.getElementById('simAmount');
+        const simType = document.getElementById('simType');
+        const simMonthly = document.getElementById('simMonthly');
+        const monthlyField = document.getElementById('monthlyField');
+        const simResult = document.getElementById('simResult');
+
+        simType.addEventListener('change', () => {
+            monthlyField.classList.toggle('hidden', simType.value !== 'monthly');
+            updateSim();
+        });
+
+        simAmount.addEventListener('input', updateSim);
+        simMonthly.addEventListener('input', updateSim);
+
+        function updateSim() {
+            const amount = parseFloat(simAmount.value) || 0;
+            const flexible = 3900;
+
+            if (simType.value === 'cash') {
+                const percent = ((amount / flexible) * 100).toFixed(0);
+                const weeks = (amount / (flexible / 4)).toFixed(1);
+                simResult.innerHTML = `A <strong>$${amount}</strong> purchase is about <strong>${percent}%</strong> of your monthly flexible budget. If you saved 25% of your flexible income, you'd have this in about <strong>${weeks} weeks</strong>.`;
+            } else {
+                const monthly = parseFloat(simMonthly.value) || 50;
+                const months = Math.ceil(amount / monthly);
+                const percent = ((monthly / flexible) * 100).toFixed(0);
+                simResult.innerHTML = `<strong>$${monthly}/month</strong> for <strong>${months} months</strong>. That's ${percent}% of your flexible budget each month — leaves you <strong>$${flexible - monthly}</strong> for everything else.`;
+            }
+        }
+
+        updateSim();
+
+        // ========== FILE UPLOAD ==========
+        const uploadArea = document.getElementById('uploadArea');
+        const csvInput = document.getElementById('csvInput');
+
+        uploadArea.addEventListener('click', () => csvInput.click());
+        uploadArea.addEventListener('dragover', e => { e.preventDefault(); uploadArea.style.borderColor = 'var(--accent)'; });
+        uploadArea.addEventListener('dragleave', () => { uploadArea.style.borderColor = 'var(--border)'; });
+        uploadArea.addEventListener('drop', e => {
+            e.preventDefault();
+            uploadArea.style.borderColor = 'var(--border)';
+            handleFiles(e.dataTransfer.files);
+        });
+        csvInput.addEventListener('change', e => handleFiles(e.target.files));
+
+        function handleFiles(files) {
+            // CSV parsing logic here - simplified for now
+            alert('CSV import coming soon! For now, manually track in a spreadsheet.');
+        }
+
+        // ========== EMAIL TEMPLATES ==========
+        const emailTemplates = {
+            vituity: {
+                to: 'RCMInfo@vituity.com',
+                subject: 'Dispute of Invalid Debt — Account Sent to Collections Without Insurance Billing',
+                body: `To Whom It May Concern:
+
+I am writing regarding services provided on July 19, 2025 at Saint Francis Memorial Hospital.
+
+I have confirmed with my insurance carrier, Blue Cross Blue Shield of Massachusetts, that they never received a claim for these services. My insurance information was provided at the time of service.
+
+Under the No Surprises Act (Public Law 116-260), emergency service providers are required to submit claims to a patient's health insurance before billing the patient directly. Sending a patient to collections without first billing their insurance is a violation of federal law.
+
+I am requesting that you:
+1. Immediately recall this account from collections
+2. Submit the claim to my insurance (information below)
+3. Provide written confirmation that this has been done
+
+My insurance information:
+- Carrier: Blue Cross Blue Shield of Massachusetts
+- Member ID: [MEMBER_ID]
+- Group Number: [GROUP_NUMBER]
+
+Until this claim is properly submitted to my insurance and processed, I dispute this debt as invalid.
+
+Regards,
+Willem Thorbecke`
+            },
+            igt: {
+                to: 'billing@igtradiology.com',
+                subject: 'Claim Resubmission Required — Incorrect Eligibility Rejection',
+                body: `To Whom It May Concern:
+
+I am writing regarding radiology services provided on July 19, 2025 at Saint Francis Memorial Hospital.
+
+I understand my claim was rejected due to "patient not eligible on service date." This is incorrect — I had active coverage with Blue Cross Blue Shield of Massachusetts on that date.
+
+Please resubmit this claim with the correct insurance information:
+- Carrier: Blue Cross Blue Shield of Massachusetts
+- Member ID: [MEMBER_ID]
+- Group Number: [GROUP_NUMBER]
+
+Please confirm receipt and resubmission of this claim.
+
+Regards,
+Willem Thorbecke`
+            },
+            ucsf: {
+                to: 'patientbilling@sutterhealth.org',
+                subject: 'Verification Request — July 19, 2025 ER Visit',
+                body: `To Whom It May Concern:
+
+I am writing regarding my account for services provided on July 19, 2025 at Saint Francis Memorial Hospital.
+
+Please verify this claim was properly submitted to my insurance:
+- Carrier: Blue Cross Blue Shield of Massachusetts
+- Member ID: [MEMBER_ID]
+- Group Number: [GROUP_NUMBER]
+
+Please confirm:
+1. Was this submitted to BCBS Massachusetts (not California)?
+2. What was the insurance response?
+3. Please provide an itemized bill.
+
+Regards,
+Willem Thorbecke`
+            }
+        };
+
+        function openEmailModal(provider) {
+            const template = emailTemplates[provider];
+            document.getElementById('emailModalTitle').textContent = 'Email to ' + provider.charAt(0).toUpperCase() + provider.slice(1);
+            document.getElementById('emailTo').value = template.to;
+            document.getElementById('emailSubject').value = template.subject;
+            document.getElementById('emailBody').textContent = template.body;
+            document.getElementById('emailModal').classList.add('active');
+        }
+
+        function closeEmailModal() {
+            document.getElementById('emailModal').classList.remove('active');
+        }
+
+        function copyEmail() {
+            const memberId = document.getElementById('memberId').value || '[YOUR MEMBER ID]';
+            const groupNumber = document.getElementById('groupNumber').value || '[YOUR GROUP NUMBER]';
+            let body = document.getElementById('emailBody').textContent;
+            body = body.replace('[MEMBER_ID]', memberId).replace('[GROUP_NUMBER]', groupNumber);
+            const subject = document.getElementById('emailSubject').value;
+            navigator.clipboard.writeText(`Subject: ${subject}\n\n${body}`);
+            alert('Copied! Paste into your email.');
+        }
+
+        // ========== AI CHAT ==========
+        let currentTaskContext = '';
+        const taskContexts = {
+            medical: "I need to dispute medical bills from a July 2025 ER visit. Vituity ($3,801), IGT Radiology ($66), and UCSF/Saint Francis ($5,479) never properly billed my insurance (BCBS Massachusetts) before sending me to collections. This is a No Surprises Act violation.",
+            taxes: "I need to file my 2024 federal taxes. I'm owed a refund. I make about $125,000/year. I also missed filing 2021 taxes and that refund is gone (past the 3-year deadline).",
+            traffic: "I have a speeding ticket in Sonoma County, California. Citation CHPSK33983, speeding over 65 MPH on 7/28/2025. I got an extension until March 13, 2026. I want to do traffic school to keep it off my record. Total is $301 to the court plus ~$25-40 for traffic school.",
+            costco: "I have a Costco Executive membership ($130/year) but I don't have a car anymore after a breakup. I want to downgrade to the basic Gold Star membership ($65/year). I'm in San Francisco."
+        };
+
+        function openAIChat(task) {
+            currentTaskContext = taskContexts[task] || '';
+            document.getElementById('aiModalTitle').textContent = 'Help with: ' + task;
+            document.getElementById('chatMessages').innerHTML = '';
+            document.getElementById('chatInput').value = '';
+            
+            // Check for API key
+            const apiKey = localStorage.getItem('anthropicApiKey');
+            document.getElementById('apiKeyNotice').classList.toggle('hidden', !!apiKey);
+            if (apiKey) {
+                document.getElementById('apiKeyInput').value = '••••••••';
+            }
+            
+            document.getElementById('aiModal').classList.add('active');
+        }
+
+        function closeAIModal() {
+            document.getElementById('aiModal').classList.remove('active');
+        }
+
+        function saveApiKey() {
+            const key = document.getElementById('apiKeyInput').value;
+            if (key && key.startsWith('sk-ant-')) {
+                localStorage.setItem('anthropicApiKey', key);
+                document.getElementById('apiKeyNotice').classList.add('hidden');
+            }
+        }
+
+        async function sendChat() {
+            const input = document.getElementById('chatInput');
+            const message = input.value.trim();
+            if (!message) return;
+
+            const apiKey = localStorage.getItem('anthropicApiKey');
+            if (!apiKey) {
+                alert('Please add your Anthropic API key first.');
+                return;
+            }
+
+            // Add user message
+            addMessage(message, 'user');
+            input.value = '';
+
+            // Show loading
+            document.getElementById('chatLoading').classList.remove('hidden');
+            document.getElementById('chatSend').disabled = true;
+
+            try {
+                const response = await fetch('https://api.anthropic.com/v1/messages', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-api-key': apiKey,
+                        'anthropic-version': '2023-06-01',
+                        'anthropic-dangerous-direct-browser-access': 'true'
+                    },
+                    body: JSON.stringify({
+                        model: 'claude-sonnet-4-20250514',
+                        max_tokens: 1024,
+                        tools: [{
+                            type: 'web_search_20250305',
+                            name: 'web_search'
+                        }],
+                        messages: [{
+                            role: 'user',
+                            content: `Context about my situation: ${currentTaskContext}
+
+My question: ${message}
+
+Please give me specific, actionable steps. Include real phone numbers, websites, and exact language to use if relevant. Search the web if you need current information.`
+                        }]
+                    })
+                });
+
+                const data = await response.json();
+                
+                // Extract text from response
+                let responseText = '';
+                if (data.content) {
+                    data.content.forEach(block => {
+                        if (block.type === 'text') {
+                            responseText += block.text;
+                        }
+                    });
+                }
+
+                addMessage(responseText || 'Sorry, I couldn\'t get a response. Please try again.', 'assistant');
+
+            } catch (error) {
+                console.error('API Error:', error);
+                addMessage('Something went wrong. Check your API key and try again.', 'assistant');
+            }
+
+            document.getElementById('chatLoading').classList.add('hidden');
+            document.getElementById('chatSend').disabled = false;
+        }
+
+        function addMessage(text, role) {
+            const messages = document.getElementById('chatMessages');
+            const div = document.createElement('div');
+            div.className = 'chat-message ' + role;
+            
+            // Basic markdown-ish parsing for assistant messages
+            if (role === 'assistant') {
+                text = text
+                    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                    .replace(/\n\n/g, '</p><p>')
+                    .replace(/\n- /g, '</p><ul><li>')
+                    .replace(/\n(\d+)\. /g, '</p><ol><li>')
+                    .replace(/`(.*?)`/g, '<code>$1</code>');
+                div.innerHTML = '<p>' + text + '</p>';
+            } else {
+                div.textContent = text;
+            }
+            
+            messages.appendChild(div);
+            messages.scrollTop = messages.scrollHeight;
+        }
+
+        // Enter to send
+        document.getElementById('chatInput').addEventListener('keydown', e => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendChat();
+            }
+        });
+
+        // Close modals on overlay click
+        document.querySelectorAll('.modal-overlay').forEach(overlay => {
+            overlay.addEventListener('click', e => {
+                if (e.target === overlay) {
+                    overlay.classList.remove('active');
+                }
+            });
+        });
+    </script>
+</body>
+</html>

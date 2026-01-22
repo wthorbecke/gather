@@ -1,0 +1,5 @@
+# Sync agent rules: CLAUDE.md is the source of truth
+cp CLAUDE.md .cursorrules
+git add .cursorrules
+
+npm test
