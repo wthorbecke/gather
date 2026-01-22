@@ -6,23 +6,23 @@ test.describe('Navigation', () => {
     await enterDemoMode(page)
   })
 
-  test('Today tab is selected by default', async ({ page }) => {
-    // Today tab should be active
-    const todayTab = page.getByRole('button', { name: 'Today' })
-    await expect(todayTab).toBeVisible()
+  test('Tasks tab is selected by default', async ({ page }) => {
+    // Tasks tab should be active by default now
+    const tasksTab = page.getByRole('button', { name: 'Tasks' })
+    await expect(tasksTab).toBeVisible()
 
-    // Should show habits content
-    await expect(page.locator('text=Make bed')).toBeVisible()
+    // Should show tasks content
+    await expect(page.locator('text=Reply to Mom')).toBeVisible()
   })
 
   test('can navigate to all tabs', async ({ page }) => {
+    // Start on Tasks (default), navigate to Today
+    await navigateToTab(page, 'Today')
+    await expect(page.locator('text=Make bed')).toBeVisible()
+
     // Navigate to Soul
     await navigateToTab(page, 'Soul')
     await expect(page.locator('text=Call someone you love')).toBeVisible()
-
-    // Navigate to Tasks
-    await navigateToTab(page, 'Tasks')
-    await expect(page.locator('text=Reply to Mom')).toBeVisible()
 
     // Navigate to Money
     await navigateToTab(page, 'Money')
@@ -32,17 +32,17 @@ test.describe('Navigation', () => {
     await navigateToTab(page, 'Space')
     await screenshot(page, 'space-panel')
 
-    // Navigate back to Today
-    await navigateToTab(page, 'Today')
-    await expect(page.locator('text=Make bed')).toBeVisible()
+    // Navigate back to Tasks
+    await navigateToTab(page, 'Tasks')
+    await expect(page.locator('text=Reply to Mom')).toBeVisible()
   })
 
   test('tabs are visually distinct when active', async ({ page }) => {
-    // Take screenshots of different active tabs
-    await screenshot(page, 'nav-today-active')
-
-    await navigateToTab(page, 'Tasks')
+    // Take screenshots of different active tabs (start on Tasks)
     await screenshot(page, 'nav-tasks-active')
+
+    await navigateToTab(page, 'Today')
+    await screenshot(page, 'nav-today-active')
 
     await navigateToTab(page, 'Soul')
     await screenshot(page, 'nav-soul-active')
@@ -76,10 +76,8 @@ test.describe('Navigation', () => {
     await expect(page.locator('h1:has-text("Gather")')).toBeVisible()
   })
 
-  test('header shows date', async ({ page }) => {
-    const today = new Date()
-    const monthName = today.toLocaleDateString('en-US', { month: 'long' })
-
-    await expect(page.locator(`text=${monthName}`)).toBeVisible()
+  test('header shows theme toggle', async ({ page }) => {
+    // Theme toggle should be visible in header (has aria-label with "Switch to")
+    await expect(page.locator('button[aria-label*="Switch to"]')).toBeVisible()
   })
 })

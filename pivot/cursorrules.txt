@@ -1,0 +1,136 @@
+# Gather — Cursor Rules
+
+You are working on Gather, an app that helps people turn overwhelming tasks into doable steps.
+
+## Core Philosophy
+
+**"Dump it here — I'll make it doable."**
+
+- This is NOT a todo app. It's a collaboration tool between the user and AI.
+- No prescriptive life categories (no default "habits", "rituals", "play" sections)
+- AI breaks down tasks AND stays available to help when users get stuck
+- Every completion is acknowledged, but not excessively
+- Never guilt trip users about incomplete tasks
+
+## Design Tokens
+
+### Colors (Light)
+```
+canvas: #FAFAFA
+surface: rgba(0,0,0,0.03)
+elevated: #FFFFFF
+text: #171717
+textSoft: #525252
+textMuted: #a3a3a3
+accent: #E07A5F (coral — actions, buttons, focus)
+accentSoft: rgba(224,122,95,0.1)
+success: #6B9080 (sage — completion only)
+successSoft: rgba(107,144,128,0.1)
+border: rgba(0,0,0,0.06)
+danger: #DC6B6B
+dangerSoft: rgba(220,107,107,0.1)
+```
+
+### Colors (Dark)
+```
+canvas: #0a0a0a
+surface: rgba(255,255,255,0.05)
+elevated: #141414
+text: #f5f5f5
+textSoft: #a0a0a0
+textMuted: #555555
+accent: #E8A990
+success: #9ECBB3
+border: rgba(255,255,255,0.1)
+```
+
+### Typography
+- System font stack: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif
+- Input text: 20px medium
+- Task titles: 16px semibold
+- Body: 14px normal
+- Labels/hints: 12-13px
+
+### Border Radius
+- Small elements: 6-8px
+- Inputs/rows: 10px
+- Buttons: 12px
+- Cards: 16px
+- Modals/main input: 20px
+
+### Motion
+- Standard: `transition: all 0.2s ease`
+- Spring: `transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1)`
+- Modal open: spring, 350ms
+- Modal close: ease, 250ms
+- Button press: scale(0.95-0.98)
+- Card hover: scale(1.01) translateY(-2px) + shadow
+
+## Component Patterns
+
+### Main Input
+- Hero placement, top of page
+- Large (20px), prominent
+- Focus: accent border + outer glow + slight scale
+- Button appears when text entered
+- Helper text: "Dump it here — I'll make it doable"
+
+### Task Card
+- Shows: title, context, segmented progress bar
+- Hover: lift + shadow
+- Click: opens detail modal
+
+### Task Detail Modal
+- Header: title, context, progress, delete button
+- Subtask list: draggable rows, inline editing
+- Chat input at bottom for ongoing collaboration
+- Matching open/close animations
+
+### Subtask Row
+- Checkbox + text + actions (drag handle, delete)
+- Draggable for reorder
+- Click text to edit inline
+- Completed: faded + strikethrough
+
+### Checkbox
+- 22-24px circle
+- Checked: sage fill (#6B9080), white checkmark draws in
+- Press: scale(0.85)
+
+### Confetti (on task completion)
+- 50 pieces, mixed shapes
+- Colors from palette
+- Fall with rotation, varied timing
+
+## Interaction Flows
+
+### Adding a Task
+1. User types in main input → "Break it down"
+2. Modal: AI explains what it found
+3. Optional clarifying question
+4. AI thinking state (brain emoji, pulse)
+5. Result: steps with links/context
+6. "Add this" → task appears in list
+
+### Collaborating on a Task
+- Chat input at bottom of task detail
+- User can ask questions, request changes
+- AI can add/modify steps based on conversation
+- Examples: "I can't find X" → alternatives, "Add step for Y" → adds it
+
+## Code Guidelines
+
+- Use Tailwind with extended theme (see DESIGN_SYSTEM.md)
+- Framer Motion for complex animations (or CSS cubic-bezier)
+- Native HTML5 drag for reordering
+- Keep components focused — one job each
+- Animation keyframes in global CSS or style tags
+
+## Don'ts
+
+- Don't add prescriptive sections (morning, habits, play, etc.)
+- Don't use brown colors — we explicitly moved away from that
+- Don't over-celebrate (no triple emojis, no "AMAZING!!!")
+- Don't guilt trip ("You have 5 overdue tasks!")
+- Don't make modals close without animation
+- Don't use linear easing — always ease-out or spring

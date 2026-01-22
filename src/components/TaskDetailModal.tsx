@@ -1,7 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { Task, Subtask } from '@/hooks/useUserData'
+import { Checkbox } from './Checkbox'
+import { SegmentedProgress } from './SegmentedProgress'
+import { Confetti, CompletionCelebration } from './Confetti'
 
 interface TaskDetailModalProps {
   task: Task
@@ -11,15 +14,77 @@ interface TaskDetailModalProps {
   onComplete: (taskId: string) => void
 }
 
+interface ChatMessage {
+  role: 'user' | 'ai'
+  text: string
+}
+
 export function TaskDetailModal({ task, isOpen, onClose, onUpdate, onComplete }: TaskDetailModalProps) {
-  const [notes, setNotes] = useState(task.notes || '')
-  const [isGenerating, setIsGenerating] = useState(false)
+  const [isClosing, setIsClosing] = useState(false)
+  const [isVisible, setIsVisible] = useState(false)
+
+  // Subtask editing
+  const [editingSubtask, setEditingSubtask] = useState<string | null>(null)
+  const [editingText, setEditingText] = useState('')
   const [newSubtask, setNewSubtask] = useState('')
+
+  // Drag and drop
+  const [draggedSubtask, setDraggedSubtask] = useState<string | null>(null)
+  const [dragOverSubtask, setDragOverSubtask] = useState<string | null>(null)
+
+  // Delete confirmation
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+
+  // Chat
+  const [chatInput, setChatInput] = useState('')
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
+  const [chatThinking, setChatThinking] = useState(false)
+
+  // Celebration
+  const [showConfetti, setShowConfetti] = useState(false)
+  const [completionName, setCompletionName] = useState<string | null>(null)
+
+  // Error state
   const [error, setError] = useState<string | null>(null)
 
-  if (!isOpen) return null
+  // Loading
+  const [isGenerating, setIsGenerating] = useState(false)
+
+  const chatEndRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden'
+      requestAnimationFrame(() => setIsVisible(true))
+    } else {
+      document.body.style.overflow = 'unset'
+      setIsVisible(false)
+    }
+    return () => {
+      document.body.style.overflow = 'unset'
+    }
+  }, [isOpen])
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [chatMessages])
+
+  const handleClose = useCallback(() => {
+    setIsClosing(true)
+    setTimeout(() => {
+      setIsClosing(false)
+      setShowDeleteConfirm(false)
+      setChatMessages([])
+      setChatInput('')
+      setEditingSubtask(null)
+      onClose()
+    }, 250)
+  }, [onClose])
+
+  if (!isOpen && !isClosing) return null
 
   const subtasks = task.subtasks || []
+  const completedCount = subtasks.filter((st) => st.completed).length
 
   const handleUpdate = async (updates: Partial<Task>) => {
     setError(null)
@@ -29,16 +94,22 @@ export function TaskDetailModal({ task, isOpen, onClose, onUpdate, onComplete }:
     }
   }
 
-  const handleNotesChange = (value: string) => {
-    setNotes(value)
-    handleUpdate({ notes: value })
-  }
-
   const handleToggleSubtask = (subtaskId: string) => {
+    const subtask = subtasks.find(st => st.id === subtaskId)
     const updated = subtasks.map((st) =>
       st.id === subtaskId ? { ...st, completed: !st.completed } : st
     )
     handleUpdate({ subtasks: updated })
+
+    // Check if all subtasks are now complete
+    const newCompletedCount = updated.filter(st => st.completed).length
+    const wasAllComplete = completedCount === subtasks.length
+    const isNowAllComplete = newCompletedCount === subtasks.length && subtasks.length > 0
+
+    if (isNowAllComplete && !wasAllComplete && subtask && !subtask.completed) {
+      setShowConfetti(true)
+      setCompletionName(task.title)
+    }
   }
 
   const handleAddSubtask = () => {
@@ -57,6 +128,46 @@ export function TaskDetailModal({ task, isOpen, onClose, onUpdate, onComplete }:
     handleUpdate({ subtasks: updated })
   }
 
+  const handleUpdateSubtaskText = (subtaskId: string, text: string) => {
+    if (!text.trim()) {
+      setEditingSubtask(null)
+      return
+    }
+    const updated = subtasks.map((st) =>
+      st.id === subtaskId ? { ...st, title: text.trim() } : st
+    )
+    handleUpdate({ subtasks: updated })
+    setEditingSubtask(null)
+  }
+
+  // Drag and drop handlers
+  const handleDragStart = (e: React.DragEvent, subtaskId: string) => {
+    setDraggedSubtask(subtaskId)
+    e.dataTransfer.effectAllowed = 'move'
+  }
+
+  const handleDragOver = (e: React.DragEvent, subtaskId: string) => {
+    e.preventDefault()
+    if (subtaskId !== draggedSubtask) {
+      setDragOverSubtask(subtaskId)
+    }
+  }
+
+  const handleDragEnd = () => {
+    if (draggedSubtask && dragOverSubtask) {
+      const fromIdx = subtasks.findIndex(s => s.id === draggedSubtask)
+      const toIdx = subtasks.findIndex(s => s.id === dragOverSubtask)
+      if (fromIdx !== -1 && toIdx !== -1) {
+        const newSubtasks = [...subtasks]
+        const [moved] = newSubtasks.splice(fromIdx, 1)
+        newSubtasks.splice(toIdx, 0, moved)
+        handleUpdate({ subtasks: newSubtasks })
+      }
+    }
+    setDraggedSubtask(null)
+    setDragOverSubtask(null)
+  }
+
   const handleGenerateSubtasks = async () => {
     setIsGenerating(true)
     setError(null)
@@ -67,7 +178,6 @@ export function TaskDetailModal({ task, isOpen, onClose, onUpdate, onComplete }:
         body: JSON.stringify({
           title: task.title,
           description: task.description,
-          notes: notes,
           existingSubtasks: subtasks.map((st) => st.title),
         }),
       })
@@ -91,216 +201,338 @@ export function TaskDetailModal({ task, isOpen, onClose, onUpdate, onComplete }:
     setIsGenerating(false)
   }
 
-  const completedCount = subtasks.filter((st) => st.completed).length
-  const progress = subtasks.length > 0 ? (completedCount / subtasks.length) * 100 : 0
+  // Chat handler with simulated responses
+  const handleChat = async () => {
+    if (!chatInput.trim()) return
+    const userMsg = chatInput
+    setChatMessages(prev => [...prev, { role: 'user', text: userMsg }])
+    setChatInput('')
+    setChatThinking(true)
 
-  const handleCompleteTask = () => {
+    // Try real API first, fall back to simulated response
+    try {
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: userMsg,
+          taskTitle: task.title,
+          taskDescription: task.description,
+          subtasks: subtasks.map(st => st.title),
+        }),
+      })
+
+      if (response.ok) {
+        const { reply } = await response.json()
+        setChatMessages(prev => [...prev, { role: 'ai', text: reply }])
+      } else {
+        // Fallback to simulated response
+        simulateResponse(userMsg)
+      }
+    } catch {
+      simulateResponse(userMsg)
+    }
+    setChatThinking(false)
+  }
+
+  const simulateResponse = (userMsg: string) => {
+    const lower = userMsg.toLowerCase()
+    let response = "I can help with this task — ask me about specific steps, or let me know if you're stuck on something."
+
+    if (lower.includes('add') && lower.includes('step')) {
+      const stepMatch = userMsg.match(/add (?:a )?step (?:for |to )?(.+)/i)
+      if (stepMatch) {
+        const newSt: Subtask = {
+          id: 'st_' + Date.now(),
+          title: stepMatch[1].trim(),
+          completed: false,
+        }
+        handleUpdate({ subtasks: [...subtasks, newSt] })
+        response = `Added "${stepMatch[1].trim()}" to your steps.`
+      } else {
+        response = "What step would you like to add?"
+      }
+    } else if (lower.includes('how long') || lower.includes('take')) {
+      response = "That depends on the complexity, but I'd estimate a few hours to a day for most steps. Want me to break any down further?"
+    } else if (lower.includes('stuck') || lower.includes('help')) {
+      response = "Let's figure this out. Which step is giving you trouble? I can suggest alternatives or break it down into smaller pieces."
+    }
+
+    setChatMessages(prev => [...prev, { role: 'ai', text: response }])
+  }
+
+  const handleDeleteTask = () => {
     onComplete(task.id)
-    onClose()
+    handleClose()
+  }
+
+  // Parse URL from subtask text
+  const parseSubtaskUrl = (text: string): { displayText: string; url: string | null } => {
+    const urlMatch = text.match(/(https?:\/\/[^\s]+)/)
+    if (urlMatch) {
+      const url = urlMatch[1]
+      let displayText = text.replace(url, '').trim()
+      if (displayText.endsWith(':')) {
+        displayText = displayText.slice(0, -1)
+      }
+      return { displayText, url }
+    }
+    return { displayText: text, url: null }
   }
 
   return (
-    <div className="fixed inset-0 bg-black/30 flex items-start justify-center z-50 p-4 overflow-y-auto">
-      <div className="bg-[var(--bg)] rounded-2xl w-full max-w-2xl my-8 shadow-xl">
-        {/* Header */}
-        <div className="p-6 border-b border-[var(--border-light)]">
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex-1">
-              <div className="flex items-center gap-2 mb-2">
-                {task.badge && (
-                  <span className="text-[0.7rem] px-2 py-0.5 bg-[var(--rose-soft)] text-[var(--text)] rounded-full">
-                    {task.badge}
-                  </span>
+    <>
+      <Confetti active={showConfetti} onComplete={() => setShowConfetti(false)} />
+      <CompletionCelebration taskName={completionName} onDismiss={() => setCompletionName(null)} />
+
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center p-4"
+        onClick={(e) => {
+          if (e.target === e.currentTarget) handleClose()
+        }}
+      >
+        {/* Backdrop */}
+        <div
+          className={`absolute inset-0 bg-black/50 dark:bg-black/80 backdrop-blur-sm ${
+            isClosing ? 'animate-backdrop-out' : 'animate-backdrop-in'
+          }`}
+        />
+
+        {/* Modal */}
+        <div
+          className={`relative w-full max-w-[480px] max-h-[90vh] bg-elevated rounded-2xl overflow-hidden flex flex-col shadow-modal border border-border ${
+            isClosing ? 'animate-modal-out' : isVisible ? 'animate-modal-in' : 'opacity-0'
+          }`}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Header */}
+          <div className="px-5 py-4 border-b border-border">
+            <div className="flex justify-between items-start mb-2">
+              <div className="flex-1 pr-3">
+                <h2 className="text-xl font-semibold text-text">{task.title}</h2>
+                {task.description && (
+                  <p className="text-sm text-text-muted mt-1">{task.description}</p>
                 )}
               </div>
-              <h2 className="font-serif text-2xl text-[var(--text)]">{task.title}</h2>
-              {task.description && (
-                <p className="text-[var(--text-soft)] mt-2">{task.description}</p>
-              )}
-            </div>
-            <button
-              onClick={onClose}
-              className="text-[var(--text-muted)] hover:text-[var(--text)] text-2xl leading-none"
-            >
-              x
-            </button>
-          </div>
-        </div>
-
-        {/* Error banner */}
-        {error && (
-          <div className="mx-6 mt-4 p-3 bg-[var(--rose-soft)] border border-[var(--rose)] rounded-xl">
-            <div className="flex items-start gap-2">
-              <span className="text-[var(--rose)]">⚠️</span>
-              <div className="flex-1">
-                <p className="text-[0.85rem] text-[var(--rose)]">{error}</p>
+              <div className="flex gap-2">
                 <button
-                  onClick={() => setError(null)}
-                  className="text-[0.75rem] text-[var(--rose)] underline mt-1"
+                  onClick={() => setShowDeleteConfirm(true)}
+                  className="w-8 h-8 flex items-center justify-center rounded-lg bg-danger-soft text-danger hover:scale-105 active:scale-95 transition-all"
+                  aria-label="Delete task"
                 >
-                  Dismiss
+                  🗑
+                </button>
+                <button
+                  onClick={handleClose}
+                  className="w-8 h-8 flex items-center justify-center rounded-lg bg-surface text-text-muted hover:text-text hover:scale-105 active:scale-95 transition-all"
+                  aria-label="Close modal"
+                >
+                  ×
                 </button>
               </div>
             </div>
+            <SegmentedProgress completed={completedCount} total={subtasks.length} />
+            <p className="text-xs text-text-muted mt-2">
+              {completedCount} of {subtasks.length} done
+            </p>
           </div>
-        )}
 
-        {/* Progress bar */}
-        {subtasks.length > 0 && (
-          <div className="px-6 pt-4">
-            <div className="flex items-center gap-3">
-              <div className="flex-1 h-2 bg-[var(--border-light)] rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-[var(--sage)] transition-all duration-300"
-                  style={{ width: progress + '%' }}
-                />
+          {/* Delete confirmation */}
+          {showDeleteConfirm && (
+            <div className="px-4 py-3 bg-danger-soft border-b border-border flex items-center justify-between">
+              <p className="text-sm text-danger">Delete this task?</p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setShowDeleteConfirm(false)}
+                  className="px-3 py-1.5 text-sm text-text-muted hover:text-text transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDeleteTask}
+                  className="px-3 py-1.5 text-sm bg-danger text-white rounded-lg hover:opacity-90 transition-opacity"
+                >
+                  Delete
+                </button>
               </div>
-              <span className="text-[0.8rem] text-[var(--text-muted)]">
-                {completedCount}/{subtasks.length}
-              </span>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Subtasks */}
-        <div className="p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-medium text-[var(--text)]">Break it down</h3>
-            <button
-              onClick={handleGenerateSubtasks}
-              disabled={isGenerating}
-              className="text-[0.8rem] text-[var(--accent)] hover:text-[var(--text)] transition-colors disabled:opacity-50"
-            >
-              {isGenerating ? 'Thinking...' : 'Suggest steps'}
-            </button>
-          </div>
+          {/* Error banner */}
+          {error && (
+            <div className="mx-4 mt-3 p-3 bg-danger-soft border border-danger rounded-lg">
+              <p className="text-sm text-danger">{error}</p>
+              <button
+                onClick={() => setError(null)}
+                className="text-xs text-danger underline mt-1"
+              >
+                Dismiss
+              </button>
+            </div>
+          )}
 
-          <div className="space-y-2 mb-4">
+          {/* Subtasks */}
+          <div className="flex-1 overflow-y-auto p-4">
             {subtasks.map((st) => {
-              // Detect special item types
-              const isGatherItem = st.title.toLowerCase().startsWith('gather:')
-              const isReminderItem = st.title.toLowerCase().startsWith('reminder:')
-              // Detect if there's a URL in the title
-              const urlMatch = st.title.match(/(https?:\/\/[^\s]+)/)
-              const hasUrl = !!urlMatch
-              
-              // Parse title and URL
-              let displayTitle = st.title
-              let url = ''
-              if (hasUrl && urlMatch) {
-                url = urlMatch[1]
-                displayTitle = st.title.replace(url, '').trim()
-                // Remove trailing colon if present
-                if (displayTitle.endsWith(':')) {
-                  displayTitle = displayTitle.slice(0, -1)
-                }
-              }
+              const { displayText, url } = parseSubtaskUrl(st.title)
+              const isDragging = draggedSubtask === st.id
+              const isDragOver = dragOverSubtask === st.id && draggedSubtask !== st.id
 
               return (
                 <div
                   key={st.id}
-                  className={`flex items-start gap-3 p-3 rounded-xl border group transition-all ${
-                    isGatherItem 
-                      ? 'bg-[var(--sky-soft)] border-[var(--sky-soft)]' 
-                      : isReminderItem
-                      ? 'bg-[var(--rose-soft)] border-[var(--rose-soft)]'
-                      : hasUrl
-                      ? 'bg-[var(--sage-soft)] border-[var(--sage-soft)]'
-                      : 'bg-white border-[var(--border-light)]'
-                  }`}
+                  className={`subtask-row flex items-start gap-3 p-3 rounded-md mb-1.5 transition-all ${
+                    st.completed ? 'bg-transparent opacity-50' : 'bg-surface'
+                  } ${isDragging ? 'opacity-40' : ''} ${isDragOver ? 'border-t-2 border-accent translate-y-0.5' : 'border-t-2 border-transparent'}`}
+                  draggable={editingSubtask !== st.id}
+                  onDragStart={(e) => handleDragStart(e, st.id)}
+                  onDragOver={(e) => handleDragOver(e, st.id)}
+                  onDragEnd={handleDragEnd}
+                  onDragLeave={() => setDragOverSubtask(null)}
+                  style={{ cursor: editingSubtask === st.id ? 'text' : 'grab' }}
                 >
-                  <button
-                    onClick={() => handleToggleSubtask(st.id)}
-                    className={'w-5 h-5 rounded-full border-2 flex-shrink-0 transition-all mt-0.5 ' +
-                      (st.completed
-                        ? 'bg-[var(--sage)] border-[var(--sage)]'
-                        : 'border-[var(--border)] hover:border-[var(--sage)]')
-                    }
-                  >
-                    {st.completed && (
-                      <svg className="w-full h-full text-white p-0.5" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                      </svg>
-                    )}
-                  </button>
+                  <Checkbox
+                    checked={st.completed}
+                    onToggle={() => handleToggleSubtask(st.id)}
+                  />
                   <div className="flex-1 min-w-0">
-                    <span className={`text-[0.9rem] ${st.completed ? 'line-through text-[var(--text-muted)]' : 'text-[var(--text)]'}`}>
-                      {isGatherItem && <span className="text-[var(--accent)] font-medium">📋 </span>}
-                      {isReminderItem && <span className="text-[var(--rose)] font-medium">🔔 </span>}
-                      {displayTitle}
-                    </span>
-                    {hasUrl && !st.completed && (
+                    {editingSubtask === st.id ? (
+                      <input
+                        autoFocus
+                        value={editingText}
+                        onChange={(e) => setEditingText(e.target.value)}
+                        onBlur={() => handleUpdateSubtaskText(st.id, editingText)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleUpdateSubtaskText(st.id, editingText)
+                          if (e.key === 'Escape') setEditingSubtask(null)
+                        }}
+                        className="w-full text-base px-2 py-1 rounded-md border border-accent bg-canvas text-text outline-none"
+                      />
+                    ) : (
+                      <p
+                        onClick={() => {
+                          setEditingSubtask(st.id)
+                          setEditingText(st.title)
+                        }}
+                        className={`text-base cursor-text leading-snug ${
+                          st.completed ? 'line-through text-text-muted' : 'text-text'
+                        }`}
+                      >
+                        {displayText}
+                      </p>
+                    )}
+                    {url && !st.completed && (
                       <a
                         href={url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex items-center gap-1.5 mt-1.5 text-[0.8rem] text-[var(--accent)] hover:text-[var(--text)] transition-colors"
+                        className="text-xs text-accent mt-1 inline-block hover:underline"
                         onClick={(e) => e.stopPropagation()}
                       >
-                        <span>→</span>
-                        <span className="underline truncate">{url.replace('https://', '').replace('www.', '').split('/')[0]}</span>
-                        <span className="text-[var(--text-muted)]">↗</span>
+                        Open link →
                       </a>
                     )}
                   </div>
-                  <button
-                    onClick={() => handleDeleteSubtask(st.id)}
-                    className="text-[var(--text-muted)] hover:text-[var(--rose)] opacity-0 group-hover:opacity-100 transition-opacity"
-                  >
-                    ×
-                  </button>
+                  <div className="subtask-actions flex items-center gap-1">
+                    <span className="text-text-muted text-sm px-1 cursor-grab">⋮⋮</span>
+                    <button
+                      onClick={() => handleDeleteSubtask(st.id)}
+                      className="w-7 h-7 flex items-center justify-center rounded-md bg-danger-soft text-danger text-sm hover:scale-105 active:scale-95 transition-all"
+                    >
+                      ×
+                    </button>
+                  </div>
                 </div>
               )
             })}
-          </div>
 
-          {/* Add subtask */}
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={newSubtask}
-              onChange={(e) => setNewSubtask(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleAddSubtask()}
-              placeholder="Add a step..."
-              className="flex-1 px-4 py-2.5 border border-[var(--border)] rounded-xl text-[0.9rem] bg-white focus:outline-none focus:border-[var(--accent)]"
-            />
+            {/* Add subtask button */}
             <button
-              onClick={handleAddSubtask}
-              className="px-4 py-2.5 bg-[var(--text)] text-white rounded-xl text-[0.9rem]"
+              onClick={() => {
+                const text = prompt('Add a step:')
+                if (text?.trim()) {
+                  const newSt: Subtask = {
+                    id: 'st_' + Date.now(),
+                    title: text.trim(),
+                    completed: false,
+                  }
+                  handleUpdate({ subtasks: [...subtasks, newSt] })
+                }
+              }}
+              className="w-full p-3 rounded-md border border-dashed border-border text-text-muted text-sm text-left mt-1 hover:border-accent hover:text-accent transition-colors"
             >
-              Add
+              + Add a step
             </button>
+
+            {/* AI suggest button */}
+            {subtasks.length === 0 && (
+              <button
+                onClick={handleGenerateSubtasks}
+                disabled={isGenerating}
+                className="w-full mt-3 p-3 rounded-md bg-accent-soft text-accent text-sm font-medium hover:bg-accent hover:text-white transition-colors disabled:opacity-50"
+              >
+                {isGenerating ? '🧠 Thinking...' : 'Break it down for me'}
+              </button>
+            )}
           </div>
-        </div>
 
-        {/* Notes */}
-        <div className="px-6 pb-6">
-          <h3 className="font-medium text-[var(--text)] mb-3">Notes and context</h3>
-          <textarea
-            value={notes}
-            onChange={(e) => handleNotesChange(e.target.value)}
-            placeholder="Add any context, links, or notes that might help..."
-            rows={4}
-            className="w-full px-4 py-3 border border-[var(--border)] rounded-xl text-[0.9rem] bg-white focus:outline-none focus:border-[var(--accent)] resize-none"
-          />
-        </div>
+          {/* Chat area */}
+          <div className="border-t border-border bg-surface">
+            {/* Chat messages */}
+            {chatMessages.length > 0 && (
+              <div className="max-h-[150px] overflow-y-auto px-4 py-3">
+                {chatMessages.map((msg, i) => (
+                  <div
+                    key={i}
+                    className={`mb-2 ${msg.role === 'user' ? 'text-right' : 'text-left'}`}
+                  >
+                    <span
+                      className={`inline-block px-3 py-2 rounded-xl text-sm leading-snug max-w-[85%] ${
+                        msg.role === 'user'
+                          ? 'bg-accent text-white'
+                          : 'bg-elevated text-text'
+                      }`}
+                    >
+                      {msg.text}
+                    </span>
+                  </div>
+                ))}
+                {chatThinking && (
+                  <div className="flex gap-1 py-2">
+                    {[0, 1, 2].map((i) => (
+                      <div
+                        key={i}
+                        className="w-2 h-2 rounded-full bg-text-muted animate-dot-pulse"
+                        style={{ animationDelay: `${i * 0.15}s` }}
+                      />
+                    ))}
+                  </div>
+                )}
+                <div ref={chatEndRef} />
+              </div>
+            )}
 
-        {/* Footer */}
-        <div className="px-6 pb-6 flex gap-3">
-          <button
-            onClick={handleCompleteTask}
-            className="flex-1 py-3 bg-[var(--sage)] text-white rounded-xl text-[0.9rem] hover:opacity-90 transition-opacity"
-          >
-            Mark complete
-          </button>
-          <button
-            onClick={onClose}
-            className="px-6 py-3 border border-[var(--border)] text-[var(--text-muted)] rounded-xl text-[0.9rem] hover:bg-[var(--bg-warm)] transition-colors"
-          >
-            Close
-          </button>
+            {/* Chat input */}
+            <div className="p-3 flex gap-2">
+              <input
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleChat()}
+                placeholder="Ask me anything about this task..."
+                className="flex-1 px-3 py-2.5 rounded-md border border-border bg-elevated text-text text-sm outline-none focus:border-accent"
+              />
+              {chatInput && (
+                <button
+                  onClick={handleChat}
+                  className="px-4 py-2.5 rounded-md bg-accent text-white text-sm font-medium hover:opacity-90 transition-opacity"
+                >
+                  Send
+                </button>
+              )}
+            </div>
+          </div>
         </div>
       </div>
-    </div>
+    </>
   )
 }

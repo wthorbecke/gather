@@ -3,7 +3,8 @@
 import { useState, useRef } from 'react'
 import { TaskCard } from './TaskCard'
 import { TaskDetailModal } from './TaskDetailModal'
-import { Task, ClarifyingAnswer } from '@/hooks/useUserData'
+import { Task, ClarifyingAnswer, Subtask } from '@/hooks/useUserData'
+import { Modal } from './Modal'
 
 // Quick local analysis for urgency/waiting detection (AI handles complexity)
 function quickAnalyze(title: string): { suggestedCategory: 'urgent' | 'soon' | 'waiting'; suggestedBadge?: string } {
@@ -65,15 +66,17 @@ interface TasksPanelProps {
 
 export function TasksPanel({ tasks, onOpenEmail, onOpenAIChat, onAddTask, onUpdateTask, onCompleteTask }: TasksPanelProps) {
   const [quickInput, setQuickInput] = useState('')
+  const [inputFocused, setInputFocused] = useState(false)
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [pendingTask, setPendingTask] = useState<PendingTask | null>(null)
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
   const [isGeneratingSubtasks, setIsGeneratingSubtasks] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
-  const urgentTasks = tasks.filter((t) => t.category === 'urgent')
-  const soonTasks = tasks.filter((t) => t.category === 'soon')
-  const waitingTasks = tasks.filter((t) => t.category === 'waiting')
+  // Filter out completed tasks
+  const activeTasks = tasks.filter((t) => t.category !== 'completed')
+  const totalSteps = activeTasks.reduce((acc, t) => acc + (t.subtasks?.length || 0), 0)
+  const completedSteps = activeTasks.reduce((acc, t) => acc + (t.subtasks?.filter(s => s.completed).length || 0), 0)
 
   // Quick add - analyzes with AI
   const handleQuickAdd = async () => {
@@ -81,14 +84,14 @@ export function TasksPanel({ tasks, onOpenEmail, onOpenAIChat, onAddTask, onUpda
 
     const title = quickInput.trim()
     const { suggestedCategory, suggestedBadge } = quickAnalyze(title)
-    
+
     setQuickInput('')
     setIsAnalyzing(true)
 
     try {
       // Call AI to analyze the task with a timeout
       const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 15000) // 15 second timeout for AI analysis
+      const timeoutId = setTimeout(() => controller.abort(), 15000)
 
       const response = await fetch('/api/analyze-task', {
         method: 'POST',
@@ -101,7 +104,7 @@ export function TasksPanel({ tasks, onOpenEmail, onOpenAIChat, onAddTask, onUpda
 
       if (response.ok) {
         const analysis: AIAnalysis = await response.json()
-        
+
         if (analysis.needsClarification && analysis.questions.length > 0) {
           // Show clarifying questions
           setPendingTask({
@@ -120,12 +123,12 @@ export function TasksPanel({ tasks, onOpenEmail, onOpenAIChat, onAddTask, onUpda
         // AI failed, add task anyway
         onAddTask(title, suggestedCategory, undefined, suggestedBadge)
       }
-    } catch (error) {
+    } catch {
       // Timeout or error - add task without analysis
       console.log('AI analysis skipped (timeout or error), adding task directly')
       onAddTask(title, suggestedCategory, undefined, suggestedBadge)
     }
-    
+
     setIsAnalyzing(false)
   }
 
@@ -140,7 +143,7 @@ export function TasksPanel({ tasks, onOpenEmail, onOpenAIChat, onAddTask, onUpda
     }]
 
     const nextIndex = pendingTask.currentQuestionIndex + 1
-    
+
     if (nextIndex < pendingTask.analysis.questions.length) {
       // More questions to ask
       setPendingTask({
@@ -157,7 +160,7 @@ export function TasksPanel({ tasks, onOpenEmail, onOpenAIChat, onAddTask, onUpda
   // Skip remaining questions and add task
   const handleSkipQuestions = () => {
     if (!pendingTask) return
-    
+
     onAddTask(
       pendingTask.title,
       pendingTask.category,
@@ -174,7 +177,7 @@ export function TasksPanel({ tasks, onOpenEmail, onOpenAIChat, onAddTask, onUpda
     if (!pendingTask) return
 
     setIsGeneratingSubtasks(true)
-    
+
     // Add the task first
     const newTask = await onAddTask(
       pendingTask.title,
@@ -199,7 +202,7 @@ export function TasksPanel({ tasks, onOpenEmail, onOpenAIChat, onAddTask, onUpda
 
       if (response.ok && newTask && onUpdateTask) {
         const { subtasks } = await response.json()
-        const subtaskObjects = subtasks.map((title: string, i: number) => ({
+        const subtaskObjects: Subtask[] = subtasks.map((title: string, i: number) => ({
           id: `st_${Date.now()}_${i}`,
           title,
           completed: false,
@@ -243,78 +246,97 @@ export function TasksPanel({ tasks, onOpenEmail, onOpenAIChat, onAddTask, onUpda
 
   // Get current question if pending
   const currentQuestion = pendingTask?.analysis?.questions[pendingTask.currentQuestionIndex]
-  const questionsRemaining = pendingTask?.analysis 
-    ? pendingTask.analysis.questions.length - pendingTask.currentQuestionIndex 
-    : 0
 
   return (
     <div className="animate-fade-in">
-      {/* Quick Capture Input - Always Visible */}
-      <div className="mb-8">
-        <div className="relative">
-          <input
-            ref={inputRef}
-            type="text"
-            value={quickInput}
-            onChange={(e) => setQuickInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault()
-                handleQuickAdd()
-              }
-            }}
-            placeholder="What's on your mind? Just type and press enter..."
-            disabled={isAnalyzing}
-            className="w-full px-5 py-4 bg-white border border-[var(--border-light)] rounded-2xl text-[1rem] focus:outline-none focus:border-[var(--accent)] focus:shadow-soft-hover transition-all placeholder:text-[var(--text-muted)] disabled:opacity-50"
-          />
-          {quickInput && !isAnalyzing && (
-            <button
-              onClick={handleQuickAdd}
-              className="absolute right-3 top-1/2 -translate-y-1/2 px-4 py-2 bg-[var(--text)] text-white text-sm rounded-lg hover:bg-[var(--text-soft)] transition-colors"
-            >
-              Add
-            </button>
-          )}
-          {isAnalyzing && (
-            <div className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--text-muted)] text-sm">
-              Thinking...
-            </div>
-          )}
+      {/* Hero Input */}
+      <div className="mb-12">
+        <div
+          className={`bg-elevated rounded-2xl border transition-all duration-300 ease-spring ${
+            inputFocused
+              ? 'border-accent shadow-elevated scale-[1.01]'
+              : 'border-border shadow-soft'
+          }`}
+        >
+          <div className="p-6 pb-4">
+            <input
+              ref={inputRef}
+              type="text"
+              value={quickInput}
+              onChange={(e) => setQuickInput(e.target.value)}
+              onFocus={() => setInputFocused(true)}
+              onBlur={() => setInputFocused(false)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault()
+                  handleQuickAdd()
+                }
+              }}
+              placeholder="What's on your mind?"
+              disabled={isAnalyzing}
+              className="w-full text-2xl font-medium bg-transparent border-none outline-none text-text placeholder:text-text-muted disabled:opacity-50"
+            />
+          </div>
+          <div className="px-6 pb-5 flex justify-between items-center">
+            <p className="text-sm text-text-muted">
+              {inputFocused ? "I'll break it into steps" : "Dump it here — I'll make it doable"}
+            </p>
+            {quickInput && !isAnalyzing && (
+              <button
+                onClick={handleQuickAdd}
+                className="px-5 py-2.5 bg-accent text-white text-sm font-semibold rounded-md hover:opacity-90 active:scale-[0.97] transition-all ml-3"
+              >
+                Break it down
+              </button>
+            )}
+            {isAnalyzing && (
+              <div className="flex items-center gap-2 text-text-muted text-sm ml-3">
+                <span className="animate-float">🧠</span>
+                <span>Thinking...</span>
+              </div>
+            )}
+          </div>
         </div>
-        <p className="text-[0.75rem] text-[var(--text-muted)] mt-2 ml-1">
-          Pro tip: Just brain dump. I'll ask smart questions to help you get it done.
-        </p>
       </div>
 
       {/* AI Clarifying Questions Modal */}
       {pendingTask && currentQuestion && (
-        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-xl animate-fade-in">
+        <Modal
+          isOpen={true}
+          onClose={() => setPendingTask(null)}
+          maxWidth="440px"
+          showHeader={false}
+        >
+          <div className="p-6">
             {/* Task title */}
-            <div className="mb-4 pb-4 border-b border-[var(--border-light)]">
-              <div className="text-[0.75rem] text-[var(--text-muted)] uppercase tracking-wider mb-1">Adding task</div>
-              <h3 className="font-serif text-lg text-[var(--text)]">{pendingTask.title}</h3>
-              {pendingTask.analysis?.immediateInsight && (
-                <p className="text-[0.85rem] text-[var(--accent)] mt-2">
-                  💡 {pendingTask.analysis.immediateInsight}
-                </p>
-              )}
+            <div className="mb-5">
+              <h2 className="text-xl font-semibold text-text">{pendingTask.title}</h2>
+              <p className="text-sm text-text-muted mt-1">Let me break this down</p>
             </div>
+
+            {/* AI insight */}
+            {pendingTask.analysis?.immediateInsight && (
+              <div className="p-4 bg-surface rounded-lg mb-5 border-l-[3px] border-accent">
+                <p className="text-sm text-text-soft leading-relaxed">
+                  {pendingTask.analysis.immediateInsight}
+                </p>
+              </div>
+            )}
 
             {/* Question */}
-            <div className="mb-6">
-              <p className="text-[var(--text)] mb-2">{currentQuestion.question}</p>
-              <p className="text-[0.8rem] text-[var(--text-muted)]">{currentQuestion.why}</p>
+            <div className="mb-5">
+              <p className="font-medium text-text mb-2">{currentQuestion.question}</p>
+              <p className="text-sm text-text-soft">{currentQuestion.why}</p>
             </div>
 
-            {/* Options or free text */}
+            {/* Options */}
             {currentQuestion.options ? (
-              <div className="flex flex-wrap gap-2 mb-4">
+              <div className="flex flex-wrap gap-2 mb-5">
                 {currentQuestion.options.map((option, i) => (
                   <button
                     key={i}
                     onClick={() => handleAnswerQuestion(option)}
-                    className="px-4 py-2.5 bg-[var(--bg-warm)] border border-[var(--border-light)] rounded-xl text-[0.9rem] text-[var(--text)] hover:bg-[var(--sky-soft)] hover:border-[var(--sky)] transition-colors"
+                    className="flex-1 min-w-[120px] px-4 py-3 bg-transparent border border-border rounded-lg text-sm text-text hover:bg-surface active:scale-[0.98] transition-all"
                   >
                     {option}
                   </button>
@@ -325,7 +347,7 @@ export function TasksPanel({ tasks, onOpenEmail, onOpenAIChat, onAddTask, onUpda
                 type="text"
                 placeholder="Type your answer..."
                 autoFocus
-                className="w-full px-4 py-3 bg-white border border-[var(--border)] rounded-xl text-[0.9rem] focus:outline-none focus:border-[var(--accent)] mb-4"
+                className="w-full px-4 py-3 bg-elevated border border-border rounded-md text-sm text-text outline-none focus:border-accent mb-5"
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && (e.target as HTMLInputElement).value) {
                     handleAnswerQuestion((e.target as HTMLInputElement).value)
@@ -334,130 +356,87 @@ export function TasksPanel({ tasks, onOpenEmail, onOpenAIChat, onAddTask, onUpda
               />
             )}
 
-            {/* Progress and skip */}
-            <div className="flex items-center justify-between pt-4 border-t border-[var(--border-light)]">
-              <span className="text-[0.75rem] text-[var(--text-muted)]">
+            {/* Footer */}
+            <div className="flex items-center justify-between pt-4 border-t border-border">
+              <span className="text-xs text-text-muted">
                 Question {pendingTask.currentQuestionIndex + 1} of {pendingTask.analysis?.questions.length}
               </span>
               <div className="flex gap-2">
                 <button
                   onClick={handleAddWithoutQuestions}
-                  className="px-4 py-2 text-[0.85rem] text-[var(--text-muted)] hover:text-[var(--text)] transition-colors"
+                  className="px-4 py-2 text-sm text-text-muted hover:text-text transition-colors"
                 >
-                  Skip all
+                  Cancel
                 </button>
                 {pendingTask.answers.length > 0 && (
                   <button
                     onClick={handleSkipQuestions}
-                    className="px-4 py-2 text-[0.85rem] text-[var(--accent)] hover:text-[var(--text)] transition-colors"
+                    className="px-4 py-2 bg-accent text-white text-sm font-medium rounded-lg hover:opacity-90 transition-opacity"
                   >
-                    Done, add task
+                    Add this
                   </button>
                 )}
               </div>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
 
       {/* Generating subtasks overlay */}
       {isGeneratingSubtasks && (
-        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-8 max-w-sm w-full shadow-xl text-center">
-            <div className="text-3xl mb-4">🧠</div>
-            <p className="text-[var(--text)]">Creating your action plan...</p>
-            <p className="text-[0.85rem] text-[var(--text-muted)] mt-2">Using your answers to break this down into doable steps</p>
+        <Modal isOpen={true} onClose={() => {}} maxWidth="350px" showHeader={false}>
+          <div className="p-8 text-center">
+            <div className="text-4xl mb-4 animate-float">🧠</div>
+            <p className="font-medium text-text">Researching...</p>
+            <p className="text-sm text-text-muted mt-2">Creating your action plan</p>
+          </div>
+        </Modal>
+      )}
+
+      {/* Task List */}
+      {activeTasks.length > 0 && (
+        <div>
+          <div className="flex justify-between items-center mb-4">
+            <p className="text-sm font-semibold text-text-muted uppercase tracking-wide">
+              In progress
+            </p>
+            {totalSteps > 0 && (
+              <p className="text-sm text-text-muted">
+                {completedSteps}/{totalSteps} steps
+              </p>
+            )}
+          </div>
+          <div>
+            {activeTasks.map((task, i) => {
+              const progress = getSubtaskProgress(task)
+              return (
+                <div
+                  key={task.id}
+                  style={{ animationDelay: `${i * 80}ms` }}
+                  className="animate-fade-up"
+                >
+                  <TaskCard
+                    title={task.title}
+                    context={task.description}
+                    badge={task.badge}
+                    category={task.category as 'urgent' | 'soon' | 'waiting'}
+                    actions={mapActions(task)}
+                    onClick={() => setSelectedTask(task)}
+                    subtaskProgress={progress}
+                  />
+                </div>
+              )
+            })}
           </div>
         </div>
       )}
 
       {/* Empty State */}
-      {tasks.length === 0 && !pendingTask && (
-        <div className="text-center py-12">
-          <div className="text-4xl mb-4 opacity-50">✓</div>
-          <p className="text-[var(--text-soft)] mb-2">No tasks right now.</p>
-          <p className="text-[var(--text-muted)] text-sm">Type above to add something.</p>
-        </div>
-      )}
-
-      {/* Urgent / Needs attention */}
-      {urgentTasks.length > 0 && (
-        <div className="mb-10">
-          <div className="flex items-center gap-3 mb-4 pb-3 border-b border-[var(--border-light)]">
-            <h2 className="font-serif text-xl font-medium text-[var(--text)]">Needs attention</h2>
-            <span className="text-[0.75rem] text-[var(--rose)] bg-[var(--rose-soft)] px-2 py-0.5 rounded-full">
-              {urgentTasks.length}
-            </span>
-          </div>
-          {urgentTasks.map((task) => {
-            const progress = getSubtaskProgress(task)
-            return (
-              <TaskCard
-                key={task.id}
-                title={task.title}
-                badge={task.badge || 'Urgent'}
-                category="urgent"
-                description={task.description || ''}
-                actions={mapActions(task)}
-                onClick={() => setSelectedTask(task)}
-                subtaskProgress={progress}
-              />
-            )
-          })}
-        </div>
-      )}
-
-      {/* Soon */}
-      {soonTasks.length > 0 && (
-        <div className="mb-10">
-          <div className="flex items-center gap-3 mb-4 pb-3 border-b border-[var(--border-light)]">
-            <h2 className="font-serif text-xl font-medium text-[var(--text)]">Coming up</h2>
-            <span className="text-[0.75rem] text-[var(--accent)] bg-[var(--bg-warm)] px-2 py-0.5 rounded-full">
-              {soonTasks.length}
-            </span>
-          </div>
-          {soonTasks.map((task) => {
-            const progress = getSubtaskProgress(task)
-            return (
-              <TaskCard
-                key={task.id}
-                title={task.title}
-                badge={task.badge || 'Soon'}
-                category="soon"
-                description={task.description || ''}
-                actions={mapActions(task)}
-                onClick={() => setSelectedTask(task)}
-                subtaskProgress={progress}
-              />
-            )
-          })}
-        </div>
-      )}
-
-      {/* Waiting on */}
-      {waitingTasks.length > 0 && (
-        <div className="mb-10">
-          <div className="flex items-center gap-3 mb-4 pb-3 border-b border-[var(--border-light)]">
-            <h2 className="font-serif text-xl font-medium text-[var(--text)]">Waiting on</h2>
-            <span className="text-[0.75rem] text-[var(--sage)] bg-[var(--sage-soft)] px-2 py-0.5 rounded-full">
-              {waitingTasks.length}
-            </span>
-          </div>
-          {waitingTasks.map((task) => {
-            const progress = getSubtaskProgress(task)
-            return (
-              <TaskCard
-                key={task.id}
-                title={task.title}
-                badge={task.badge || 'Waiting'}
-                category="waiting"
-                onClick={() => setSelectedTask(task)}
-                description={task.description || ''}
-                actions={mapActions(task)}
-                subtaskProgress={progress}
-              />
-            )
-          })}
+      {activeTasks.length === 0 && !pendingTask && (
+        <div className="text-center py-16">
+          <div className="text-4xl mb-4">✨</div>
+          <p className="text-base text-text-soft mb-1">Nothing yet.</p>
+          <p className="text-sm text-text-muted">Type something above to start.</p>
         </div>
       )}
 

@@ -2,50 +2,57 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=DM+Sans:wght@400;500&display=swap');
-
+/* Light mode (default) */
 :root {
-  --bg: #FAF9F7;
-  --bg-warm: #F5F3EF;
-  --bg-card: #FFFFFF;
-  --border: #E8E4DD;
-  --border-light: #F0EDE8;
-  --text: #2C2825;
-  --text-soft: #6B635A;
-  --text-muted: #9B9389;
-  --accent: #8B7355;
-  --accent-soft: #C4B5A0;
-  --sage: #7D8B75;
-  --sage-soft: #E8EBE6;
-  --rose: #C4A07A;
-  --rose-soft: #F5EDE4;
-  --sky: #7A95A8;
-  --sky-soft: #E8EEF2;
+  --canvas: #FAFAFA;
+  --surface: rgba(0, 0, 0, 0.03);
+  --elevated: #FFFFFF;
+  --text: #171717;
+  --text-soft: #525252;
+  --text-muted: #a3a3a3;
+  --accent: #E07A5F;
+  --accent-soft: rgba(224, 122, 95, 0.1);
+  --success: #6B9080;
+  --success-soft: rgba(107, 144, 128, 0.1);
+  --border: rgba(0, 0, 0, 0.06);
+  --danger: #DC6B6B;
+  --danger-soft: rgba(220, 107, 107, 0.1);
+}
+
+/* Dark mode */
+.dark {
+  --canvas: #0a0a0a;
+  --surface: rgba(255, 255, 255, 0.05);
+  --elevated: #141414;
+  --text: #f5f5f5;
+  --text-soft: #a0a0a0;
+  --text-muted: #555555;
+  --accent: #E8A990;
+  --accent-soft: rgba(232, 169, 144, 0.12);
+  --success: #9ECBB3;
+  --success-soft: rgba(158, 203, 179, 0.12);
+  --border: rgba(255, 255, 255, 0.1);
+  --danger: #E87A7A;
+  --danger-soft: rgba(232, 122, 122, 0.12);
+}
+
+* {
+  box-sizing: border-box;
 }
 
 body {
-  font-family: 'DM Sans', sans-serif;
-  background: var(--bg);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--canvas);
   color: var(--text);
   min-height: 100vh;
   line-height: 1.6;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
-/* Subtle grain texture */
-body::before {
-  content: '';
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  opacity: 0.03;
-  pointer-events: none;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
-}
-
-.font-serif {
-  font-family: 'Cormorant Garamond', serif;
+/* Input placeholder styling */
+input::placeholder,
+textarea::placeholder {
+  color: var(--text-muted);
 }
 
 /* Loading dots animation */
@@ -69,4 +76,90 @@ body::before {
 
 .animate-fade-in {
   animation: fadeIn 0.4s ease;
+}
+
+/* Subtask row hover states */
+.subtask-row:hover .subtask-actions {
+  opacity: 1;
+}
+
+.subtask-actions {
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.subtask-row[draggable="true"]:active {
+  cursor: grabbing;
+}
+
+/* Focus ring utility */
+.focus-ring:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+/* Button press animation */
+.btn-press:active {
+  transform: scale(0.97);
+}
+
+/* Card hover lift */
+.card-hover {
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.card-hover:hover {
+  transform: scale(1.01) translateY(-2px);
+  box-shadow: 0 8px 24px -8px rgba(0, 0, 0, 0.12);
+}
+
+/* Checkbox animation */
+.checkbox-check {
+  stroke-dasharray: 16;
+  stroke-dashoffset: 16;
+  transition: stroke-dashoffset 0.25s ease-out;
+}
+
+.checkbox-checked .checkbox-check {
+  stroke-dashoffset: 0;
+}
+
+/* Progress segment animation */
+.progress-segment {
+  transition: background-color 0.3s ease;
+}
+
+/* Confetti animation */
+@keyframes confettiFall {
+  0% {
+    transform: translateY(-100vh) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(100vh) rotate(720deg);
+    opacity: 0;
+  }
+}
+
+.confetti-piece {
+  animation: confettiFall var(--fall-duration, 3s) linear var(--fall-delay, 0s) forwards;
+}
+
+/* Scrollbar styling for dark mode consistency */
+.dark ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.dark ::-webkit-scrollbar-track {
+  background: var(--surface);
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
 }

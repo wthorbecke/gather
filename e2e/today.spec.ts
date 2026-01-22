@@ -4,15 +4,13 @@ import { enterDemoMode, navigateToTab, screenshot } from './helpers'
 test.describe('Today Panel (Habits)', () => {
   test.beforeEach(async ({ page }) => {
     await enterDemoMode(page)
-    // Today tab is selected by default
+    // Navigate to Today tab (Tasks is now the default)
+    await navigateToTab(page, 'Today')
   })
 
-  test('displays current date', async ({ page }) => {
-    // Should show today's date formatted nicely
-    const today = new Date()
-    const dayName = today.toLocaleDateString('en-US', { weekday: 'long' })
-
-    await expect(page.locator(`text=${dayName}`)).toBeVisible()
+  test('displays habits panel', async ({ page }) => {
+    // Should show the Today panel content
+    await expect(page.locator('text=Make bed')).toBeVisible()
   })
 
   test('displays demo habits on load', async ({ page }) => {
@@ -27,37 +25,36 @@ test.describe('Today Panel (Habits)', () => {
     await expect(page.locator('text=Read for 10 min')).toBeVisible()
   })
 
-  test('shows habit categories', async ({ page }) => {
-    // Look for category headers or sections
-    await screenshot(page, 'today-panel-categories')
+  test('shows habit sections', async ({ page }) => {
+    // Look for section headers
+    await expect(page.locator('text=Morning')).toBeVisible()
+    await expect(page.locator('text=Daily play')).toBeVisible()
+    await expect(page.locator('text=When you can')).toBeVisible()
 
-    // The habits should be organized (check for section structure)
-    const habitItems = page.locator('text=Make bed')
-    await expect(habitItems).toBeVisible()
+    await screenshot(page, 'today-panel-categories')
   })
 
   test('can toggle habit completion', async ({ page }) => {
-    // Find the "Make bed" habit which starts checked in demo
-    const makeBedRow = page.locator('text=Make bed').locator('..')
-
+    // Find the "Make bed" habit (starts checked in demo)
+    const makeBedItem = page.locator('text=Make bed').locator('..')
+    
     // Click to toggle
-    await makeBedRow.click()
+    await makeBedItem.click()
     await screenshot(page, 'after-toggle-habit')
   })
 
   test('Wordle habit has external link', async ({ page }) => {
-    // The Wordle habit should have a link to NYTimes
-    const wordleItem = page.locator('text=Wordle')
-    await expect(wordleItem).toBeVisible()
+    // The Wordle habit should have a link
+    await expect(page.locator('text=Wordle')).toBeVisible()
+    await expect(page.locator('a:has-text("play")')).toBeVisible()
 
-    // Check if there's a link nearby
     await screenshot(page, 'wordle-habit')
   })
 
   test('habits persist state during session', async ({ page }) => {
-    // Toggle a habit
-    const drinkWaterRow = page.locator('text=Drink water').locator('..')
-    await drinkWaterRow.click()
+    // Toggle a habit by clicking on it
+    const drinkWaterItem = page.locator('text=Drink water').locator('..')
+    await drinkWaterItem.click()
 
     // Navigate away and back
     await navigateToTab(page, 'Tasks')
@@ -76,5 +73,11 @@ test.describe('Today Panel (Habits)', () => {
     await expect(page.locator('text=Drink water')).toBeVisible()
     await expect(page.locator('text=Wordle')).toBeVisible()
     await expect(page.locator('text=Read for 10 min')).toBeVisible()
+  })
+
+  test('shows daily quote', async ({ page }) => {
+    // The Today panel should show a motivational quote
+    // Look for quote attribution marker
+    await expect(page.locator('[class*="italic"]')).toBeVisible()
   })
 })

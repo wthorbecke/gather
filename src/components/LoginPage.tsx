@@ -10,21 +10,21 @@ export function LoginPage({ onTryDemo }: LoginPageProps) {
   const { signInWithGoogle } = useAuth()
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-6">
+    <div className="min-h-screen flex items-center justify-center px-6 bg-canvas">
       <div className="max-w-md w-full">
         {/* Logo / Header */}
-        <div className="text-center mb-12">
-          <h1 className="font-serif text-5xl font-normal text-[var(--text)] tracking-tight mb-4">
+        <div className="text-center mb-10">
+          <h1 className="text-4xl font-semibold text-text tracking-tight mb-3">
             Gather
           </h1>
-          <p className="text-[var(--text-soft)] text-lg leading-relaxed">
-            An executive function layer for the rest of us
+          <p className="text-text-soft text-lg leading-relaxed">
+            Dump it here — I'll make it doable
           </p>
         </div>
 
         {/* Quote */}
-        <div className="text-center p-8 mb-10 bg-gradient-to-br from-[var(--rose-soft)] to-[var(--bg)] rounded-2xl">
-          <p className="font-serif text-xl italic text-[var(--text)] mb-3 leading-relaxed">
+        <div className="text-center p-6 mb-8 bg-accent-soft rounded-2xl">
+          <p className="text-lg text-text leading-relaxed">
             "The part of your brain that ADHD impacts, externalized into software."
           </p>
         </div>
@@ -32,7 +32,7 @@ export function LoginPage({ onTryDemo }: LoginPageProps) {
         {/* Sign in button */}
         <button
           onClick={signInWithGoogle}
-          className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-white border border-[var(--border)] rounded-xl text-[var(--text)] hover:shadow-soft-hover hover:border-[var(--accent-soft)] transition-all"
+          className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-elevated border border-border rounded-xl text-text hover:shadow-hover hover:border-accent transition-all btn-press"
         >
           <svg className="w-5 h-5" viewBox="0 0 24 24">
             <path
@@ -58,29 +58,25 @@ export function LoginPage({ onTryDemo }: LoginPageProps) {
         {onTryDemo && (
           <button
             onClick={onTryDemo}
-            className="w-full mt-3 px-6 py-3 text-[var(--text-muted)] hover:text-[var(--text)] text-sm transition-colors"
+            className="w-full mt-3 px-6 py-3 text-text-muted hover:text-text text-sm transition-colors"
           >
             Try demo (no sign in)
           </button>
         )}
 
         {/* Features */}
-        <div className="mt-12 space-y-4 text-sm text-[var(--text-muted)]">
+        <div className="mt-10 space-y-3 text-sm text-text-soft">
           <div className="flex items-start gap-3">
-            <span className="text-[var(--sage)]">✓</span>
-            <span>Proactive check-ins that reach out first</span>
+            <span className="text-success">✓</span>
+            <span>AI breaks down overwhelming tasks into doable steps</span>
           </div>
           <div className="flex items-start gap-3">
-            <span className="text-[var(--sage)]">✓</span>
-            <span>AI that breaks down overwhelming tasks</span>
+            <span className="text-success">✓</span>
+            <span>Ongoing collaboration when you get stuck</span>
           </div>
           <div className="flex items-start gap-3">
-            <span className="text-[var(--sage)]">✓</span>
-            <span>Soul tracking for what actually matters</span>
-          </div>
-          <div className="flex items-start gap-3">
-            <span className="text-[var(--sage)]">✓</span>
-            <span>No judgment, no streaks — just awareness</span>
+            <span className="text-success">✓</span>
+            <span>No judgment, no guilt — just progress</span>
           </div>
         </div>
       </div>

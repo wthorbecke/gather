@@ -77,7 +77,8 @@ export function setupApiErrorMonitoring(page: Page) {
 export async function enterDemoMode(page: Page) {
   await page.goto('/')
   await page.getByRole('button', { name: /try demo/i }).click()
-  await page.waitForSelector('text=Today')
+  // Wait for the main app to load (Sign in button appears in demo mode)
+  await page.waitForSelector('button:has-text("Sign in")')
 }
 
 /**
@@ -108,12 +109,12 @@ export async function addTask(
   await quickInput.press('Enter')
 
   // Wait for AI analysis - could show "Thinking...", then modal, or just add task
-  // The app has an 8-second timeout for AI, so we wait up to 12 seconds
-  const skipButton = page.getByRole('button', { name: /skip all/i })
-  if (await skipButton.isVisible({ timeout: 12000 }).catch(() => false)) {
-    await skipButton.click()
+  // The app has a 15-second timeout for AI, so we wait up to 18 seconds
+  const cancelButton = page.getByRole('button', { name: 'Cancel' })
+  if (await cancelButton.isVisible({ timeout: 18000 }).catch(() => false)) {
+    await cancelButton.click()
     // Wait for modal to close
-    await expect(skipButton).not.toBeVisible({ timeout: 5000 }).catch(() => {})
+    await expect(cancelButton).not.toBeVisible({ timeout: 5000 }).catch(() => {})
     await page.waitForTimeout(500)
   } else {
     // No modal appeared - AI either added task directly or timed out

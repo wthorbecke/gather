@@ -1,11 +1,12 @@
 import type { Metadata, Viewport } from 'next'
 import { AuthProvider } from '@/components/AuthProvider'
+import { ThemeProvider } from '@/components/ThemeProvider'
 import { PushNotifications } from '@/components/PushNotifications'
 import './globals.css'
 
 export const metadata: Metadata = {
   title: 'Gather',
-  description: 'Your calm companion for getting things done',
+  description: 'Dump it here — I\'ll make it doable',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
@@ -22,7 +23,7 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
-  themeColor: '#FAF9F7',
+  themeColor: '#FAFAFA',
 }
 
 export default function RootLayout({
@@ -31,12 +32,14 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en">
-      <body className="antialiased">
-        <AuthProvider>
-          {children}
-          <PushNotifications />
-        </AuthProvider>
+    <html lang="en" suppressHydrationWarning>
+      <body className="antialiased bg-canvas text-text">
+        <ThemeProvider>
+          <AuthProvider>
+            {children}
+            <PushNotifications />
+          </AuthProvider>
+        </ThemeProvider>
       </body>
     </html>
   )
