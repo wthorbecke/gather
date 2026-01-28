@@ -10,12 +10,34 @@ interface TaskListItemProps {
   onDelete?: () => void
 }
 
+// Source icons for tasks created from integrations
+const SourceIcon = ({ source }: { source: string }) => {
+  if (source === 'email' || source === 'gmail') {
+    return (
+      <svg width={12} height={12} viewBox="0 0 24 24" className="text-text-muted" aria-label="From email">
+        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" stroke="currentColor" strokeWidth="2" fill="none"/>
+        <polyline points="22,6 12,13 2,6" stroke="currentColor" strokeWidth="2" fill="none"/>
+      </svg>
+    )
+  }
+  if (source === 'calendar') {
+    return (
+      <svg width={12} height={12} viewBox="0 0 24 24" className="text-text-muted" aria-label="From calendar">
+        <rect x="3" y="4" width="18" height="18" rx="2" stroke="currentColor" strokeWidth="2" fill="none"/>
+        <line x1="16" y1="2" x2="16" y2="6" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+        <line x1="8" y1="2" x2="8" y2="6" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+        <line x1="3" y1="10" x2="21" y2="10" stroke="currentColor" strokeWidth="2"/>
+      </svg>
+    )
+  }
+  return null
+}
+
 export function TaskListItem({ task, onClick, onDelete }: TaskListItemProps) {
-  const [showDelete, setShowDelete] = useState(false)
+  const [showMenu, setShowMenu] = useState(false)
   const steps = task.steps || []
   const done = steps.filter((s) => s.done).length
   const total = steps.length
-  const progress = total > 0 ? (done / total) * 100 : 0
 
   // Context processing
   const contextText = task.context_text?.trim() || ''
@@ -37,69 +59,82 @@ export function TaskListItem({ task, onClick, onDelete }: TaskListItemProps) {
   return (
     <div
       onClick={onClick}
-      onMouseEnter={() => setShowDelete(true)}
-      onMouseLeave={() => setShowDelete(false)}
       className="
-        group relative
-        bg-card rounded-lg p-4
+        group
+        bg-card rounded-md
         border border-border
         cursor-pointer
-        transition-all duration-150 ease-out
-        hover:shadow-card-hover hover:border-border
-        active:scale-[0.99]
+        hover:bg-card-hover
+        active:scale-[0.995]
+        overflow-hidden
       "
     >
-      {/* Delete button */}
-      {onDelete && (
-        <button
-          onClick={(e) => {
-            e.stopPropagation()
-            onDelete()
-          }}
-          className={`
-            absolute right-3 top-3 z-10
-            w-10 h-10 rounded-lg
-            flex items-center justify-center
-            text-text-muted hover:text-danger hover:bg-danger-soft
-            transition-all duration-150 ease-out
-            btn-press tap-target
-            ${showDelete ? 'opacity-100' : 'opacity-0 pointer-events-none'}
-          `}
-          aria-label="Delete task"
-        >
-          <svg width={14} height={14} viewBox="0 0 16 16">
-            <path
-              d="M3 4h10M5.5 4v8a1.5 1.5 0 001.5 1.5h2a1.5 1.5 0 001.5-1.5V4M6 4V3a1 1 0 011-1h2a1 1 0 011 1v1"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              fill="none"
-            />
-          </svg>
-        </button>
-      )}
-
-      {/* Content */}
-      <div className="flex justify-between items-start mb-3 pr-8">
+      <div className="flex items-center p-4 gap-3">
+        {/* Content */}
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <div className="text-lg font-medium text-text truncate">{task.title}</div>
+          <div className="flex items-center gap-2 mb-0.5">
+            {task.source && task.source !== 'manual' && (
+              <SourceIcon source={task.source} />
+            )}
+            <div className="text-base font-medium text-text truncate">{task.title}</div>
             {task.due_date && <DeadlineBadge dueDate={task.due_date} compact />}
           </div>
-          {shouldShowContext && (
-            <div className="text-sm text-text-muted mt-0.5 truncate">{condensedContext}</div>
+          <div className="text-sm text-text-muted truncate">
+            {shouldShowContext ? condensedContext : total === 0 ? 'No steps yet' : null}
+            {total > 0 && (
+              <span className={shouldShowContext ? 'ml-2' : ''}>{done}/{total} steps</span>
+            )}
+          </div>
+        </div>
+
+        {/* Kebab menu */}
+        <div className="relative flex-shrink-0">
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              setShowMenu(!showMenu)
+            }}
+            className="
+              p-1.5 rounded-md
+              text-text-muted hover:text-text hover:bg-surface
+              opacity-0 group-hover:opacity-100
+              transition-opacity
+            "
+            aria-label="Menu"
+          >
+            <svg width={16} height={16} viewBox="0 0 16 16">
+              <circle cx="8" cy="3" r="1.25" fill="currentColor" />
+              <circle cx="8" cy="8" r="1.25" fill="currentColor" />
+              <circle cx="8" cy="13" r="1.25" fill="currentColor" />
+            </svg>
+          </button>
+
+          {showMenu && (
+            <>
+              <div className="fixed inset-0 z-10" onClick={(e) => { e.stopPropagation(); setShowMenu(false) }} />
+              <div className="absolute right-0 top-full mt-1 z-20 bg-card border border-border rounded-md shadow-md overflow-hidden min-w-[120px] animate-rise">
+                {onDelete && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setShowMenu(false)
+                      onDelete()
+                    }}
+                    className="w-full px-3 py-2 text-left text-sm text-danger hover:bg-danger-soft flex items-center gap-2"
+                  >
+                    <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-danger">
+                      <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6" />
+                    </svg>
+                    Delete
+                  </button>
+                )}
+              </div>
+            </>
           )}
         </div>
-        <svg
-          width={16}
-          height={16}
-          viewBox="0 0 16 16"
-          className={`
-            text-text-muted flex-shrink-0 ml-2
-            transition-opacity duration-150
-            ${showDelete ? 'opacity-0' : 'opacity-100'}
-          `}
-        >
+
+        {/* Arrow */}
+        <svg width={16} height={16} viewBox="0 0 16 16" className="text-text-muted flex-shrink-0">
           <path
             d="M6 4L10 8L6 12"
             stroke="currentColor"
@@ -110,20 +145,6 @@ export function TaskListItem({ task, onClick, onDelete }: TaskListItemProps) {
         </svg>
       </div>
 
-      {/* Progress */}
-      {total > 0 && (
-        <div className="flex items-center gap-3">
-          <div className="flex-1 h-1 bg-border rounded-full overflow-hidden">
-            <div
-              className="h-full bg-success rounded-full transition-all duration-200 ease-out"
-              style={{ width: `${progress}%` }}
-            />
-          </div>
-          <span className="text-xs text-text-muted tabular-nums">
-            {done}/{total}
-          </span>
-        </div>
-      )}
     </div>
   )
 }

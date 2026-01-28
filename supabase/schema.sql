@@ -223,3 +223,70 @@ CREATE INDEX IF NOT EXISTS idx_soul_logs_user_activity ON public.soul_logs(user_
 CREATE INDEX IF NOT EXISTS idx_tasks_user_category ON public.tasks(user_id, category);
 CREATE INDEX IF NOT EXISTS idx_messages_user ON public.messages(user_id);
 CREATE INDEX IF NOT EXISTS idx_checkins_user ON public.checkins(user_id);
+
+-- ================================================
+-- Google Calendar & Gmail Integration Tables
+-- (See migrations/006_google_integrations.sql for full implementation)
+-- ================================================
+
+-- Store OAuth tokens for background webhook operations
+CREATE TABLE IF NOT EXISTS public.google_tokens (
+  user_id UUID PRIMARY KEY REFERENCES public.profiles(id) ON DELETE CASCADE,
+  access_token TEXT NOT NULL,
+  refresh_token TEXT NOT NULL,
+  token_expiry TIMESTAMPTZ NOT NULL,
+  scopes TEXT[] NOT NULL,
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Track Pub/Sub watch subscriptions (expire every 7 days)
+CREATE TABLE IF NOT EXISTS public.google_watches (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
+  resource_type TEXT NOT NULL CHECK (resource_type IN ('gmail', 'calendar')),
+  watch_id TEXT NOT NULL,
+  resource_id TEXT NOT NULL,
+  expiration TIMESTAMPTZ NOT NULL,
+  history_id TEXT,
+  sync_token TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(user_id, resource_type)
+);
+
+-- Deduplication for processed emails
+CREATE TABLE IF NOT EXISTS public.processed_emails (
+  user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
+  gmail_message_id TEXT NOT NULL,
+  action_taken TEXT CHECK (action_taken IN ('created_task', 'completed_task', 'ignored', 'dismissed')),
+  task_id UUID REFERENCES public.tasks(id) ON DELETE SET NULL,
+  processed_at TIMESTAMPTZ DEFAULT NOW(),
+  PRIMARY KEY (user_id, gmail_message_id)
+);
+
+-- Cached calendar events
+CREATE TABLE IF NOT EXISTS public.calendar_events (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
+  google_event_id TEXT NOT NULL,
+  calendar_id TEXT NOT NULL DEFAULT 'primary',
+  title TEXT NOT NULL,
+  description TEXT,
+  start_time TIMESTAMPTZ NOT NULL,
+  end_time TIMESTAMPTZ NOT NULL,
+  all_day BOOLEAN DEFAULT FALSE,
+  location TEXT,
+  linked_task_id UUID REFERENCES public.tasks(id) ON DELETE SET NULL,
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(user_id, google_event_id)
+);
+
+-- User preferences for integrations
+CREATE TABLE IF NOT EXISTS public.integration_settings (
+  user_id UUID PRIMARY KEY REFERENCES public.profiles(id) ON DELETE CASCADE,
+  gmail_enabled BOOLEAN DEFAULT FALSE,
+  gmail_auto_create BOOLEAN DEFAULT FALSE,
+  gmail_ignored_senders TEXT[] DEFAULT '{}',
+  calendar_enabled BOOLEAN DEFAULT FALSE,
+  calendar_lookahead_days INT DEFAULT 7,
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);

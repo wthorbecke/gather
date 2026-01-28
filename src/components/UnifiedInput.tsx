@@ -30,6 +30,9 @@ interface UnifiedInputProps {
   animatedPlaceholders?: string[]
   containerClassName?: string
   inputWrapperClassName?: string
+  suggestions?: string[] // Quick reply suggestions to show as autocomplete
+  defaultValue?: string // Pre-fill value (e.g., from saved preferences)
+  defaultSubmitValue?: string // Value to submit when input is empty (e.g., saved answer)
 }
 
 export function UnifiedInput({
@@ -45,6 +48,9 @@ export function UnifiedInput({
   animatedPlaceholders = [],
   containerClassName = '',
   inputWrapperClassName = '',
+  suggestions = [],
+  defaultValue,
+  defaultSubmitValue,
 }: UnifiedInputProps) {
   const hasContext = contextTags.length > 0
   const stepTagIndex = contextTags.findIndex((tag) => tag.type === 'step')
@@ -53,14 +59,21 @@ export function UnifiedInput({
     .map((tag, index) => ({ tag, index }))
     .filter(({ tag }) => (stepTag ? tag.type !== 'step' : true))
 
-  const [value, setValue] = useState('')
+  const [value, setValue] = useState(defaultValue || '')
   const [focused, setFocused] = useState(false)
   const [animatedText, setAnimatedText] = useState('')
   const [animatedIndex, setAnimatedIndex] = useState(0)
   const [isDeleting, setIsDeleting] = useState(false)
   const [isPaused, setIsPaused] = useState(false)
+  const [focusPlaceholderText, setFocusPlaceholderText] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
+
+  // Update value when defaultValue changes (e.g., new question with saved preference)
+  // Clear to empty string when defaultValue becomes undefined (e.g., moving to next question)
+  useEffect(() => {
+    setValue(defaultValue || '')
+  }, [defaultValue])
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -71,6 +84,18 @@ export function UnifiedInput({
     }
     document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
+  }, [])
+
+  // ⌘K keyboard shortcut to focus input
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault()
+        inputRef.current?.focus()
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
   }, [])
 
   useEffect(() => {
@@ -99,10 +124,20 @@ export function UnifiedInput({
     return results.slice(0, 4)
   }, [value, tasks])
 
+  // Filter suggestions that match what user is typing
+  const matchingSuggestions = useMemo(() => {
+    const q = value.toLowerCase().trim()
+    if (!q || suggestions.length === 0) return []
+    return suggestions.filter(s =>
+      s.toLowerCase().includes(q)
+    ).slice(0, 4)
+  }, [value, suggestions])
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!value.trim()) return
-    onSubmit(value.trim())
+    const submitValue = value.trim() || defaultSubmitValue
+    if (!submitValue) return
+    onSubmit(submitValue)
     setValue('')
     setFocused(false)
   }
@@ -135,7 +170,7 @@ export function UnifiedInput({
     )
   }
 
-  const showDropdown = allowDropdown && focused && value.trim()
+  const showDropdown = (allowDropdown && focused && value.trim()) || (focused && matchingSuggestions.length > 0)
 
   const shouldAnimatePlaceholder =
     animatedPlaceholders.length > 0 && !focused && !value && !hasContext
@@ -150,7 +185,8 @@ export function UnifiedInput({
 
     const phrases = animatedPlaceholders
     const current = phrases[animatedIndex % phrases.length]
-    const timeout = isPaused ? 1400 : isDeleting ? 60 : 110
+    // Slower, more relaxed typing: 80ms type, 40ms delete, 3s pause
+    const timeout = isPaused ? 3000 : isDeleting ? 40 : 80
 
     const timer = setTimeout(() => {
       if (isPaused) {
@@ -179,30 +215,57 @@ export function UnifiedInput({
     return () => clearTimeout(timer)
   }, [animatedText, animatedIndex, animatedPlaceholders, isDeleting, isPaused, shouldAnimatePlaceholder])
 
+  // Typewriter effect for placeholder when focused
+  const shouldAnimateFocusPlaceholder = focused && !value && !hasContext
+
+  useEffect(() => {
+    if (!shouldAnimateFocusPlaceholder) {
+      setFocusPlaceholderText('')
+      return
+    }
+
+    const targetText = placeholder
+    if (focusPlaceholderText.length >= targetText.length) {
+      return // Done typing
+    }
+
+    const timer = setTimeout(() => {
+      setFocusPlaceholderText(targetText.slice(0, focusPlaceholderText.length + 1))
+    }, 80) // Same speed as cycling typewriter
+
+    return () => clearTimeout(timer)
+  }, [focusPlaceholderText, shouldAnimateFocusPlaceholder, placeholder])
+
   // Keyboard navigation
   const [selectedIndex, setSelectedIndex] = useState<number>(-1)
-  const totalOptions = searchResults.length + 1 + (onQuickAdd ? 1 : 0)
+  // Total options: suggestions + search results + AI help + quick add
+  const showAIHelp = allowDropdown && value.trim()
+  const totalOptions = matchingSuggestions.length + searchResults.length + (showAIHelp ? 1 : 0) + (onQuickAdd && showAIHelp ? 1 : 0)
 
   useEffect(() => {
     setSelectedIndex(-1)
   }, [showDropdown, value])
 
+  const handleSelectSuggestion = (suggestion: string) => {
+    onSubmit(suggestion)
+    setValue('')
+    setFocused(false)
+  }
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Escape') {
-      if (showDropdown) {
-        e.preventDefault()
-        e.stopPropagation()
-        setFocused(false)
-        setSelectedIndex(-1)
-        return
-      }
+      e.preventDefault()
+      setFocused(false)
+      setSelectedIndex(-1)
+      inputRef.current?.blur()
       return
     }
 
     if (e.key === 'Enter' && !showDropdown) {
-      if (!value.trim()) return
+      const submitValue = value.trim() || defaultSubmitValue
+      if (!submitValue) return
       e.preventDefault()
-      onSubmit(value.trim())
+      onSubmit(submitValue)
       setValue('')
       setFocused(false)
       return
@@ -218,11 +281,14 @@ export function UnifiedInput({
       setSelectedIndex(prev => (prev - 1 + totalOptions) % totalOptions)
     } else if (e.key === 'Enter' && selectedIndex >= 0) {
       e.preventDefault()
-      if (selectedIndex < searchResults.length) {
-        handleSelectResult(searchResults[selectedIndex])
-      } else if (selectedIndex === searchResults.length) {
+      // Order: suggestions -> search results -> AI help -> quick add
+      if (selectedIndex < matchingSuggestions.length) {
+        handleSelectSuggestion(matchingSuggestions[selectedIndex])
+      } else if (selectedIndex < matchingSuggestions.length + searchResults.length) {
+        handleSelectResult(searchResults[selectedIndex - matchingSuggestions.length])
+      } else if (selectedIndex === matchingSuggestions.length + searchResults.length && showAIHelp) {
         handleSubmit(e)
-      } else if (selectedIndex === searchResults.length + 1 && onQuickAdd) {
+      } else if (onQuickAdd && showAIHelp) {
         handleQuickAdd()
       }
     }
@@ -230,23 +296,24 @@ export function UnifiedInput({
 
   const effectivePlaceholder = shouldAnimatePlaceholder
     ? (animatedText || animatedPlaceholders[animatedIndex % animatedPlaceholders.length] || placeholder)
+    : shouldAnimateFocusPlaceholder
+    ? (focusPlaceholderText || '')
     : placeholder
+
+  // Show keyboard shortcut hint when input is not focused
+  const showShortcutHint = !focused
 
   return (
     <div ref={containerRef} className={`mb-6 ${containerClassName}`}>
       <form onSubmit={handleSubmit}>
         <div
+          onClick={() => inputRef.current?.focus()}
           className={`
-            flex items-center flex-wrap gap-2
-            bg-elevated rounded-xl
-            transition-all duration-150 ease-out
-            ${focused
-              ? 'shadow-focus border border-accent'
-              : 'shadow-elevated border border-transparent'
-            }
+            flex items-center gap-2 px-4 py-3 cursor-text
+            bg-card rounded-md shadow-sm
+            border ${focused ? 'border-border' : 'border-border-subtle'}
             ${inputWrapperClassName}
           `}
-          style={{ padding: hasContext ? '10px 16px' : '16px' }}
         >
           {/* Context tags */}
           {visibleTagEntries.map(({ tag, index }) => (
@@ -254,8 +321,8 @@ export function UnifiedInput({
               key={index}
               className={`
                 flex items-center gap-1.5
-                px-2.5 py-1 rounded-full
-                text-sm font-medium
+                px-2.5 py-1 rounded-sm
+                text-sm font-medium flex-shrink-0
                 ${tag.type === 'task' ? 'bg-accent-soft text-accent-text' : 'bg-success-soft text-success'}
               `}
             >
@@ -287,29 +354,32 @@ export function UnifiedInput({
             onKeyDown={handleKeyDown}
             placeholder={hasContext ? content.placeholders.taskStepContext : effectivePlaceholder}
             className={`
-              flex-1 min-w-[120px]
+              flex-1 min-w-[120px] py-1
               border-none outline-none
-              bg-transparent text-text
-              ${hasContext ? 'text-base' : 'text-lg'}
+              bg-transparent text-text text-lg font-normal
               focus-visible:outline-none focus-visible:ring-0
-              placeholder:text-text-muted
+              placeholder:text-text-muted placeholder:font-normal
             `}
           />
 
-          {value && (
+          {/* Keyboard shortcut hint - show when not focused */}
+          {showShortcutHint && (
+            <div className="flex items-center gap-1 text-text-muted text-xs flex-shrink-0">
+              <kbd className="px-1.5 py-0.5 rounded bg-surface border border-border text-[11px] font-medium">⌘</kbd>
+              <kbd className="px-1.5 py-0.5 rounded bg-surface border border-border text-[11px] font-medium">K</kbd>
+            </div>
+          )}
+
+          {/* Return icon when focused - show when there's content or a default submit value */}
+          {focused && (value.trim() || defaultSubmitValue) && (
             <button
               type="submit"
-              className="p-2 text-accent hover:text-accent-text transition-colors btn-press tap-target"
+              className="p-2 -m-0.5 rounded-md flex-shrink-0 text-text-muted hover:text-text-soft cursor-pointer transition-colors duration-[80ms]"
+              aria-label="Submit"
             >
-              <svg width={hasContext ? 18 : 20} height={hasContext ? 18 : 20} viewBox="0 0 24 24">
-                <path
-                  d="M5 12H19M19 12L12 5M19 12L12 19"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  fill="none"
-                />
+              <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9 10l-5 5 5 5" />
+                <path d="M20 4v7a4 4 0 0 1-4 4H4" />
               </svg>
             </button>
           )}
@@ -318,22 +388,50 @@ export function UnifiedInput({
 
       {/* Dropdown */}
       {showDropdown && (
-        <div className="mt-1.5 bg-card border border-border rounded-xl shadow-elevated overflow-hidden animate-fade-in">
+        <div className="mt-1.5 bg-card border border-border rounded-md shadow-md overflow-hidden animate-fade-in">
+          {/* Matching suggestions (autocomplete from quick replies) */}
+          {matchingSuggestions.map((suggestion, i) => (
+            <div
+              key={`suggestion-${i}`}
+              onClick={() => handleSelectSuggestion(suggestion)}
+              className={`
+                px-4 py-3 min-h-[44px]
+                flex items-center gap-3
+                cursor-pointer transition-colors duration-[80ms]
+                animate-rise
+                ${selectedIndex === i ? 'bg-card-hover' : 'hover:bg-card-hover'}
+              `}
+              style={{ animationDelay: `${i * 40}ms` }}
+            >
+              <div className="w-6 h-6 rounded-sm bg-accent-soft flex items-center justify-center">
+                <svg width={12} height={12} viewBox="0 0 16 16" className="text-accent">
+                  <path d="M8 2L8 14M2 8L14 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" opacity="0.5" />
+                  <circle cx="8" cy="8" r="3" fill="currentColor" />
+                </svg>
+              </div>
+              <div className="text-sm">{highlightMatch(suggestion, value)}</div>
+            </div>
+          ))}
+
+          {matchingSuggestions.length > 0 && (searchResults.length > 0 || showAIHelp) && (
+            <div className="h-px bg-border" />
+          )}
+
           {/* Search results */}
           {searchResults.map((r, i) => (
             <div
-              key={i}
+              key={`result-${i}`}
               onClick={() => handleSelectResult(r)}
               className={`
                 px-4 py-3 min-h-[44px]
                 flex items-center gap-3
-                cursor-pointer transition-colors
+                cursor-pointer transition-colors duration-[80ms]
                 animate-rise
-                ${selectedIndex === i ? 'bg-subtle' : 'hover:bg-subtle'}
+                ${selectedIndex === matchingSuggestions.length + i ? 'bg-card-hover' : 'hover:bg-card-hover'}
               `}
-              style={{ animationDelay: `${i * 40}ms` }}
+              style={{ animationDelay: `${(matchingSuggestions.length + i) * 40}ms` }}
             >
-              <div className="w-6 h-6 rounded-md bg-subtle flex items-center justify-center">
+              <div className="w-6 h-6 rounded-sm bg-subtle flex items-center justify-center">
                 {r.type === 'task' ? (
                   <svg width={12} height={12} viewBox="0 0 16 16" className="text-text-muted">
                     <rect x="2" y="2" width="12" height="12" rx="2" stroke="currentColor" strokeWidth="1.5" fill="none" />
@@ -353,46 +451,48 @@ export function UnifiedInput({
             </div>
           ))}
 
-          {searchResults.length > 0 && <div className="h-px bg-border" />}
+          {searchResults.length > 0 && showAIHelp && <div className="h-px bg-border" />}
 
           {/* AI help option */}
-          <div
-            onClick={handleSubmit}
-            className={`
-              px-4 py-3 min-h-[44px]
-              flex items-center gap-3
-              cursor-pointer transition-colors
-              animate-rise
-              ${selectedIndex === searchResults.length ? 'bg-subtle' : 'hover:bg-subtle'}
-            `}
-            style={{ animationDelay: `${searchResults.length * 40}ms` }}
-          >
-            <div className="w-6 h-6 rounded-md bg-accent-soft flex items-center justify-center">
-              <svg width={12} height={12} viewBox="0 0 16 16" className="text-accent">
-                <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.5" fill="none" />
-                <path d="M8 5V8.5L10 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-              </svg>
+          {showAIHelp && (
+            <div
+              onClick={handleSubmit}
+              className={`
+                px-4 py-3 min-h-[44px]
+                flex items-center gap-3
+                cursor-pointer transition-colors duration-[80ms]
+                animate-rise
+                ${selectedIndex === matchingSuggestions.length + searchResults.length ? 'bg-card-hover' : 'hover:bg-card-hover'}
+              `}
+              style={{ animationDelay: `${(matchingSuggestions.length + searchResults.length) * 40}ms` }}
+            >
+              <div className="w-6 h-6 rounded-sm bg-accent-soft flex items-center justify-center">
+                <svg width={12} height={12} viewBox="0 0 16 16" className="text-accent">
+                  <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.5" fill="none" />
+                  <path d="M8 5V8.5L10 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                </svg>
+              </div>
+              <div>
+                <div className="text-sm">Help me with &ldquo;{value}&rdquo;</div>
+                <div className="text-xs text-text-muted">AI breakdown</div>
+              </div>
             </div>
-            <div>
-              <div className="text-sm">Help me with &ldquo;{value}&rdquo;</div>
-              <div className="text-xs text-text-muted">AI breakdown</div>
-            </div>
-          </div>
+          )}
 
           {/* Quick add option */}
-          {onQuickAdd && (
+          {onQuickAdd && showAIHelp && (
             <div
               onClick={handleQuickAdd}
               className={`
                 px-4 py-3 min-h-[44px]
                 flex items-center gap-3
-                cursor-pointer transition-colors
+                cursor-pointer transition-colors duration-[80ms]
                 animate-rise
-                ${selectedIndex === searchResults.length + 1 ? 'bg-subtle' : 'hover:bg-subtle'}
+                ${selectedIndex === matchingSuggestions.length + searchResults.length + 1 ? 'bg-card-hover' : 'hover:bg-card-hover'}
               `}
-              style={{ animationDelay: `${(searchResults.length + 1) * 40}ms` }}
+              style={{ animationDelay: `${(matchingSuggestions.length + searchResults.length + 1) * 40}ms` }}
             >
-              <div className="w-6 h-6 rounded-md bg-success-soft flex items-center justify-center">
+              <div className="w-6 h-6 rounded-sm bg-success-soft flex items-center justify-center">
                 <svg width={12} height={12} viewBox="0 0 16 16" className="text-success">
                   <path d="M8 3V13M3 8H13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
                 </svg>

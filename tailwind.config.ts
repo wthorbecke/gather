@@ -64,9 +64,10 @@ const config: Config = {
       },
 
       fontFamily: {
+        // System font for body, Fraunces for display
         sans: ['var(--font-sans)'],
-        display: ['var(--font-display)'],
-        serif: ['var(--font-serif)'],
+        display: ['var(--font-display)'],  // Fraunces for "Gather" title
+        serif: ['var(--font-sans)'],
       },
 
       // Typography scale - consistent sizing
@@ -81,31 +82,26 @@ const config: Config = {
         '4xl': ['32px', { lineHeight: '1.1' }],
       },
 
-      // Border radius - consistent scale
+      // Border radius - SIMPLIFIED to 2 values
       borderRadius: {
-        'sm': '6px',
-        'md': '10px',
-        'lg': '12px',
-        'xl': '16px',
-        '2xl': '20px',
+        'sm': 'var(--radius-sm)',  // 6px - small elements
+        'md': 'var(--radius-md)',  // 8px - everything else
+        'lg': 'var(--radius-md)',  // Same as md for consistency
+        'xl': 'var(--radius-md)',  // Same as md for consistency
+        '2xl': 'var(--radius-md)', // Same as md for consistency
       },
 
-      // Shadow scale - consistent and purposeful
+      // Shadow scale - SIMPLIFIED using CSS vars
       boxShadow: {
-        // Card shadows
-        'card': '0 1px 2px rgba(0, 0, 0, 0.04)',
-        'card-hover': '0 4px 12px rgba(0, 0, 0, 0.08)',
-
-        // Elevated surfaces
-        'soft': '0 2px 12px -4px rgba(0, 0, 0, 0.08)',
-        'hover': '0 8px 24px -8px rgba(0, 0, 0, 0.12)',
-        'elevated': '0 4px 20px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(0, 0, 0, 0.03)',
-
-        // Modal
-        'modal': '0 20px 60px -15px rgba(0, 0, 0, 0.3)',
-
-        // Focus ring
-        'focus': '0 0 0 4px var(--accent-soft)',
+        'xs': 'var(--shadow-xs)',
+        'sm': 'var(--shadow-sm)',
+        'card': 'var(--shadow-sm)',
+        'card-hover': 'var(--shadow-md)',
+        'soft': 'var(--shadow-sm)',
+        'hover': 'var(--shadow-md)',
+        'elevated': 'var(--shadow-md)',
+        'modal': 'var(--shadow-lg)',
+        'focus': '0 0 0 3px var(--accent-soft)',
       },
 
       // Timing functions

@@ -3,9 +3,10 @@
 import { useState, useEffect } from 'react'
 import { Task, Step } from '@/hooks/useUserData'
 import { UnifiedInput } from './UnifiedInput'
-import { ThemeToggle } from './ThemeProvider'
+import { useTheme } from './ThemeProvider'
 import { AICard, AICardState } from './AICard'
 import { StepItem } from './StepItem'
+import { SegmentedProgress } from './SegmentedProgress'
 import { content } from '@/config/content'
 import { SnoozeMenu } from './SnoozeMenu'
 import { FocusMode } from './FocusMode'
@@ -54,6 +55,7 @@ export function TaskView({
   focusStepId,
   onStuckOnStep,
 }: TaskViewProps) {
+  const { theme, toggleTheme } = useTheme()
   const [expandedStepId, setExpandedStepId] = useState<string | number | null>(null)
   const [showMenu, setShowMenu] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
@@ -164,87 +166,122 @@ export function TaskView({
   const nextStepId = steps.find((s) => !s.done)?.id
 
   return (
-    <div className="min-h-screen px-5 py-6">
-      <div className="max-w-[540px] mx-auto">
-        {/* Header */}
-        <div className="flex items-center gap-3 mb-6">
-          <button
-            onClick={onBack}
-            className="
-              w-10 h-10 rounded-lg
-              bg-subtle text-text-soft
-              hover:text-text
-              flex items-center justify-center
-              transition-colors duration-150
-              btn-press tap-target
-            "
-          >
-            <svg width={16} height={16} viewBox="0 0 16 16">
-              <path d="M10 12L6 8L10 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" fill="none" />
-            </svg>
-          </button>
-          <h1 className="flex-1 text-xl font-display font-semibold text-text truncate">{task.title}</h1>
-
-          <div className="flex items-center gap-2">
-            <ThemeToggle compact />
-            {/* Menu */}
-            <div className="relative">
+    <div className="min-h-screen bg-canvas">
+      {/* Header - matches home view structure */}
+      <div className="sticky top-0 z-10 bg-canvas/95 backdrop-blur-sm border-b border-border-subtle">
+        <div className="px-5 py-4">
+          <div className="max-w-[540px] mx-auto">
+            <div className="flex items-center gap-3">
               <button
-                onClick={() => setShowMenu(!showMenu)}
+                onClick={onBack}
                 className="
-                  w-10 h-10 rounded-lg
-                  bg-subtle text-text-muted
-                  hover:text-text
+                  -ml-2 p-2 rounded-md
+                  text-text-muted hover:text-text hover:bg-surface
                   flex items-center justify-center
                   transition-colors duration-150
-                  btn-press tap-target
+                  btn-press
                 "
+                aria-label="Back"
               >
-                <svg width={16} height={16} viewBox="0 0 16 16">
-                  <circle cx="8" cy="3" r="1.5" fill="currentColor" />
-                  <circle cx="8" cy="8" r="1.5" fill="currentColor" />
-                  <circle cx="8" cy="13" r="1.5" fill="currentColor" />
+                <svg width={18} height={18} viewBox="0 0 16 16">
+                  <path d="M10 12L6 8L10 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" fill="none" />
                 </svg>
               </button>
+              <h1 className="flex-1 text-xl font-display font-semibold text-text truncate">{task.title}</h1>
 
-              {showMenu && (
-                <>
-                  <div className="fixed inset-0 z-10" onClick={() => setShowMenu(false)} />
-                  <div className="absolute right-0 top-full mt-1 z-20 bg-card border border-border rounded-lg shadow-elevated overflow-hidden min-w-[140px] animate-rise">
-                    {onSnoozeTask && (
-                      <button
-                        onClick={() => {
-                          setShowMenu(false)
-                          setShowSnoozeMenu(true)
-                        }}
-                        className="w-full px-4 py-3 text-left text-sm text-text hover:bg-subtle transition-colors tap-target flex items-center gap-2"
-                      >
-                        <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="opacity-60">
-                          <circle cx="12" cy="12" r="10" />
-                          <path d="M12 6v6l4 2" strokeLinecap="round" />
-                        </svg>
-                        Snooze
-                      </button>
+              {/* Menu */}
+              <div className="relative">
+                <button
+                  onClick={() => setShowMenu(!showMenu)}
+                  className="
+                    -mr-2 p-2 rounded-md
+                    text-text-muted hover:text-text hover:bg-surface
+                    flex items-center justify-center
+                    btn-press
+                  "
+                  aria-label="Menu"
+                >
+                  <svg width={18} height={18} viewBox="0 0 16 16">
+                    <circle cx="8" cy="3" r="1.5" fill="currentColor" />
+                    <circle cx="8" cy="8" r="1.5" fill="currentColor" />
+                    <circle cx="8" cy="13" r="1.5" fill="currentColor" />
+                  </svg>
+                </button>
+
+            {showMenu && (
+              <>
+                <div className="fixed inset-0 z-10" onClick={() => setShowMenu(false)} />
+                <div className="absolute right-0 top-full mt-1 z-20 bg-card border border-border rounded-md shadow-md overflow-hidden min-w-[160px] animate-rise">
+                  <button
+                    onClick={() => {
+                      toggleTheme()
+                      setShowMenu(false)
+                    }}
+                    className="w-full px-3 py-2.5 text-left text-sm text-text hover:bg-subtle flex items-center gap-2.5"
+                  >
+                    {theme === 'light' ? (
+                      <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-text-muted">
+                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+                      </svg>
+                    ) : (
+                      <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-text-muted">
+                        <circle cx="12" cy="12" r="5" />
+                        <line x1="12" y1="1" x2="12" y2="3" />
+                        <line x1="12" y1="21" x2="12" y2="23" />
+                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+                        <line x1="1" y1="12" x2="3" y2="12" />
+                        <line x1="21" y1="12" x2="23" y2="12" />
+                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+                      </svg>
                     )}
+                    {theme === 'light' ? 'Dark mode' : 'Light mode'}
+                  </button>
+                  {onSnoozeTask && (
                     <button
                       onClick={() => {
                         setShowMenu(false)
-                        setShowDeleteConfirm(true)
+                        setShowSnoozeMenu(true)
                       }}
-                      className="w-full px-4 py-3 text-left text-sm text-danger hover:bg-danger-soft transition-colors tap-target"
+                      className="w-full px-3 py-2.5 text-left text-sm text-text hover:bg-subtle flex items-center gap-2.5"
                     >
-                      Delete task
+                      <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-text-muted">
+                        <circle cx="12" cy="12" r="10" />
+                        <path d="M12 6v6l4 2" strokeLinecap="round" />
+                      </svg>
+                      Snooze
                     </button>
-                  </div>
-                </>
-              )}
+                  )}
+                  <div className="h-px bg-border my-1" />
+                  <button
+                    onClick={() => {
+                      setShowMenu(false)
+                      setShowDeleteConfirm(true)
+                    }}
+                    className="w-full px-3 py-2.5 text-left text-sm text-danger hover:bg-danger-soft flex items-center gap-2.5"
+                  >
+                    <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-danger">
+                      <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6" />
+                    </svg>
+                    Delete
+                  </button>
+                </div>
+              </>
+            )}
+              </div>
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Content */}
+      <div className="px-5 py-6">
+        <div className="max-w-[540px] mx-auto">
 
         {/* Delete confirmation */}
         {showDeleteConfirm && (
-          <div className="bg-danger-soft border border-danger/30 rounded-lg p-4 mb-6 animate-fade-in">
+          <div className="bg-danger-soft border border-danger/30 rounded-md p-4 mb-6 animate-fade-in">
             <p className="text-sm text-text mb-3">Delete this task? This can&apos;t be undone.</p>
             <div className="flex gap-2">
               <button
@@ -252,13 +289,13 @@ export function TaskView({
                   setShowDeleteConfirm(false)
                   onDeleteTask()
                 }}
-                className="px-4 py-2 bg-danger text-white rounded-lg text-sm font-medium hover:bg-danger/90 transition-colors btn-press tap-target"
+                className="px-4 py-2 bg-danger text-white rounded-md text-sm font-medium hover:bg-danger/90 transition-colors duration-[80ms] btn-press tap-target"
               >
                 Delete
               </button>
               <button
                 onClick={() => setShowDeleteConfirm(false)}
-                className="px-4 py-2 bg-subtle text-text rounded-lg text-sm font-medium hover:bg-subtle/80 transition-colors btn-press tap-target"
+                className="px-4 py-2 bg-subtle text-text rounded-md text-sm font-medium hover:bg-card-hover transition-colors duration-[80ms] btn-press tap-target"
               >
                 Cancel
               </button>
@@ -295,53 +332,18 @@ export function TaskView({
               onRemoveTag={(idx) => onRemoveTag(stepTagIndices[idx].index)}
               placeholder={inputPlaceholder}
               allowDropdown={false}
+              autoFocus={Boolean(aiCard?.autoFocusInput)}
             />
           )
         })()}
 
-        {/* Context */}
-        {shouldShowContext && visibleContext && (
-          <div className="mb-4">
-            {!showFullContext ? (
-              <button
-                onClick={() => setShowFullContext(true)}
-                className="inline-flex items-center gap-1.5 text-xs text-text-muted hover:text-text-soft transition-colors btn-press tap-target"
-              >
-                <svg width={14} height={14} viewBox="0 0 16 16" className="opacity-60">
-                  <circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.2" fill="none" />
-                  <circle cx="8" cy="5.5" r="0.75" fill="currentColor" />
-                  <path d="M8 7.5V11" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-                </svg>
-                Show context
-              </button>
-            ) : (
-              <div className="text-sm text-text-soft leading-relaxed animate-fade-in">
-                <span className="text-text-muted">Context:</span> {fullText}
-                <button
-                  onClick={() => setShowFullContext(false)}
-                  className="ml-2 text-xs text-text-muted hover:text-text transition-colors"
-                >
-                  Hide
-                </button>
-              </div>
-            )}
-          </div>
-        )}
 
         {/* Progress */}
         {totalCount > 0 && (
-          <div className="mb-6">
-            <div className="h-1 bg-border rounded-full overflow-hidden">
-              <div
-                className="h-full bg-success rounded-full transition-all duration-300 ease-out progress-bar-fill"
-                style={{ width: `${progress}%` }}
-              />
-            </div>
-            <div className="text-sm text-text-muted mt-2 tabular-nums">
-              {doneCount} of {totalCount} complete
-              {doneCount === totalCount && totalCount > 0 && (
-                <span className="ml-2 text-success">Done</span>
-              )}
+          <div className="mb-5 flex items-center gap-3">
+            <span className="text-xs text-text-muted tabular-nums">{doneCount}/{totalCount}</span>
+            <div className="w-24">
+              <SegmentedProgress completed={doneCount} total={totalCount} height={4} />
             </div>
           </div>
         )}
@@ -375,6 +377,7 @@ export function TaskView({
             <div className="text-sm text-text-muted">{content.emptyStates.taskNoStepsBody}</div>
           </div>
         )}
+        </div>
       </div>
 
       {/* Snooze Menu */}

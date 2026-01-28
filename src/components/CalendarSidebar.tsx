@@ -231,16 +231,16 @@ export function CalendarSidebar({ onLinkToTask, className = '' }: CalendarSideba
  */
 export function CalendarWidget({ className = '' }: { className?: string }) {
   const { session } = useAuth()
-  const [todayEvents, setTodayEvents] = useState<CalendarEvent[]>([])
+  const [events, setEvents] = useState<CalendarEvent[]>([])
   const [loading, setLoading] = useState(true)
   const [enabled, setEnabled] = useState(false)
 
   useEffect(() => {
-    async function fetchTodayEvents() {
+    async function fetchEvents() {
       if (!session?.access_token) return
 
       try {
-        const res = await fetch('/api/calendar/events?days=1', {
+        const res = await fetch('/api/calendar/events?days=7', {
           headers: { Authorization: `Bearer ${session.access_token}` },
         })
 
@@ -251,27 +251,37 @@ export function CalendarWidget({ className = '' }: { className?: string }) {
 
         const data = await res.json()
         setEnabled(data.enabled)
-        setTodayEvents(data.events || [])
+        setEvents(data.events || [])
       } catch (err) {
-        console.error('Error fetching today events:', err)
+        console.error('Error fetching calendar events:', err)
       } finally {
         setLoading(false)
       }
     }
 
-    fetchTodayEvents()
+    fetchEvents()
   }, [session?.access_token])
 
-  if (!enabled || loading || todayEvents.length === 0) {
+  if (!enabled || loading || events.length === 0) {
     return null
   }
 
-  const formatTime = (dateStr: string, allDay: boolean) => {
+  const formatEventTime = (dateStr: string, allDay: boolean) => {
     if (allDay) return 'All day'
-    return new Date(dateStr).toLocaleTimeString([], {
-      hour: 'numeric',
-      minute: '2-digit',
-    })
+    const date = new Date(dateStr)
+    const today = new Date()
+    const tomorrow = new Date(today)
+    tomorrow.setDate(tomorrow.getDate() + 1)
+
+    const timeStr = date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+
+    if (date.toDateString() === today.toDateString()) {
+      return timeStr
+    } else if (date.toDateString() === tomorrow.toDateString()) {
+      return `Tomorrow ${timeStr}`
+    } else {
+      return date.toLocaleDateString([], { weekday: 'short' }) + ' ' + timeStr
+    }
   }
 
   return (
@@ -283,25 +293,25 @@ export function CalendarWidget({ className = '' }: { className?: string }) {
           <line x1="8" y1="2" x2="8" y2="6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
           <line x1="3" y1="10" x2="21" y2="10" stroke="currentColor" strokeWidth="2" />
         </svg>
-        Today
+        Upcoming
       </div>
       <div className="space-y-2">
-        {todayEvents.slice(0, 3).map((event) => (
+        {events.slice(0, 3).map((event) => (
           <div
             key={event.id}
             className="flex items-center gap-3 p-2 bg-surface/50 rounded-lg"
           >
-            <div className="text-xs text-text-muted w-14">
-              {formatTime(event.start_time, event.all_day)}
+            <div className="text-xs text-text-muted w-20 shrink-0">
+              {formatEventTime(event.start_time, event.all_day)}
             </div>
             <div className="text-sm text-text truncate flex-1">
               {event.title}
             </div>
           </div>
         ))}
-        {todayEvents.length > 3 && (
+        {events.length > 3 && (
           <div className="text-xs text-text-muted text-center">
-            +{todayEvents.length - 3} more
+            +{events.length - 3} more
           </div>
         )}
       </div>

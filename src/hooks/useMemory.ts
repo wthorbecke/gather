@@ -12,9 +12,18 @@ export interface MemoryEntry {
   userPatterns?: string[]
 }
 
+// User preferences that persist across sessions
+export interface UserPreferences {
+  state?: string
+  country?: string
+  taxYear?: string
+  [key: string]: string | undefined
+}
+
 interface MemoryState {
   entries: MemoryEntry[]
   conversationHistory: Array<{ role: string; content: string }>
+  userPreferences: UserPreferences
 }
 
 const STORAGE_KEY = 'gather-memory-v1'
@@ -23,6 +32,7 @@ export function useMemory() {
   const [memory, setMemory] = useState<MemoryState>({
     entries: [],
     conversationHistory: [],
+    userPreferences: {},
   })
   const [loaded, setLoaded] = useState(false)
 
@@ -35,6 +45,7 @@ export function useMemory() {
         setMemory({
           entries: parsed.entries || [],
           conversationHistory: parsed.conversationHistory || [],
+          userPreferences: parsed.userPreferences || {},
         })
       }
     } catch (e) {
@@ -110,8 +121,24 @@ export function useMemory() {
   }, [memory.entries])
 
   const clearMemory = useCallback(() => {
-    setMemory({ entries: [], conversationHistory: [] })
+    setMemory({ entries: [], conversationHistory: [], userPreferences: {} })
     localStorage.removeItem(STORAGE_KEY)
+  }, [])
+
+  // Get a user preference by key
+  const getPreference = useCallback((key: string): string | undefined => {
+    return memory.userPreferences[key]
+  }, [memory.userPreferences])
+
+  // Set a user preference
+  const setPreference = useCallback((key: string, value: string) => {
+    setMemory((prev) => ({
+      ...prev,
+      userPreferences: {
+        ...prev.userPreferences,
+        [key]: value,
+      },
+    }))
   }, [])
 
   const getMemoryForAI = useCallback((): Array<{ role: string; content: string }> => {
@@ -154,5 +181,8 @@ export function useMemory() {
     getRelevantMemory,
     getMemoryForAI,
     clearMemory,
+    getPreference,
+    setPreference,
+    userPreferences: memory.userPreferences,
   }
 }

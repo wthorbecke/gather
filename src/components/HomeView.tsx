@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, useEffect } from 'react'
 import { Task } from '@/hooks/useUserData'
 import { splitStepText } from '@/lib/stepText'
 import { getNextStep } from '@/hooks/useTaskSearch'
@@ -9,7 +9,8 @@ import { AICard, AICardState } from './AICard'
 import { TaskListItem } from './TaskListItem'
 import { Checkbox } from './Checkbox'
 import { getDeadlineUrgency } from './DeadlineBadge'
-import { content } from '@/config/content'
+import { CalendarWidget } from './CalendarSidebar'
+import { content, OTHER_SPECIFY_OPTION } from '@/config/content'
 
 interface HomeViewProps {
   tasks: Task[]
@@ -64,7 +65,7 @@ export function HomeView({
 
   const snoozedCount = tasks.length - activeTasks.length
   const nextStep = getNextStep(activeTasks)
-  const awaitingFreeText = Boolean(aiCard?.question && (!aiCard.quickReplies || aiCard.quickReplies.length === 0))
+  const shouldAutoFocus = Boolean(aiCard?.autoFocusInput) || Boolean(aiCard?.question && (!aiCard.quickReplies || aiCard.quickReplies.length === 0))
   const isQuestionFlow = Boolean(aiCard?.question)
   const inputPlaceholder = isQuestionFlow ? content.placeholders.aiFreeText : content.placeholders.homeInput
   const totalSteps = activeTasks.reduce((sum, task) => sum + (task.steps?.length || 0), 0)
@@ -74,29 +75,50 @@ export function HomeView({
   )
   const getDerivedStepTitle = (text: string) => splitStepText(text).title
 
+  // Global Enter key handler for question flow with saved answer
+  useEffect(() => {
+    if (!isQuestionFlow || !aiCard?.savedAnswer) return
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Only trigger if no input is focused
+      const activeElement = document.activeElement
+      const isInputFocused = activeElement?.tagName === 'INPUT' || activeElement?.tagName === 'TEXTAREA'
+
+      if (e.key === 'Enter' && !isInputFocused && aiCard.savedAnswer) {
+        e.preventDefault()
+        onQuickReply(aiCard.savedAnswer)
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [isQuestionFlow, aiCard?.savedAnswer, onQuickReply])
+
   return (
-    <div className="min-h-screen px-5 pb-8">
+    <div className="min-h-screen px-5 pt-6 pb-8">
       <div className="max-w-[540px] mx-auto">
         {/* Suggestions - only show when no tasks */}
         {!aiCard && activeTasks.length === 0 && (
-          <div className="flex flex-wrap gap-2 mb-8">
-            {content.homeSuggestions.map((s, index) => (
-              <button
-                key={s}
-                onClick={() => onSuggestionClick(s)}
-                className="
-                  px-4 py-2
-                  bg-transparent border border-border rounded-full
-                  text-sm text-text-soft
-                  hover:border-accent hover:text-accent
-                  transition-all duration-150 ease-out
-                  btn-press tap-target animate-rise
-                "
-                style={{ animationDelay: `${index * 40}ms` }}
-              >
-                {s}
-              </button>
-            ))}
+          <div className="-mx-5 mb-6">
+            <div className="flex gap-2 overflow-x-auto pb-1 px-5 scrollbar-hide">
+              {content.homeSuggestions.map((s, index) => (
+                <button
+                  key={s}
+                  onClick={() => onSuggestionClick(s)}
+                  className="
+                    px-4 py-2 whitespace-nowrap flex-shrink-0
+                    bg-transparent border border-border rounded-sm
+                    text-sm text-text-soft
+                    hover:bg-card-hover hover:text-text
+                    transition-all duration-[80ms] ease-out
+                    btn-press tap-target animate-rise
+                  "
+                  style={{ animationDelay: `${index * 40}ms` }}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
           </div>
         )}
 
@@ -115,46 +137,57 @@ export function HomeView({
           />
         )}
 
+        {/* Empty state intro - show above input when no tasks */}
+        {tasks.length === 0 && !aiCard && (
+          <div className="text-center mb-4">
+            <div className="text-lg font-medium text-text">{content.emptyStates.homeNoTasksTitle}</div>
+            <div className="text-sm text-text-muted mt-1">{content.emptyStates.homeNoTasksBody}</div>
+          </div>
+        )}
+
         {/* Input */}
-        <UnifiedInput
-          tasks={tasks}
-          onSubmit={onSubmit}
-          onQuickAdd={onQuickAdd}
-          placeholder={inputPlaceholder}
-          animatedPlaceholders={isQuestionFlow ? [] : content.animatedPlaceholders}
-          autoFocus={awaitingFreeText}
-          allowDropdown={!isQuestionFlow}
-          containerClassName={isQuestionFlow ? 'mb-6 -mt-2' : ''}
-          inputWrapperClassName={isQuestionFlow ? 'rounded-t-none border-t-0' : ''}
-          onSelectResult={(result) => {
-            if (result.type === 'task') {
-              onGoToTask(result.task.id)
-            } else if (result.step) {
-              onGoToTask(result.task.id)
-            }
-          }}
-        />
+        {(() => {
+          // Don't treat "Other" as a confirmable saved answer
+          const isOtherSelected = aiCard?.savedAnswer?.toLowerCase().includes(OTHER_SPECIFY_OPTION.toLowerCase())
+          const confirmableSavedAnswer = isOtherSelected ? undefined : aiCard?.savedAnswer
+          return (
+            <UnifiedInput
+              tasks={tasks}
+              onSubmit={onSubmit}
+              onQuickAdd={onQuickAdd}
+              placeholder={isQuestionFlow ? (confirmableSavedAnswer ? `Press enter to confirm "${confirmableSavedAnswer}"` : 'Type your answer...') : inputPlaceholder}
+              animatedPlaceholders={isQuestionFlow || aiCard ? [] : content.animatedPlaceholders}
+              autoFocus={shouldAutoFocus}
+              allowDropdown={!isQuestionFlow}
+              suggestions={isQuestionFlow && aiCard?.quickReplies ? aiCard.quickReplies : []}
+              defaultSubmitValue={isQuestionFlow ? confirmableSavedAnswer : undefined}
+              onSelectResult={(result) => {
+                if (result.type === 'task') {
+                  onGoToTask(result.task.id)
+                } else if (result.step) {
+                  onGoToTask(result.task.id)
+                }
+              }}
+            />
+          )
+        })()}
+
+        {/* Calendar Widget */}
+        <CalendarWidget />
 
         {/* Next Step highlight */}
         {nextStep && (
           <div className="mb-6">
-            <div className="text-xs font-medium text-accent mb-3 flex items-center gap-2">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent opacity-50" />
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-accent" />
-              </span>
-              Next step
+            <div className="text-xs font-medium text-text-muted uppercase tracking-wide mb-3">
+              Up next
             </div>
 
             <div
               onClick={() => onGoToTask(nextStep.task.id)}
               className="
-                bg-card rounded-lg cursor-pointer overflow-hidden
+                bg-card rounded-md cursor-pointer overflow-hidden
                 border border-border
-                border-l-[3px] border-l-accent
-                shadow-card hover:shadow-card-hover
-                transition-all duration-150 ease-out
-                hover:-translate-y-0.5
+                hover:bg-card-hover
                 animate-rise
               "
             >
@@ -173,8 +206,8 @@ export function HomeView({
                   )}
                 </div>
               </div>
-              <div className="px-4 py-3 bg-subtle flex justify-between items-center border-t border-border-subtle">
-                <span className="text-sm text-text-soft truncate">{nextStep.task.title}</span>
+              <div className="px-4 py-2.5 bg-subtle flex justify-between items-center border-t border-border-subtle">
+                <span className="text-sm text-text-muted truncate">{nextStep.task.title}</span>
                 <span className="text-sm text-text-muted tabular-nums">
                   {nextStep.task.steps?.filter((s) => s.done).length || 0}/{nextStep.task.steps?.length || 0}
                 </span>
@@ -185,7 +218,7 @@ export function HomeView({
 
         {/* All done state */}
         {!nextStep && tasks.length > 0 && totalSteps > 0 && incompleteSteps === 0 && (
-          <div className="mb-6 p-6 bg-success-soft rounded-lg text-center">
+          <div className="mb-6 p-6 bg-success-soft rounded-md text-center">
             <div className="w-12 h-12 rounded-full bg-success/20 flex items-center justify-center mx-auto mb-3">
               <svg width={24} height={24} viewBox="0 0 24 24" className="text-success">
                 <path
@@ -204,7 +237,7 @@ export function HomeView({
         )}
 
         {!nextStep && tasks.length > 0 && totalSteps === 0 && (
-          <div className="mb-6 p-6 bg-subtle rounded-lg text-center">
+          <div className="mb-6 p-6 bg-subtle rounded-md text-center">
             <div className="text-base font-medium text-text mb-1">{content.emptyStates.homeNoStepsTitle}</div>
             <div className="text-sm text-text-soft">{content.emptyStates.homeNoStepsBody}</div>
           </div>
@@ -240,13 +273,6 @@ export function HomeView({
           </div>
         )}
 
-        {/* Empty state */}
-        {tasks.length === 0 && !aiCard && (
-          <div className="text-center py-12">
-            <div className="text-text-soft mb-2">{content.emptyStates.homeNoTasksTitle}</div>
-            <div className="text-sm text-text-muted">{content.emptyStates.homeNoTasksBody}</div>
-          </div>
-        )}
       </div>
     </div>
   )

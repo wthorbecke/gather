@@ -10,23 +10,8 @@ export function LoginPage({ onTryDemo }: LoginPageProps) {
   const { signInWithGoogle } = useAuth()
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-6 login-gradient overflow-hidden relative">
-      {/* Floating background elements */}
-      <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        {/* Soft gradient orbs */}
-        <div className="absolute -top-20 -left-20 w-72 h-72 bg-accent/[0.04] rounded-full blur-3xl float-slower" />
-        <div className="absolute top-1/3 -right-32 w-96 h-96 bg-success/[0.03] rounded-full blur-3xl float-slow" />
-        <div className="absolute -bottom-32 left-1/4 w-80 h-80 bg-accent/[0.03] rounded-full blur-3xl float-fast" />
-
-        {/* Floating shapes */}
-        <div className="absolute top-[15%] left-[12%] w-3 h-3 rounded-full bg-accent/20 float-slow" style={{ animationDelay: '-2s' }} />
-        <div className="absolute top-[25%] right-[18%] w-2 h-2 rounded-full bg-success/25 float-slower" style={{ animationDelay: '-5s' }} />
-        <div className="absolute bottom-[30%] left-[8%] w-2.5 h-2.5 rounded-full bg-accent/15 float-fast" style={{ animationDelay: '-8s' }} />
-        <div className="absolute bottom-[20%] right-[15%] w-2 h-2 rounded-full bg-success/20 float-slow" style={{ animationDelay: '-3s' }} />
-        <div className="absolute top-[60%] left-[20%] w-1.5 h-1.5 rounded-full bg-accent/25 float-slower" style={{ animationDelay: '-12s' }} />
-      </div>
-
-      <div className="max-w-sm w-full login-container relative z-10">
+    <div className="min-h-screen flex items-center justify-center px-6 login-gradient">
+      <div className="max-w-sm w-full login-container">
         <div className="text-center mb-10">
           <h1 className="text-4xl font-display font-semibold text-text tracking-tight mb-1 login-title">
             Gather
@@ -45,7 +30,7 @@ export function LoginPage({ onTryDemo }: LoginPageProps) {
         <div className="space-y-4 login-actions">
           <button
             onClick={signInWithGoogle}
-            className="w-full flex items-center justify-center gap-3 px-6 py-3.5 rounded-xl font-medium google-btn btn-press tap-target"
+            className="w-full flex items-center justify-center gap-3 px-6 py-3.5 rounded-md font-medium google-btn btn-press tap-target"
           >
             <svg className="w-5 h-5" viewBox="0 0 24 24">
               <path
@@ -73,7 +58,7 @@ export function LoginPage({ onTryDemo }: LoginPageProps) {
               onClick={onTryDemo}
               className="
                 w-full px-5 py-3
-                text-accent hover:text-accent/80
+                text-text-soft hover:text-text
                 font-medium text-base
                 transition-colors duration-150
                 btn-press tap-target

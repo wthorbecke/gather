@@ -32,7 +32,7 @@ export default function Home() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-canvas">
         <div className="text-center">
-          <h1 className="text-2xl font-semibold text-text mb-4">Gather</h1>
+          <h1 className="text-2xl font-display font-semibold text-text mb-4">Gather</h1>
           <div className="flex justify-center gap-1">
             <span className="w-2 h-2 bg-accent-soft rounded-full loading-dot" />
             <span className="w-2 h-2 bg-accent-soft rounded-full loading-dot" />

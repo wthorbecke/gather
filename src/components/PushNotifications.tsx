@@ -22,11 +22,15 @@ export function PushNotifications() {
   const { user } = useAuth()
   const [permission, setPermission] = useState<NotificationPermission | 'unsupported'>('default')
   const [isSubscribed, setIsSubscribed] = useState(false)
+  const [dismissed, setDismissed] = useState(false)
 
   useEffect(() => {
-    if (process.env.NODE_ENV !== 'production') {
+    // Check if user dismissed the prompt before
+    if (localStorage.getItem('notifications-dismissed')) {
+      setDismissed(true)
       return
     }
+
     if (!('Notification' in window) || !('serviceWorker' in navigator)) {
       setPermission('unsupported')
       return
@@ -34,14 +38,15 @@ export function PushNotifications() {
 
     setPermission(Notification.permission)
 
-    // Register service worker
-    navigator.serviceWorker.register('/sw.js').then(async (registration) => {
-      // Check if already subscribed
-      const subscription = await registration.pushManager.getSubscription()
-      setIsSubscribed(!!subscription)
-    }).catch((err) => {
-      console.error('Service worker registration failed:', err)
-    })
+    // Only register service worker in production
+    if (process.env.NODE_ENV === 'production') {
+      navigator.serviceWorker.register('/sw.js').then(async (registration) => {
+        const subscription = await registration.pushManager.getSubscription()
+        setIsSubscribed(!!subscription)
+      }).catch((err) => {
+        console.error('Service worker registration failed:', err)
+      })
+    }
   }, [])
 
   const subscribe = async () => {
@@ -78,8 +83,13 @@ export function PushNotifications() {
     }
   }
 
-  // Don't show anything if already subscribed or unsupported
-  if (permission === 'unsupported' || isSubscribed || permission === 'denied') {
+  const handleDismiss = () => {
+    localStorage.setItem('notifications-dismissed', 'true')
+    setDismissed(true)
+  }
+
+  // Don't show anything if already subscribed, unsupported, or dismissed
+  if (permission === 'unsupported' || isSubscribed || permission === 'denied' || dismissed) {
     return null
   }
 
@@ -99,7 +109,7 @@ export function PushNotifications() {
           Enable notifications
         </button>
         <button
-          onClick={() => setIsSubscribed(true)}
+          onClick={handleDismiss}
           className="px-3 py-2 text-text-muted text-[0.85rem] hover:text-text transition-colors btn-press tap-target"
         >
           Not now

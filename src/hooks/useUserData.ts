@@ -85,6 +85,8 @@ export interface Task {
   notes: string | null
   clarifying_answers?: ClarifyingAnswer[]
   task_category?: string
+  source?: string  // 'manual' | 'email' | 'gmail' | 'calendar'
+  source_id?: string  // ID in source system (e.g., Gmail message ID)
 }
 
 export interface TaskAction {

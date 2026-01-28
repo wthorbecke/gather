@@ -60,21 +60,17 @@ export function StepItem({ step, isNext, isExpanded, onToggle, onExpand, onStuck
 
   // Dynamic class based on state
   const getContainerClasses = () => {
-    const base = 'rounded-lg transition-all duration-150 ease-out'
+    const base = 'bg-card border border-border rounded-md'
 
     if (step.done) {
-      return `${base} ${justCompleted ? 'step-complete' : ''}`
+      return `${base} opacity-60 ${justCompleted ? 'step-complete' : ''}`
     }
 
     if (isExpanded) {
-      return `${base} bg-card border border-border shadow-card`
+      return `${base} bg-card`
     }
 
-    if (isNext) {
-      return `${base} bg-success/[0.04] border-l-[3px] border-l-success`
-    }
-
-    return `${base} border-l-[3px] border-l-transparent hover:bg-surface`
+    return `${base} hover:bg-card-hover`
   }
 
   return (
@@ -82,22 +78,22 @@ export function StepItem({ step, isNext, isExpanded, onToggle, onExpand, onStuck
       {/* Main row */}
       <div
         onClick={() => !step.done && hasExpandableContent && onExpand()}
-        className={`flex gap-4 p-4 ${!step.done && hasExpandableContent ? 'cursor-pointer' : ''}`}
+        className={`flex gap-3 p-3 ${!step.done && hasExpandableContent ? 'cursor-pointer' : ''}`}
       >
         {/* Checkbox */}
-        <Checkbox checked={step.done} onToggle={onToggle} size={20} />
+        <div className="flex-shrink-0 pt-0.5">
+          <Checkbox checked={step.done} onToggle={onToggle} size={18} />
+        </div>
 
         {/* Content */}
         <div className="flex-1 min-w-0">
           <div
-            className={`text-base leading-snug ${
-              isNext && !step.done ? 'font-medium' : ''
-            } ${step.done ? 'line-through text-text-muted' : 'text-text'}`}
+            className={`text-sm leading-snug ${step.done ? 'line-through text-text-muted' : 'text-text'}`}
           >
             {derivedTitle}
           </div>
           {!isExpanded && !step.done && derivedSummary && (
-            <div className="text-sm text-text-soft mt-1 leading-relaxed">
+            <div className="text-xs text-text-muted mt-0.5 leading-relaxed">
               {derivedSummary}
               {inlineSource}
             </div>
@@ -106,31 +102,28 @@ export function StepItem({ step, isNext, isExpanded, onToggle, onExpand, onStuck
 
         {/* Expand arrow */}
         {!step.done && hasExpandableContent && (
-          <div className="flex items-center gap-1 text-xs text-text-muted">
-            <span>Details</span>
-            <svg
-              width={16}
-              height={16}
-              viewBox="0 0 16 16"
-              className={`transition-transform duration-150 ${isExpanded ? 'rotate-180' : ''}`}
-            >
-              <path
-                d="M4 6L8 10L12 6"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-                fill="none"
-              />
-            </svg>
-          </div>
+          <svg
+            width={16}
+            height={16}
+            viewBox="0 0 16 16"
+            className={`text-text-muted flex-shrink-0 transition-transform duration-150 ${isExpanded ? 'rotate-180' : ''}`}
+          >
+            <path
+              d="M4 6L8 10L12 6"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              fill="none"
+            />
+          </svg>
         )}
       </div>
 
       {/* Expanded content */}
       {isExpanded && !step.done && (
-        <div className="px-4 pb-4 ml-9 animate-rise">
+        <div className="px-3 pb-3 pt-0 ml-7 animate-rise">
           {step.detail && (
-            <p className="text-sm text-text-soft leading-relaxed mb-4">
+            <p className="text-xs text-text-soft leading-relaxed mb-3">
               {step.detail}
               {inlineSource}
             </p>
@@ -138,11 +131,11 @@ export function StepItem({ step, isNext, isExpanded, onToggle, onExpand, onStuck
 
           {/* Alternatives or Examples */}
           {(step.alternatives || step.examples) && (
-            <div className="p-3 bg-subtle rounded-lg mb-4">
-              <div className="text-xs text-text-muted font-medium mb-2">
+            <div className="p-2.5 bg-subtle rounded-md mb-3">
+              <div className="text-xs text-text-muted font-medium mb-1.5">
                 {step.alternatives ? 'Also accepted' : 'Examples'}
               </div>
-              <div className="text-sm text-text-soft leading-relaxed">
+              <div className="text-xs text-text-soft leading-relaxed">
                 {(step.alternatives || step.examples)!.join(' · ')}
               </div>
             </div>
@@ -150,12 +143,12 @@ export function StepItem({ step, isNext, isExpanded, onToggle, onExpand, onStuck
 
           {/* Checklist */}
           {step.checklist && (
-            <div className="p-3 bg-subtle rounded-lg mb-4">
-              <div className="text-xs text-text-muted font-medium mb-2">Checklist</div>
+            <div className="p-2.5 bg-subtle rounded-md mb-3">
+              <div className="text-xs text-text-muted font-medium mb-1.5">Checklist</div>
               {step.checklist.map((item, i) => (
                 <div
                   key={i}
-                  className="flex items-center gap-2 text-sm text-text-soft mb-1 last:mb-0"
+                  className="flex items-center gap-2 text-xs text-text-soft mb-1 last:mb-0"
                 >
                   <span className="text-text-muted">○</span>
                   {item}
@@ -175,11 +168,10 @@ export function StepItem({ step, isNext, isExpanded, onToggle, onExpand, onStuck
                   onClick={(e) => e.stopPropagation()}
                   className="
                     inline-flex items-center gap-1.5
-                    px-3 py-2 rounded-lg
-                    bg-link-soft text-link
-                    text-sm font-medium
-                    hover:bg-link/20
-                    transition-colors
+                    px-2.5 py-1.5 rounded-md
+                    text-link text-sm
+                    hover:bg-link-soft
+                    transition-colors duration-[80ms]
                   "
                 >
                   {step.action.text}
@@ -195,7 +187,7 @@ export function StepItem({ step, isNext, isExpanded, onToggle, onExpand, onStuck
                 </a>
               )}
               {step.time && (
-                <span className="inline-flex items-center gap-1 px-2 py-1 bg-subtle text-text-muted rounded-full text-xs font-medium">
+                <span className="inline-flex items-center gap-1 px-2 py-1 bg-subtle text-text-muted rounded-sm text-xs font-medium">
                   Est. {step.time}
                 </span>
               )}
@@ -231,11 +223,11 @@ export function StepItem({ step, isNext, isExpanded, onToggle, onExpand, onStuck
                   onFocus(step)
                 }}
                 className="
-                  flex-1 py-2.5 px-4
-                  bg-accent text-white
-                  rounded-lg text-sm font-medium
-                  hover:bg-accent/90
-                  transition-all duration-150 ease-out
+                  flex-1 py-2 px-3
+                  bg-text text-canvas
+                  rounded-md text-sm font-medium
+                  hover:bg-text/90
+                  transition-all duration-[80ms] ease-out
                   btn-press
                   flex items-center justify-center gap-2
                 "
@@ -244,7 +236,7 @@ export function StepItem({ step, isNext, isExpanded, onToggle, onExpand, onStuck
                   <circle cx="8" cy="8" r="6" />
                   <circle cx="8" cy="8" r="2" fill="currentColor" />
                 </svg>
-                Focus on this
+                Focus
               </button>
             )}
             {onStuck && (
@@ -255,11 +247,11 @@ export function StepItem({ step, isNext, isExpanded, onToggle, onExpand, onStuck
                 }}
                 className={`
                   ${onFocus ? 'flex-1' : 'w-full'}
-                  py-2.5 px-4
+                  py-2 px-3
                   bg-transparent border border-border
-                  rounded-lg text-sm text-text-soft
-                  hover:border-accent hover:text-accent
-                  transition-all duration-150 ease-out
+                  rounded-md text-sm text-text-soft
+                  hover:bg-card-hover
+                  transition-all duration-[80ms] ease-out
                   btn-press
                 `}
               >

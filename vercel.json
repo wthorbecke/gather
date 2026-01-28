@@ -11,6 +11,10 @@
     {
       "path": "/api/cron/weekly-reflection",
       "schedule": "0 9 * * 0"
+    },
+    {
+      "path": "/api/cron/renew-watches",
+      "schedule": "0 3 * * *"
     }
   ]
 }

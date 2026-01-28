@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { getValidToken } from '@/lib/google-auth'
 
 // Task-like patterns in email subjects
 const TASK_PATTERNS = [
@@ -52,6 +53,15 @@ interface PotentialTask {
   snippet: string
   date: string
   matchedPattern: string
+  aiAnalysis?: {
+    category: string
+    confidence: number
+    suggestedTask?: {
+      title: string
+      dueDate: string | null
+      urgency: string
+    }
+  }
 }
 
 function getHeader(message: GmailMessageDetail, headerName: string): string {
@@ -113,17 +123,21 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid session' }, { status: 401 })
     }
 
-    // Get the provider token (Gmail access token)
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession()
-    if (sessionError || !session?.provider_token) {
-      return NextResponse.json({
-        error: 'Gmail not connected',
-        needsReauth: true,
-        message: 'Please sign in again to connect Gmail'
-      }, { status: 401 })
-    }
+    // Try to get stored token first (for background/refresh token support)
+    let gmailToken = await getValidToken(user.id)
 
-    const gmailToken = session.provider_token
+    // Fall back to session provider token
+    if (!gmailToken) {
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+      if (sessionError || !session?.provider_token) {
+        return NextResponse.json({
+          error: 'Gmail not connected',
+          needsReauth: true,
+          message: 'Please sign in again to connect Gmail'
+        }, { status: 401 })
+      }
+      gmailToken = session.provider_token
+    }
 
     // Fetch recent emails from Gmail API
     const listResponse = await fetch(

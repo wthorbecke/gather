@@ -33,6 +33,7 @@
     "@types/web-push": "^3.6.4",
     "canvas": "^3.2.1",
     "husky": "^9.1.7",
-    "lint-staged": "^16.2.7"
+    "lint-staged": "^16.2.7",
+    "pg": "^8.17.2"
   }
 }

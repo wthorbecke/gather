@@ -6,8 +6,17 @@ import { hasAuthoritativeSources } from '@/lib/sourceQuality'
 
 const loadingMessages = [
   'Finding the steps...',
+  'Researching your situation...',
   'Almost there...',
+  'Just a moment...',
+  'Gathering the details...',
+  'Making it doable...',
 ]
+
+// Strip <cite> tags from AI responses (they're metadata, not display content)
+function cleanMessage(message: string): string {
+  return message.replace(/<cite[^>]*>.*?<\/cite>/g, '').trim()
+}
 
 export interface AICardState {
   thinking?: boolean
@@ -31,6 +40,8 @@ export interface AICardState {
   pendingTaskName?: string
   taskCreated?: Task
   taskId?: string
+  autoFocusInput?: boolean // Focus the input (e.g., when user clicks "Other")
+  savedAnswer?: string // Previously saved answer for this question (from user preferences)
 }
 
 interface AICardProps {
@@ -69,20 +80,22 @@ export function AICard({
   const [loadingMessageIndex, setLoadingMessageIndex] = useState(0)
   const thinkingStartRef = useRef<number | null>(null)
 
-  // Cycle loading message after 5 seconds
+  // Cycle loading messages every 3 seconds
   useEffect(() => {
     if (card.thinking) {
       thinkingStartRef.current = Date.now()
       setLoadingMessageIndex(0)
-      const timer = setTimeout(() => {
-        setLoadingMessageIndex(1)
-      }, 5000)
-      return () => clearTimeout(timer)
+      const interval = setInterval(() => {
+        setLoadingMessageIndex(prev => (prev + 1) % loadingMessages.length)
+      }, 3000)
+      return () => clearInterval(interval)
     } else {
       thinkingStartRef.current = null
       setLoadingMessageIndex(0)
     }
   }, [card.thinking])
+
+  // Task created card stays until user dismisses or clicks to view
 
   useEffect(() => {
     if (!showSources) {
@@ -99,41 +112,71 @@ export function AICard({
   return (
     <div
       className={`
-        relative
-        bg-subtle rounded-lg p-4
+        bg-subtle rounded-md p-4
         border border-border
-        ${attachInput ? 'rounded-b-none border-b-0 mb-0' : 'mb-6'}
+        mb-4
         ${isDismissing ? 'animate-fade-out' : 'animate-fade-in'}
       `}
     >
-      {/* Dismiss button */}
-      <button
-        onClick={handleDismiss}
-        className="
-          absolute top-3 right-3
-          p-1.5 rounded-md
-          text-text-muted hover:text-text hover:bg-surface
-          transition-colors duration-150
-          tap-target btn-press
-        "
-        aria-label="Dismiss"
-      >
-        <svg width={16} height={16} viewBox="0 0 16 16">
-          <path
-            d="M4 4L12 12M12 4L4 12"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-          />
-        </svg>
-      </button>
+      {/* Header row with dismiss button */}
+      {pendingInput && (
+        <div className="flex items-start justify-between gap-3 mb-3 pb-3 border-b border-border-subtle">
+          <div className="text-sm text-text-muted flex-1 min-w-0">
+            &ldquo;{pendingInput}&rdquo;
+          </div>
+          <button
+            onClick={handleDismiss}
+            className="
+              p-1 -m-1
+              text-text-muted hover:text-text
+              transition-colors duration-150
+              btn-press flex-shrink-0
+            "
+            aria-label="Dismiss"
+          >
+            <svg width={14} height={14} viewBox="0 0 16 16">
+              <path
+                d="M4 4L12 12M12 4L4 12"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+              />
+            </svg>
+          </button>
+        </div>
+      )}
+
+      {/* Dismiss button when no header */}
+      {!pendingInput && (
+        <div className="flex justify-end mb-2">
+          <button
+            onClick={handleDismiss}
+            className="
+              p-1 -m-1
+              text-text-muted hover:text-text
+              transition-colors duration-150
+              btn-press
+            "
+            aria-label="Dismiss"
+          >
+            <svg width={14} height={14} viewBox="0 0 16 16">
+              <path
+                d="M4 4L12 12M12 4L4 12"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+              />
+            </svg>
+          </button>
+        </div>
+      )}
 
       {card.thinking ? (
         <>
           {/* Show previous message if this is a follow-up */}
           {card.message && (
             <div className="text-base leading-relaxed mb-4 opacity-60">
-              {card.message}
+              {cleanMessage(card.message)}
             </div>
           )}
           <div className="space-y-3">
@@ -145,12 +188,6 @@ export function AICard({
         </>
       ) : (
         <>
-          {/* User's input echo */}
-          {pendingInput && (
-            <div className="text-sm text-text-muted mb-3 pb-3 border-b border-border-subtle">
-              &ldquo;{pendingInput}&rdquo;
-            </div>
-          )}
 
           {/* AI message */}
           {card.message && !card.question && (
@@ -159,7 +196,7 @@ export function AICard({
                 card.quickReplies || card.taskCreated ? 'mb-4' : ''
               }`}
             >
-              {card.message}
+              {cleanMessage(card.message)}
             </div>
           )}
 
@@ -213,11 +250,11 @@ export function AICard({
                       rel="noopener noreferrer"
                       className="
                         inline-flex items-center gap-1
-                        rounded-full border border-border
+                        rounded-sm border border-border
                         bg-canvas px-2.5 py-1
                         text-xs text-text-soft
-                        hover:text-text hover:border-accent
-                        transition-colors
+                        hover:text-text hover:bg-card-hover
+                        transition-colors duration-[80ms]
                         btn-press tap-target animate-rise
                       "
                       style={{ animationDelay: `${i * 40}ms` }}
@@ -240,27 +277,68 @@ export function AICard({
           )}
 
           {/* Quick replies */}
-          {card.quickReplies && onQuickReply && (
-            <div className="flex flex-wrap gap-2">
-              {quickReplies.slice(0, 8).map((reply, index) => (
-                <button
-                  key={reply}
-                  onClick={() => onQuickReply(reply)}
-                  className="
-                    px-3.5 py-2
-                    bg-card border border-border rounded-full
-                    text-sm text-text
-                    hover:border-accent hover:bg-accent-soft
-                    transition-all duration-150 ease-out
-                    tap-target btn-press animate-rise
-                  "
-                  style={{ animationDelay: `${index * 30}ms` }}
-                >
-                  {reply}
-                </button>
-              ))}
-            </div>
-          )}
+          {card.quickReplies && onQuickReply && (() => {
+            const savedAnswer = card.savedAnswer
+            // Ensure "Other" is always visible if present
+            const otherIndex = quickReplies.findIndex(r => r.toLowerCase().includes('other'))
+            const hasOther = otherIndex >= 0
+            const otherOption = hasOther ? quickReplies[otherIndex] : null
+            const nonOtherReplies = hasOther
+              ? quickReplies.filter((_, i) => i !== otherIndex)
+              : quickReplies
+
+            // Smart selection: if many options (like 50 states), pick top 3-4 common ones
+            // Most populous US states for state questions
+            const commonStates = ['California', 'Texas', 'New York', 'Florida', 'Illinois', 'Pennsylvania']
+            let selectedReplies: string[]
+
+            if (nonOtherReplies.length > 6) {
+              // Many options - pick common ones that exist in the list, or first 3
+              const commonMatches = commonStates.filter(s =>
+                nonOtherReplies.some(r => r.toLowerCase() === s.toLowerCase())
+              ).slice(0, 3)
+              selectedReplies = commonMatches.length >= 2
+                ? commonMatches
+                : nonOtherReplies.slice(0, 3)
+
+              // If saved answer exists and isn't in selected, add it first
+              if (savedAnswer && !selectedReplies.some(r => r.toLowerCase() === savedAnswer.toLowerCase())) {
+                const savedMatch = nonOtherReplies.find(r => r.toLowerCase() === savedAnswer.toLowerCase())
+                if (savedMatch) {
+                  selectedReplies = [savedMatch, ...selectedReplies.slice(0, 2)]
+                }
+              }
+            } else {
+              selectedReplies = nonOtherReplies
+            }
+
+            const visibleReplies = [...selectedReplies, ...(otherOption ? [otherOption] : [])]
+            const isSaved = (reply: string) => savedAnswer && reply.toLowerCase() === savedAnswer.toLowerCase()
+
+            return (
+              <div className="flex flex-wrap gap-2">
+                {visibleReplies.map((reply, index) => (
+                  <button
+                    key={reply}
+                    onClick={() => onQuickReply(reply)}
+                    className={`
+                      px-3.5 py-2 rounded-sm text-sm
+                      transition-all duration-[80ms] ease-out
+                      tap-target btn-press animate-rise
+                      ${isSaved(reply)
+                        ? 'bg-accent text-white border border-accent'
+                        : 'bg-card border border-border text-text hover:bg-card-hover'
+                      }
+                    `}
+                    style={{ animationDelay: `${index * 30}ms` }}
+                  >
+                    {reply}
+                    {isSaved(reply) && ' ✓'}
+                  </button>
+                ))}
+              </div>
+            )
+          })()}
 
           {/* Actions */}
           {actions.length > 0 && onAction && (
@@ -271,10 +349,10 @@ export function AICard({
                   onClick={() => onAction(action)}
                   className="
                     px-4 py-2
-                    bg-card border border-border rounded-full
+                    bg-card border border-border rounded-sm
                     text-sm text-text
-                    hover:border-accent hover:bg-accent-soft
-                    transition-all duration-150 ease-out
+                    hover:bg-card-hover
+                    transition-all duration-[80ms] ease-out
                     btn-press tap-target animate-rise
                   "
                   style={{ animationDelay: `${index * 40}ms` }}
@@ -288,19 +366,22 @@ export function AICard({
           {/* Task created confirmation */}
           {card.taskCreated && onGoToTask && (
             <div
-              onClick={() => onGoToTask(card.taskCreated!.id)}
+              onClick={() => {
+                onGoToTask(card.taskCreated!.id)
+                // Also dismiss the card when navigating
+                handleDismiss()
+              }}
               className="
-                p-4 mt-3
-                bg-success-soft rounded-lg
+                p-3 mt-3
+                bg-card border border-border rounded-md
                 flex items-center gap-3
                 cursor-pointer
-                transition-all duration-150 ease-out
-                hover:-translate-y-0.5
+                hover:bg-card-hover
                 btn-press animate-rise
               "
             >
-              <div className="w-8 h-8 rounded-full bg-success/20 flex items-center justify-center flex-shrink-0">
-                <svg width={16} height={16} viewBox="0 0 16 16" className="text-success">
+              <div className="w-6 h-6 rounded-sm bg-success/15 flex items-center justify-center flex-shrink-0">
+                <svg width={14} height={14} viewBox="0 0 16 16" className="text-success">
                   <path
                     d="M3 8L6.5 11.5L13 4.5"
                     stroke="currentColor"
@@ -312,12 +393,12 @@ export function AICard({
                 </svg>
               </div>
               <div className="flex-1 min-w-0">
-                <div className="text-base font-medium truncate">{card.taskCreated.title}</div>
-                <div className="text-sm text-text-soft">
-                  {card.taskCreated.steps?.length || 0} steps &middot; Click to view
+                <div className="text-sm font-medium truncate">{card.taskCreated.title}</div>
+                <div className="text-xs text-text-muted">
+                  {card.taskCreated.steps?.length || 0} steps
                 </div>
               </div>
-              <svg width={16} height={16} viewBox="0 0 16 16" className="text-text-muted flex-shrink-0">
+              <svg width={14} height={14} viewBox="0 0 16 16" className="text-text-muted flex-shrink-0">
                 <path
                   d="M6 4L10 8L6 12"
                   stroke="currentColor"

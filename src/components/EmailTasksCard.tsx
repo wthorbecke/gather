@@ -3,6 +3,16 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useAuth } from './AuthProvider'
 
+interface AIAnalysis {
+  category: string
+  confidence: number
+  suggestedTask?: {
+    title: string
+    dueDate: string | null
+    urgency: string
+  }
+}
+
 interface PotentialTask {
   id: string
   subject: string
@@ -10,17 +20,27 @@ interface PotentialTask {
   snippet: string
   date: string
   matchedPattern: string
+  aiAnalysis?: AIAnalysis
 }
 
 interface EmailTasksCardProps {
-  onAddTask: (title: string, context: string) => void
+  onAddTask: (title: string, context: string, dueDate?: string) => void
+  onIgnoreSender?: (sender: string) => void
 }
 
 // Retry configuration
 const MAX_RETRIES = 3
 const BASE_DELAY_MS = 1000
 
-export function EmailTasksCard({ onAddTask }: EmailTasksCardProps) {
+// Category display names and colors
+const CATEGORY_INFO: Record<string, { label: string; color: string }> = {
+  BILL_DUE: { label: 'Bill', color: 'text-danger' },
+  APPOINTMENT: { label: 'Appointment', color: 'text-accent' },
+  DEADLINE: { label: 'Deadline', color: 'text-warning' },
+  REQUEST: { label: 'Request', color: 'text-text-soft' },
+}
+
+export function EmailTasksCard({ onAddTask, onIgnoreSender }: EmailTasksCardProps) {
   const { session } = useAuth()
   const [potentialTasks, setPotentialTasks] = useState<PotentialTask[]>([])
   const [loading, setLoading] = useState(false)
@@ -112,15 +132,33 @@ export function EmailTasksCard({ onAddTask }: EmailTasksCardProps) {
   }, [session?.access_token, hasScanned, scanEmails])
 
   const handleAddTask = (task: PotentialTask) => {
+    // Use AI-suggested title and due date if available
+    const title = task.aiAnalysis?.suggestedTask?.title || task.subject
+    const dueDate = task.aiAnalysis?.suggestedTask?.dueDate || undefined
+
     onAddTask(
-      task.subject,
-      `From: ${task.from}\nReceived: ${task.date}\n\n${task.snippet}`
+      title,
+      `From: ${task.from}\nReceived: ${task.date}\n\n${task.snippet}`,
+      dueDate
     )
     setDismissed((prev) => new Set(prev).add(task.id))
   }
 
   const handleDismiss = (taskId: string) => {
     setDismissed((prev) => new Set(prev).add(taskId))
+  }
+
+  const handleIgnoreSender = (task: PotentialTask) => {
+    if (onIgnoreSender) {
+      onIgnoreSender(task.from)
+    }
+    // Dismiss all emails from this sender
+    const senderTasks = potentialTasks.filter(t => t.from === task.from)
+    setDismissed(prev => {
+      const newDismissed = new Set(prev)
+      senderTasks.forEach(t => newDismissed.add(t.id))
+      return newDismissed
+    })
   }
 
   const handleDismissAll = () => {
@@ -214,12 +252,34 @@ export function EmailTasksCard({ onAddTask }: EmailTasksCardProps) {
           <div key={task.id} className="p-4 hover:bg-subtle/50 transition-colors">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0 flex-1">
-                <div className="text-sm font-medium text-text truncate">
-                  {task.subject}
+                <div className="flex items-center gap-2 mb-0.5">
+                  <div className="text-sm font-medium text-text truncate">
+                    {task.subject}
+                  </div>
+                  {/* Category badge */}
+                  {task.aiAnalysis?.category && CATEGORY_INFO[task.aiAnalysis.category] && (
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full bg-surface font-medium ${CATEGORY_INFO[task.aiAnalysis.category].color}`}>
+                      {CATEGORY_INFO[task.aiAnalysis.category].label}
+                    </span>
+                  )}
                 </div>
-                <div className="text-xs text-text-muted mt-0.5">
-                  {task.from} · {task.date}
+                <div className="text-xs text-text-muted mt-0.5 flex items-center gap-2">
+                  <span>{task.from} · {task.date}</span>
+                  {/* Confidence indicator */}
+                  {task.aiAnalysis?.confidence !== undefined && task.aiAnalysis.confidence > 0.7 && (
+                    <span className="flex items-center gap-0.5" title={`${Math.round(task.aiAnalysis.confidence * 100)}% confident`}>
+                      <svg width={10} height={10} viewBox="0 0 16 16" className="text-success">
+                        <path d="M8 1L10 6L15 6.5L11.5 10L12.5 15L8 12.5L3.5 15L4.5 10L1 6.5L6 6L8 1Z" fill="currentColor"/>
+                      </svg>
+                    </span>
+                  )}
                 </div>
+                {/* AI-suggested due date */}
+                {task.aiAnalysis?.suggestedTask?.dueDate && (
+                  <div className="text-xs text-accent mt-1">
+                    Due: {new Date(task.aiAnalysis.suggestedTask.dueDate).toLocaleDateString()}
+                  </div>
+                )}
               </div>
               <div className="flex items-center gap-2 flex-shrink-0">
                 <button
@@ -228,14 +288,30 @@ export function EmailTasksCard({ onAddTask }: EmailTasksCardProps) {
                 >
                   Add as task
                 </button>
-                <button
-                  onClick={() => handleDismiss(task.id)}
-                  className="p-1.5 text-text-muted hover:text-text transition-colors btn-press tap-target"
-                >
-                  <svg width={14} height={14} viewBox="0 0 16 16">
-                    <path d="M4 4L12 12M12 4L4 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-                  </svg>
-                </button>
+                <div className="relative group">
+                  <button
+                    onClick={() => handleDismiss(task.id)}
+                    className="p-1.5 text-text-muted hover:text-text transition-colors btn-press tap-target"
+                  >
+                    <svg width={14} height={14} viewBox="0 0 16 16">
+                      <path d="M4 4L12 12M12 4L4 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                    </svg>
+                  </button>
+                  {/* Dropdown for ignore options */}
+                  {onIgnoreSender && (
+                    <div className="absolute right-0 top-full mt-1 hidden group-hover:block z-10">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleIgnoreSender(task)
+                        }}
+                        className="whitespace-nowrap px-3 py-2 bg-card border border-border rounded-md shadow-sm text-xs text-text-muted hover:text-text hover:bg-surface transition-colors"
+                      >
+                        Always ignore {task.from}
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>

@@ -9,6 +9,8 @@ import { HomeView } from './HomeView'
 import { TaskView } from './TaskView'
 import { AICardState } from './AICard'
 import { Confetti, CompletionCelebration } from './Confetti'
+import { IntegrationSettings } from './IntegrationSettings'
+import { CalendarWidget } from './CalendarSidebar'
 import {
   isQuestion,
   isStepRequest,
@@ -23,6 +25,7 @@ import {
   COMPLETION_KEYWORD_MAP,
 } from '@/lib/taskHelpers'
 import { OTHER_SPECIFY_OPTION } from '@/config/content'
+import { splitStepText } from '@/lib/stepText'
 
 interface ContextTag {
   type: 'task' | 'step'
@@ -38,7 +41,7 @@ interface GatherAppProps {
 
 export function GatherApp({ user, onSignOut }: GatherAppProps) {
   const { tasks, addTask, updateTask, toggleStep, deleteTask, loading } = useTasks(user)
-  const { addEntry, addToConversation, getMemoryForAI, getRelevantMemory } = useMemory()
+  const { addEntry, addToConversation, getMemoryForAI, getRelevantMemory, getPreference, setPreference } = useMemory()
   const isDemoUser = Boolean(user?.id?.startsWith('demo-') || user?.email?.endsWith('@gather.local'))
 
   // View state
@@ -70,6 +73,9 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
   // Celebration state
   const [showConfetti, setShowConfetti] = useState(false)
   const [completedTaskName, setCompletedTaskName] = useState<string | null>(null)
+
+  // Integration settings state
+  const [showIntegrationSettings, setShowIntegrationSettings] = useState(false)
 
   const currentTask = tasks.find((t) => t.id === currentTaskId)
 
@@ -572,6 +578,10 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
         const sanitizedQuestions = sanitizeQuestions(data.taskName || value, data.questions)
         console.log('[Gather] Asking clarifying questions:', data.questions)
         const firstQuestionText = sanitizedQuestions[0].question || sanitizedQuestions[0].text || ''
+        const firstQuestionKey = sanitizedQuestions[0].key
+        // Check for saved preference
+        const savedAnswer = firstQuestionKey ? getPreference(firstQuestionKey) : undefined
+
         // AI needs more context - start gathering
         setContextGathering({
           questions: sanitizedQuestions,
@@ -589,55 +599,113 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
           },
           quickReplies: sanitizedQuestions[0].options,
           pendingTaskName: data.taskName || value,
+          savedAnswer, // Pass saved preference to highlight
         })
       } else if (data.ifComplete?.steps && data.ifComplete.steps.length > 0) {
-        // AI has enough info to create steps immediately
-        console.log('[Gather] Creating task with steps:', data.ifComplete.steps)
-        const steps: Step[] = data.ifComplete.steps.map((s: any, i: number) => ({
-          id: `step-${Date.now()}-${i}`,
-          text: s.text,
-          done: false,
-          summary: s.summary,
-          detail: s.detail,
-          time: s.time,
-        }))
-
-        // Extract deadline if detected
+        // AI has enough info - but still do web research for better steps with sources
+        console.log('[Gather] Task needs no questions, researching steps...')
+        const taskName = data.taskName || value
+        const contextSummary = data.ifComplete.contextSummary || ''
         const detectedDeadline = data.deadline?.date || null
 
-        const newTask = await addTask(
-          data.taskName || value,
-          'soon',
-          undefined, // description
-          undefined, // badge
-          undefined, // clarifyingAnswers
-          undefined, // taskCategory
-          detectedDeadline
-        )
-        if (newTask) {
-          await updateTask(newTask.id, {
-            steps,
-            context_text: data.ifComplete.contextSummary,
-            due_date: detectedDeadline,
-          } as Partial<Task>)
+        setAiCard({ thinking: true, message: "Researching the best steps for you..." })
 
-          const updatedTask: Task = {
-            ...newTask,
-            steps,
-            context_text: data.ifComplete.contextSummary || null,
+        try {
+          const response = await fetch('/api/suggest-subtasks', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              title: taskName,
+              description: contextSummary,
+              context: data.extractedContext || {},
+            }),
+          })
+
+          let steps: Step[] = []
+          let sources: { title: string; url: string }[] = []
+
+          if (response.ok) {
+            const result = await response.json()
+            sources = result.sources || []
+            steps = (result.steps || []).map((item: any, index: number) => {
+              const parsed = splitStepText(item.text)
+              return {
+                id: `step-${Date.now()}-${index}`,
+                text: item.text,
+                done: false,
+                summary: item.summary || parsed.remainder,
+                detail: item.detail,
+                time: item.time,
+                source: item.source,
+                action: item.action,
+              }
+            })
+          } else {
+            console.error('[Gather] suggest-subtasks API failed, using fallback steps')
+            steps = data.ifComplete.steps.map((s: any, i: number) => ({
+              id: `step-${Date.now()}-${i}`,
+              text: s.text,
+              done: false,
+              summary: s.summary,
+              detail: s.detail,
+              time: s.time,
+            }))
           }
 
-          // Add to memory
-          addEntry({
-            type: 'task_created',
-            taskTitle: data.taskName || value,
-            context: {},
-          })
+          const newTask = await addTask(
+            taskName,
+            'soon',
+            undefined,
+            undefined,
+            undefined,
+            undefined,
+            detectedDeadline
+          )
 
-          setAiCard({
-            message: "Here's your plan.",
-            taskCreated: updatedTask,
-          })
+          if (newTask) {
+            await updateTask(newTask.id, {
+              steps,
+              context_text: contextSummary,
+              due_date: detectedDeadline,
+            } as Partial<Task>)
+
+            const updatedTask: Task = {
+              ...newTask,
+              steps,
+              context_text: contextSummary || null,
+            }
+
+            addEntry({
+              type: 'task_created',
+              taskTitle: taskName,
+              context: {},
+            })
+
+            setAiCard({
+              message: "Here's your plan.",
+              taskCreated: updatedTask,
+              sources,
+            })
+          }
+        } catch (error) {
+          console.error('[Gather] Error researching steps:', error)
+          // Fallback to original ifComplete steps
+          const steps: Step[] = data.ifComplete.steps.map((s: any, i: number) => ({
+            id: `step-${Date.now()}-${i}`,
+            text: s.text,
+            done: false,
+            summary: s.summary,
+            detail: s.detail,
+            time: s.time,
+          }))
+
+          const newTask = await addTask(taskName, 'soon', undefined, undefined, undefined, undefined, detectedDeadline)
+          if (newTask) {
+            await updateTask(newTask.id, { steps, context_text: contextSummary, due_date: detectedDeadline } as Partial<Task>)
+            const updatedTask: Task = { ...newTask, steps, context_text: contextSummary || null }
+            addEntry({ type: 'task_created', taskTitle: taskName, context: {} })
+            setAiCard({ message: "Here's your plan.", taskCreated: updatedTask })
+          }
         }
       } else {
         // AI didn't generate questions or steps - just create simple task
@@ -860,23 +928,25 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
 
       // Store the answer
       const updatedAnswers = { ...answers, [currentQuestion.key]: reply }
-      
+
       if (reply.toLowerCase().includes(OTHER_SPECIFY_OPTION.toLowerCase())) {
+        // Set free text mode, clear saved answer, mark "Other" as selected
         setContextGathering({
           ...contextGathering,
-          answers: updatedAnswers,
-          awaitingFreeTextFor: { key: currentQuestion.key, prompt: currentQuestion.question || currentQuestion.text || 'Please specify.' },
+          awaitingFreeTextFor: { key: currentQuestion.key, prompt: currentQuestion.question || currentQuestion.text || '' },
         })
-        setAiCard({
-          question: {
-            text: 'Please specify.',
-            index: currentIndex + 1,
-            total: questions.length,
-          },
-          quickReplies: [],
-          pendingTaskName: taskName,
-        })
+        // Clear savedAnswer but keep quickReplies for autocomplete, mark other as selected
+        setAiCard(prev => prev ? {
+          ...prev,
+          autoFocusInput: true,
+          savedAnswer: reply, // Mark "Other" as selected
+        } : prev)
         return
+      }
+
+      // Save preference for future use (e.g., state, country)
+      if (currentQuestion.key && reply) {
+        setPreference(currentQuestion.key, reply)
       }
 
       // Check if there are more questions
@@ -884,6 +954,7 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
         // Ask the next question
         const nextQuestion = questions[currentIndex + 1]
         const nextQuestionText = nextQuestion.question || nextQuestion.text || ''
+        const nextSavedAnswer = nextQuestion.key ? getPreference(nextQuestion.key) : undefined
         setContextGathering({
           ...contextGathering,
           currentIndex: currentIndex + 1,
@@ -897,6 +968,7 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
           },
           quickReplies: nextQuestion.options,
           pendingTaskName: taskName,
+          savedAnswer: nextSavedAnswer,
         })
         return
       }
@@ -1265,7 +1337,7 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-canvas">
         <div className="text-center">
-          <h1 className="text-2xl font-semibold text-text mb-4">Gather</h1>
+          <h1 className="text-2xl font-display font-semibold text-text mb-4">Gather</h1>
           <div className="flex justify-center gap-1">
             <span className="w-2 h-2 bg-accent-soft rounded-full loading-dot" />
             <span className="w-2 h-2 bg-accent-soft rounded-full loading-dot" />
@@ -1280,18 +1352,24 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
     <div className="min-h-screen bg-canvas">
       {/* Header - only show on home view */}
       {!currentTaskId && (
-        <div className="px-5 pt-8 pb-4">
-          <div className="max-w-[540px] mx-auto">
-            <div className="flex justify-between items-center">
-              <h1 className="text-4xl font-display font-semibold tracking-tight text-text">Gather</h1>
-              <div className="flex items-center gap-2">
-                <ThemeToggle />
-                <button
-                  onClick={onSignOut}
-                  className="text-sm text-text-muted hover:text-text transition-colors duration-150 px-2 py-1"
-                >
-                  {isDemoUser ? 'Exit demo' : 'Sign out'}
-                </button>
+        <div className="sticky top-0 z-10 bg-canvas/95 backdrop-blur-sm border-b border-border-subtle">
+          <div className="px-5 py-4">
+            <div className="max-w-[540px] mx-auto">
+              <div className="flex justify-between items-center">
+                <h1 className="text-3xl font-display font-semibold tracking-tight text-text">Gather</h1>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setShowIntegrationSettings(true)}
+                    className="p-2 rounded-lg text-text-muted hover:text-text hover:bg-surface transition-colors"
+                    title="Integrations"
+                  >
+                    <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <circle cx="12" cy="12" r="3"/>
+                      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                    </svg>
+                  </button>
+                  <ThemeToggle />
+                </div>
               </div>
             </div>
           </div>
@@ -1303,22 +1381,35 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
 
       {/* Views */}
       {!currentTaskId ? (
-        <HomeView
-          tasks={tasks}
-          aiCard={aiCard}
-          pendingInput={pendingInput}
-          onSubmit={handleSubmit}
-          onQuickAdd={handleQuickAdd}
-          onQuickReply={handleQuickReply}
-          onDismissAI={dismissAI}
-          onGoToTask={goToTask}
-          onToggleStep={handleToggleStep}
-          onSuggestionClick={handleSuggestionClick}
-          onDeleteTask={handleDeleteTask}
-          onAICardAction={handleAICardAction}
-          onBackQuestion={handleBackQuestion}
-          canGoBack={Boolean(contextGathering && (contextGathering.currentIndex > 0 || contextGathering.awaitingFreeTextFor))}
-        />
+        <>
+          <HomeView
+            tasks={tasks}
+            aiCard={aiCard}
+            pendingInput={pendingInput}
+            onSubmit={handleSubmit}
+            onQuickAdd={handleQuickAdd}
+            onQuickReply={handleQuickReply}
+            onDismissAI={dismissAI}
+            onGoToTask={goToTask}
+            onToggleStep={handleToggleStep}
+            onSuggestionClick={handleSuggestionClick}
+            onDeleteTask={handleDeleteTask}
+            onAICardAction={handleAICardAction}
+            onBackQuestion={handleBackQuestion}
+            canGoBack={Boolean(contextGathering && contextGathering.currentIndex > 0)}
+          />
+          {/* Footer */}
+          <div className="px-5 pb-8">
+            <div className="max-w-[540px] mx-auto text-center">
+              <button
+                onClick={onSignOut}
+                className="text-xs text-text-muted hover:text-text-soft"
+              >
+                {isDemoUser ? 'Exit demo' : 'Sign out'}
+              </button>
+            </div>
+          </div>
+        </>
       ) : currentTask ? (
         <TaskView
           task={currentTask}
@@ -1336,6 +1427,14 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
           onDeleteTask={() => handleDeleteTask(currentTask.id)}
           onSnoozeTask={(date) => handleSnoozeTask(currentTask.id, date)}
           focusStepId={focusStepId}
+          onStuckOnStep={(step) => {
+            // Show a prompt in the AI card instead of auto-calling AI
+            handleSetStepContext(step)
+            setAiCard({
+              message: `What's blocking you on "${step.text.length > 50 ? step.text.slice(0, 50) + '...' : step.text}"?`,
+              autoFocusInput: true,
+            })
+          }}
         />
       ) : null}
 
@@ -1346,6 +1445,11 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
         onDismiss={() => setCompletedTaskName(null)}
       />
 
+      {/* Integration Settings Modal */}
+      <IntegrationSettings
+        isOpen={showIntegrationSettings}
+        onClose={() => setShowIntegrationSettings(false)}
+      />
     </div>
   )
 }
