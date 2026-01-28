@@ -202,12 +202,12 @@ export async function GET(request: NextRequest) {
     }
 
     // Fetch recent emails from Gmail API
-    // Include both read and unread from last 14 days, excluding promotions/social
+    // Include both read and unread from last 90 days, excluding promotions/social/forums
     const listResponse = await fetch(
       'https://gmail.googleapis.com/gmail/v1/users/me/messages?' +
       new URLSearchParams({
-        maxResults: '50',
-        q: 'newer_than:14d -category:promotions -category:social -category:forums',
+        maxResults: '100',
+        q: 'newer_than:90d -category:promotions -category:social -category:forums',
       }),
       {
         headers: {
@@ -238,10 +238,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ potentialTasks: [], message: 'No unread emails found' })
     }
 
-    // Fetch message details in batches
+    // Fetch message details - check up to 100 emails
     const potentialTasks: PotentialTask[] = []
 
-    for (const msg of messages.slice(0, 20)) {
+    for (const msg of messages.slice(0, 100)) {
       try {
         const detailResponse = await fetch(
           `https://gmail.googleapis.com/gmail/v1/users/me/messages/${msg.id}?format=metadata&metadataHeaders=Subject&metadataHeaders=From&metadataHeaders=Date`,
