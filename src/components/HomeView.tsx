@@ -8,18 +8,13 @@ import { UnifiedInput } from './UnifiedInput'
 import { AICard, AICardState } from './AICard'
 import { TaskListItem } from './TaskListItem'
 import { Checkbox } from './Checkbox'
-import { EmailTasksCard } from './EmailTasksCard'
-import { ReflectionCard } from './ReflectionCard'
-import { StatsCard } from './StatsCard'
 import { getDeadlineUrgency } from './DeadlineBadge'
 import { content } from '@/config/content'
-import { User } from '@supabase/supabase-js'
 
 interface HomeViewProps {
   tasks: Task[]
   aiCard: AICardState | null
   pendingInput: string | null
-  user: User | null
   onSubmit: (value: string) => void
   onQuickAdd: (value: string) => void
   onQuickReply: (reply: string) => void
@@ -31,14 +26,12 @@ interface HomeViewProps {
   onAICardAction?: (action: { type: string; stepId?: string | number; title?: string; context?: string }) => void
   onBackQuestion?: () => void
   canGoBack?: boolean
-  onAddEmailTask?: (title: string, context: string) => void
 }
 
 export function HomeView({
   tasks,
   aiCard,
   pendingInput,
-  user,
   onSubmit,
   onQuickAdd,
   onQuickReply,
@@ -50,7 +43,6 @@ export function HomeView({
   onAICardAction,
   onBackQuestion,
   canGoBack = false,
-  onAddEmailTask,
 }: HomeViewProps) {
   // Filter out snoozed tasks (hidden until their snooze date)
   const activeTasks = useMemo(() => {
@@ -86,24 +78,11 @@ export function HomeView({
   )
   const getDerivedStepTitle = (text: string) => splitStepText(text).title
 
-  // Find quick wins - tasks with only 1-2 steps remaining
-  const quickWins = useMemo(() => {
-    return activeTasks.filter(task => {
-      if (!task.steps || task.steps.length === 0) return false
-      const remainingSteps = task.steps.filter(s => !s.done)
-      if (remainingSteps.length === 0) return false // All done
-      if (remainingSteps.length > 2) return false // Too many steps
-      // If nextStep is from this task, exclude it (already shown)
-      if (nextStep?.task.id === task.id) return false
-      return true
-    }).slice(0, 3) // Show max 3 quick wins
-  }, [activeTasks, nextStep])
-
   return (
     <div className="min-h-screen px-5 py-8">
       <div className="max-w-[540px] mx-auto">
-        {/* Suggestions - show when no AI card */}
-        {!aiCard && (
+        {/* Suggestions - only show when no tasks yet */}
+        {!aiCard && activeTasks.length === 0 && (
           <div className="flex flex-wrap gap-2 mb-8">
             {content.homeSuggestions.map((s, index) => (
               <button
@@ -116,23 +95,6 @@ export function HomeView({
               </button>
             ))}
           </div>
-        )}
-
-        {/* Weekly Reflection - show when no AI card */}
-        {!aiCard && user && (
-          <div className="mb-6">
-            <ReflectionCard user={user} />
-          </div>
-        )}
-
-        {/* Stats Card - show when there are tasks and no AI card */}
-        {!aiCard && activeTasks.length > 0 && (
-          <StatsCard tasks={activeTasks} />
-        )}
-
-        {/* Email Tasks - show when no AI card and handler provided */}
-        {!aiCard && onAddEmailTask && (
-          <EmailTasksCard onAddTask={onAddEmailTask} />
         )}
 
         {/* AI Card */}
@@ -216,37 +178,6 @@ export function HomeView({
           </div>
         )}
 
-        {/* Quick Wins section */}
-        {quickWins.length > 0 && (
-          <div className="mb-6">
-            <div className="text-xs font-medium text-success mb-3 flex items-center gap-2">
-              <svg width={12} height={12} viewBox="0 0 16 16" className="opacity-80">
-                <path d="M8 1L10 6H15L11 9.5L12.5 15L8 11.5L3.5 15L5 9.5L1 6H6L8 1Z" fill="currentColor" />
-              </svg>
-              Quick wins
-            </div>
-            <div className="flex flex-col gap-2">
-              {quickWins.map((task, index) => {
-                const remaining = task.steps?.filter(s => !s.done).length || 0
-                return (
-                  <div
-                    key={task.id}
-                    onClick={() => onGoToTask(task.id)}
-                    className="bg-card rounded-lg p-3 cursor-pointer hover:bg-card/80 transition-all animate-rise border-l-2 border-l-success/40"
-                    style={{ animationDelay: `${index * 40}ms` }}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium text-text truncate flex-1 mr-2">{task.title}</span>
-                      <span className="text-xs text-success whitespace-nowrap">
-                        {remaining === 1 ? '1 step left' : `${remaining} steps left`}
-                      </span>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-        )}
 
         {/* All done state */}
         {!nextStep && tasks.length > 0 && totalSteps > 0 && incompleteSteps === 0 && (

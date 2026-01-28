@@ -61,7 +61,6 @@ export function StepItem({ step, isNext, isExpanded, onToggle, onExpand, onStuck
       data-step-id={step.id}
       className={`
         rounded-lg transition-all duration-200 ease-out step-item
-        ${step.done ? 'opacity-50' : ''}
         ${isExpanded && !step.done ? 'bg-card shadow-sm ring-1 ring-border' : ''}
         ${isNext && !step.done && !isExpanded ? 'step-item-next bg-success/[0.06] border-l-2 border-l-success' : ''}
         ${!isNext && !step.done && !isExpanded ? 'border-l-2 border-l-transparent hover:bg-subtle/50' : ''}

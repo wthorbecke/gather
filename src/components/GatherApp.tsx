@@ -4,13 +4,11 @@ import { useState, useCallback, useRef } from 'react'
 import { User } from '@supabase/supabase-js'
 import { useTasks, Task, Step } from '@/hooks/useUserData'
 import { useMemory } from '@/hooks/useMemory'
-import { useGameification } from '@/hooks/useGameification'
 import { ThemeToggle } from './ThemeProvider'
 import { HomeView } from './HomeView'
 import { TaskView } from './TaskView'
 import { AICardState } from './AICard'
 import { Confetti, CompletionCelebration } from './Confetti'
-import { XPBar, XPPopup, ComboIndicator, LevelUpModal, AchievementModal } from './GameUI'
 import {
   isQuestion,
   isStepRequest,
@@ -41,18 +39,6 @@ interface GatherAppProps {
 export function GatherApp({ user, onSignOut }: GatherAppProps) {
   const { tasks, addTask, updateTask, toggleStep, deleteTask, loading } = useTasks(user)
   const { addEntry, addToConversation, getMemoryForAI, getRelevantMemory } = useMemory()
-  const {
-    stats: gameStats,
-    levelInfo,
-    recentXP,
-    newAchievement,
-    levelUp,
-    completeStep: gameCompleteStep,
-    completeTask: gameCompleteTask,
-    clearRecentXP,
-    clearNewAchievement,
-    clearLevelUp,
-  } = useGameification()
   const isDemoUser = Boolean(user?.id?.startsWith('demo-') || user?.email?.endsWith('@gather.local'))
 
   // View state
@@ -1237,11 +1223,6 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
 
     await toggleStep(taskId, stepId)
 
-    // Award XP for completing step (not uncompleting)
-    if (!wasComplete) {
-      gameCompleteStep(inFocusMode)
-    }
-
     // If we're completing (not uncompleting) and this completes the task, celebrate!
     if (!wasComplete && task.steps) {
       const otherStepsDone = task.steps.filter((s) => s.id !== stepId).every((s) => s.done)
@@ -1249,9 +1230,6 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
       if (allDone && task.steps.length > 1) {
         setShowConfetti(true)
         setCompletedTaskName(task.title)
-        // Award XP for completing task
-        const isQuickWin = task.steps.length <= 3
-        gameCompleteTask(isQuickWin)
         // Record completion in memory
         addEntry({
           type: 'task_completed',
@@ -1259,7 +1237,7 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
         })
       }
     }
-  }, [toggleStep, tasks, addEntry, gameCompleteStep, gameCompleteTask])
+  }, [toggleStep, tasks, addEntry])
 
   // Dismiss AI card
   const dismissAI = useCallback(() => {
@@ -1304,7 +1282,7 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
       {!currentTaskId && (
         <div className="px-5 pt-8">
           <div className="max-w-[540px] mx-auto">
-            <div className="flex justify-between items-center mb-4">
+            <div className="flex justify-between items-center">
               <h1 className="text-4xl font-display font-semibold tracking-tight">Gather</h1>
               <div className="flex items-center gap-3">
                 <ThemeToggle />
@@ -1315,16 +1293,6 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
                   {isDemoUser ? 'Exit demo' : 'Sign out'}
                 </button>
               </div>
-            </div>
-            {/* XP Bar */}
-            <div className="mb-6">
-              <XPBar
-                xp={gameStats.xp}
-                level={levelInfo.level}
-                title={levelInfo.title}
-                progress={levelInfo.progress}
-                xpToNext={levelInfo.xpToNext}
-              />
             </div>
           </div>
         </div>
@@ -1339,7 +1307,6 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
           tasks={tasks}
           aiCard={aiCard}
           pendingInput={pendingInput}
-          user={user}
           onSubmit={handleSubmit}
           onQuickAdd={handleQuickAdd}
           onQuickReply={handleQuickReply}
@@ -1351,10 +1318,6 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
           onAICardAction={handleAICardAction}
           onBackQuestion={handleBackQuestion}
           canGoBack={Boolean(contextGathering && (contextGathering.currentIndex > 0 || contextGathering.awaitingFreeTextFor))}
-          onAddEmailTask={(title, context) => {
-            // Process email as a new task through AI flow
-            handleSubmit(`${title}\n\nEmail context: ${context}`)
-          }}
         />
       ) : currentTask ? (
         <TaskView
@@ -1383,27 +1346,6 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
         onDismiss={() => setCompletedTaskName(null)}
       />
 
-      {/* Gamification UI */}
-      {recentXP && (
-        <XPPopup gain={recentXP} onComplete={clearRecentXP} />
-      )}
-      {gameStats.currentCombo > 1 && (
-        <ComboIndicator combo={gameStats.currentCombo} />
-      )}
-      {levelUp && (
-        <LevelUpModal
-          oldLevel={levelUp.oldLevel}
-          newLevel={levelUp.newLevel}
-          title={levelUp.title}
-          onClose={clearLevelUp}
-        />
-      )}
-      {newAchievement && (
-        <AchievementModal
-          achievement={newAchievement}
-          onClose={clearNewAchievement}
-        />
-      )}
     </div>
   )
 }

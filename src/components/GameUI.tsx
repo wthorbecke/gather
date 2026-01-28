@@ -24,7 +24,7 @@ export function XPBar({ xp, level, title, progress, xpToNext, compact = false }:
           <div className="w-16 h-1.5 bg-border rounded-full overflow-hidden">
             <div
               className="h-full bg-accent rounded-full transition-all duration-500"
-              style={{ width: `${progress}%` }}
+              style={{ width: `${Math.max(progress, 6)}%` }}
             />
           </div>
         </div>
@@ -54,7 +54,7 @@ export function XPBar({ xp, level, title, progress, xpToNext, compact = false }:
       <div className="h-2 bg-border rounded-full overflow-hidden">
         <div
           className="h-full bg-gradient-to-r from-accent to-accent/70 rounded-full transition-all duration-500 ease-out"
-          style={{ width: `${progress}%` }}
+          style={{ width: `${Math.max(progress, 3)}%` }}
         />
       </div>
     </div>
@@ -107,8 +107,8 @@ export function ComboIndicator({ combo }: ComboIndicatorProps) {
   if (combo < 2) return null
 
   return (
-    <div className="fixed bottom-24 right-4 z-40 animate-bounce">
-      <div className="bg-gradient-to-r from-orange-500 to-red-500 text-white px-3 py-1.5 rounded-full shadow-lg">
+    <div className="fixed bottom-6 right-4 z-40 pointer-events-none">
+      <div className="bg-gradient-to-r from-orange-500 to-red-500 text-white px-3 py-1.5 rounded-full shadow-lg animate-pulse">
         <span className="font-bold">{combo}x</span>
         <span className="text-sm ml-1">COMBO</span>
       </div>

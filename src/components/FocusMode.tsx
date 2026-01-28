@@ -159,8 +159,16 @@ export function FocusMode({
           {hasDetail && (
             <button
               onClick={() => setShowDetails(!showDetails)}
-              className="text-sm text-text-muted hover:text-text transition-colors"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm text-text-soft bg-surface hover:bg-surface/80 rounded-full transition-colors"
             >
+              <svg
+                width={12}
+                height={12}
+                viewBox="0 0 16 16"
+                className={`transition-transform ${showDetails ? 'rotate-180' : ''}`}
+              >
+                <path d="M4 6L8 10L12 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" fill="none" />
+              </svg>
               {showDetails ? 'Hide details' : 'Show details'}
             </button>
           )}
@@ -222,12 +230,15 @@ export function FocusMode({
         <button
           onClick={onPrevious}
           disabled={currentStepIndex === 0}
-          className="px-4 py-2 text-sm text-text-soft hover:text-text transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+          className="p-2 text-text-soft hover:text-text transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+          aria-label="Previous step"
         >
-          ← Previous
+          <svg width={20} height={20} viewBox="0 0 16 16">
+            <path d="M10 12L6 8L10 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" fill="none" />
+          </svg>
         </button>
 
-        <div className="flex gap-1">
+        <div className="flex gap-1.5">
           {Array.from({ length: totalSteps }).map((_, i) => (
             <div
               key={i}
@@ -245,9 +256,12 @@ export function FocusMode({
         <button
           onClick={onNext}
           disabled={currentStepIndex === totalSteps - 1}
-          className="px-4 py-2 text-sm text-text-soft hover:text-text transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+          className="p-2 text-text-soft hover:text-text transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+          aria-label="Next step"
         >
-          Next →
+          <svg width={20} height={20} viewBox="0 0 16 16">
+            <path d="M6 4L10 8L6 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" fill="none" />
+          </svg>
         </button>
       </div>
     </div>

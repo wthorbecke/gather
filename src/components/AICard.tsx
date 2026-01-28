@@ -106,7 +106,8 @@ export function AICard({
       {/* Dismiss button */}
       <button
         onClick={handleDismiss}
-        className="absolute top-3 right-3 p-1 text-text-muted opacity-60 hover:opacity-100 transition-opacity tap-target btn-press"
+        className="absolute top-3 right-3 p-1.5 text-text-soft hover:text-text hover:bg-surface/50 rounded-md transition-all tap-target btn-press"
+        aria-label="Dismiss"
       >
         <svg width={16} height={16} viewBox="0 0 16 16">
           <path

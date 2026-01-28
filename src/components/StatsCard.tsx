@@ -218,7 +218,7 @@ export function StatsCard({ tasks, completedTasksThisWeek = 0 }: StatsCardProps)
             )}
             {stats.quickWins > 0 && (
               <span className="text-success">
-                {stats.quickWins} quick wins
+                {stats.quickWins} quick win{stats.quickWins !== 1 ? 's' : ''}
               </span>
             )}
           </div>
@@ -306,7 +306,7 @@ function getMotivationalMessage(stats: {
     return `${streak} days in a row. Keep the streak alive.`
   }
   if (stats.overdue > 0 && stats.quickWins > 0) {
-    return `You have ${stats.quickWins} quick wins available. Start there to build momentum.`
+    return `You have ${stats.quickWins} quick win${stats.quickWins !== 1 ? 's' : ''} available. Start there to build momentum.`
   }
   if (stats.progressPercent >= 75) {
     return "You're almost there. Keep going."
