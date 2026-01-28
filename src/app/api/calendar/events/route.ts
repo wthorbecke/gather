@@ -182,6 +182,65 @@ async function refreshCalendarEvents(
 }
 
 /**
+ * Enable calendar sync (without push notifications).
+ * Does an initial sync of events.
+ */
+export async function POST(request: NextRequest) {
+  try {
+    const authHeader = request.headers.get('authorization')
+    if (!authHeader?.startsWith('Bearer ')) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const accessToken = authHeader.slice(7)
+
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      { global: { headers: { Authorization: `Bearer ${accessToken}` } } }
+    )
+
+    const { data: { user }, error: userError } = await supabase.auth.getUser()
+    if (userError || !user) {
+      return NextResponse.json({ error: 'Invalid session' }, { status: 401 })
+    }
+
+    // Check if Google is connected
+    const googleToken = await getValidToken(user.id)
+    if (!googleToken) {
+      return NextResponse.json({
+        error: 'Google not connected',
+        needsReauth: true,
+      }, { status: 401 })
+    }
+
+    const serverClient = createServerClient()
+
+    // Enable Calendar in integration settings
+    await serverClient
+      .from('integration_settings')
+      .upsert({
+        user_id: user.id,
+        calendar_enabled: true,
+        updated_at: new Date().toISOString(),
+      }, {
+        onConflict: 'user_id',
+      })
+
+    // Do initial sync of events (30 days)
+    await refreshCalendarEvents(user.id, 30, serverClient)
+
+    return NextResponse.json({
+      success: true,
+      message: 'Calendar sync enabled',
+    })
+  } catch (error) {
+    console.error('[CalendarEvents] Error enabling:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
+}
+
+/**
  * Link a calendar event to a task.
  */
 export async function PATCH(request: NextRequest) {

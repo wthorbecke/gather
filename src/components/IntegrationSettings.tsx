@@ -200,7 +200,8 @@ export function IntegrationSettings({ isOpen, onClose }: IntegrationSettingsProp
           calendar: { enabled: false, active: false },
         }))
       } else {
-        const res = await fetch('/api/calendar/watch', {
+        // Try to enable calendar - use simple sync endpoint instead of watch
+        const res = await fetch('/api/calendar/events', {
           method: 'POST',
           headers: { Authorization: `Bearer ${session.access_token}` },
         })
@@ -208,12 +209,39 @@ export function IntegrationSettings({ isOpen, onClose }: IntegrationSettingsProp
           const data = await res.json()
           throw new Error(data.error || 'Failed to enable Calendar sync')
         }
-        const data = await res.json()
         setStatus(prev => ({
           ...prev,
-          calendar: { enabled: true, active: true, expiration: data.expiration },
+          calendar: { enabled: true, active: true },
         }))
       }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Something went wrong')
+    } finally {
+      setLoading(null)
+    }
+  }
+
+  const handleDisconnectGoogle = async () => {
+    if (!session?.access_token) return
+
+    setLoading('connect')
+    setError(null)
+
+    try {
+      const res = await fetch('/api/auth/google/disconnect', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      })
+
+      if (!res.ok) {
+        throw new Error('Failed to disconnect Google')
+      }
+
+      setStatus({
+        googleConnected: false,
+        gmail: { enabled: false, active: false },
+        calendar: { enabled: false, active: false },
+      })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong')
     } finally {
@@ -376,6 +404,17 @@ export function IntegrationSettings({ isOpen, onClose }: IntegrationSettingsProp
               </div>
             </div>
           </>
+        )}
+
+        {/* Disconnect option */}
+        {status.googleConnected && (
+          <button
+            onClick={handleDisconnectGoogle}
+            disabled={loading === 'connect'}
+            className="w-full text-center text-sm text-text-muted hover:text-danger transition-colors py-2"
+          >
+            {loading === 'connect' ? 'Disconnecting...' : 'Disconnect Google Account'}
+          </button>
         )}
 
         {/* Info note */}
