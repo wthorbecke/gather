@@ -7,11 +7,14 @@ import { splitStepText } from '@/lib/stepText'
 import { getDeadlineUrgency } from './DeadlineBadge'
 
 // Card types that can appear in the stack
+type EmailCard = { type: 'email'; id: string; subject: string; from: string; snippet: string }
+type CalendarCard = { type: 'calendar'; id: string; title: string; time: string; location?: string }
+
 type StackCard =
   | { type: 'step'; task: Task; step: Step; dismissCount: number }
   | { type: 'task'; task: Task; dismissCount: number }
-  | { type: 'email'; id: string; subject: string; from: string; snippet: string }
-  | { type: 'calendar'; id: string; title: string; time: string; location?: string }
+  | EmailCard
+  | CalendarCard
 
 interface StackViewProps {
   tasks: Task[]
@@ -58,8 +61,8 @@ export function StackView({
   const [isDragging, setIsDragging] = useState(false)
   const [isAnimatingOut, setIsAnimatingOut] = useState(false)
   const [showFlash, setShowFlash] = useState(false)
-  const [emails, setEmails] = useState<StackCard[]>([])
-  const [calendarEvents, setCalendarEvents] = useState<StackCard[]>([])
+  const [emails, setEmails] = useState<EmailCard[]>([])
+  const [calendarEvents, setCalendarEvents] = useState<CalendarCard[]>([])
   const [inputValue, setInputValue] = useState('')
   const [showInput, setShowInput] = useState(false)
 
