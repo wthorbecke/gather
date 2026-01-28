@@ -10,6 +10,7 @@ import { TaskListItem } from './TaskListItem'
 import { Checkbox } from './Checkbox'
 import { getDeadlineUrgency } from './DeadlineBadge'
 import { CalendarWidget } from './CalendarSidebar'
+import { EmailTasksCard } from './EmailTasksCard'
 import { content, OTHER_SPECIFY_OPTION } from '@/config/content'
 
 interface HomeViewProps {
@@ -174,6 +175,14 @@ export function HomeView({
 
         {/* Calendar Widget */}
         <CalendarWidget />
+
+        {/* Email Tasks */}
+        <EmailTasksCard
+          onAddTask={(title, context, dueDate) => {
+            // Use the quick add with the title, ignoring context/dueDate for now
+            onQuickAdd(title)
+          }}
+        />
 
         {/* Next Step highlight */}
         {nextStep && (
