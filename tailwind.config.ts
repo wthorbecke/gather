@@ -10,11 +10,16 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // New Gather palette - coral accent, sage success
+        // v17 Gather palette - gold/amber accent, sage success
         canvas: 'var(--canvas)',
         surface: 'var(--surface)',
         elevated: 'var(--elevated)',
+        card: 'var(--card)',
+        'card-hover': 'var(--card-hover)',
+        subtle: 'var(--subtle)',
         border: 'var(--border)',
+        'border-subtle': 'var(--border-subtle)',
+        'border-focus': 'var(--border-focus)',
         text: {
           DEFAULT: 'var(--text)',
           soft: 'var(--text-soft)',
@@ -23,6 +28,7 @@ const config: Config = {
         accent: {
           DEFAULT: 'var(--accent)',
           soft: 'var(--accent-soft)',
+          text: 'var(--accent-text)',
         },
         success: {
           DEFAULT: 'var(--success)',
@@ -32,9 +38,20 @@ const config: Config = {
           DEFAULT: 'var(--danger)',
           soft: 'var(--danger-soft)',
         },
+        link: {
+          DEFAULT: 'var(--link)',
+          soft: 'var(--link-soft)',
+        },
+        ai: {
+          bg: 'var(--ai-bg)',
+          border: 'var(--ai-border)',
+        },
+        'user-bg': 'var(--user-bg)',
       },
       fontFamily: {
-        sans: ['-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+        sans: ['var(--font-sans)'],
+        display: ['var(--font-display)'],
+        serif: ['var(--font-serif)'],
       },
       fontSize: {
         'xs': '12px',
@@ -61,18 +78,18 @@ const config: Config = {
         'spring': 'cubic-bezier(0.34, 1.56, 0.64, 1)',
       },
       animation: {
-        'fade-up': 'fadeUp 0.3s ease-out',
-        'modal-in': 'modalIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1)',
-        'modal-out': 'modalOut 0.25s ease forwards',
-        'backdrop-in': 'backdropIn 0.2s ease',
-        'backdrop-out': 'backdropOut 0.25s ease forwards',
+        'fade-up': 'fadeUp 0.2s cubic-bezier(0.22, 0.61, 0.36, 1)',
+        'modal-in': 'modalIn 0.22s cubic-bezier(0.22, 0.61, 0.36, 1)',
+        'modal-out': 'modalOut 0.2s cubic-bezier(0.4, 0, 1, 1) forwards',
+        'backdrop-in': 'backdropIn 0.18s cubic-bezier(0.22, 0.61, 0.36, 1)',
+        'backdrop-out': 'backdropOut 0.18s cubic-bezier(0.4, 0, 1, 1) forwards',
         'float': 'float 1.5s ease-in-out infinite',
-        'dot-pulse': 'dotPulse 1s ease-in-out infinite',
-        'celebrate': 'celebrateIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)',
+        'dot-pulse': 'dotPulse 0.9s ease-in-out infinite',
+        'celebrate': 'celebrateIn 0.3s cubic-bezier(0.22, 0.61, 0.36, 1)',
       },
       keyframes: {
         fadeUp: {
-          from: { opacity: '0', transform: 'translateY(20px)' },
+          from: { opacity: '0', transform: 'translateY(12px)' },
           to: { opacity: '1', transform: 'translateY(0)' },
         },
         modalIn: {

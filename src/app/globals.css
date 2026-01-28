@@ -1,39 +1,94 @@
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Light mode (default) */
+/* Light mode - warm neutral with coral accent */
 :root {
-  --canvas: #FAFAFA;
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-display: 'Fraunces', 'Georgia', serif;
+  --font-serif: 'Georgia', 'Times New Roman', serif;
+
+  --ease-out: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.45, 0, 0.55, 1);
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --duration-fast: 150ms;
+  --duration-base: 200ms;
+  --duration-slow: 250ms;
+
+  --canvas: #FAF9F7;
+  --canvas-tint: #F5F4F2;
+  --canvas-glow: #FEFDFB;
   --surface: rgba(0, 0, 0, 0.03);
   --elevated: #FFFFFF;
-  --text: #171717;
-  --text-soft: #525252;
-  --text-muted: #a3a3a3;
-  --accent: #E07A5F;
-  --accent-soft: rgba(224, 122, 95, 0.1);
+  --card: #FFFFFF;
+  --card-hover: #FAFAF8;
+  --subtle: #F5F4F2;
+  --text: #1a1a18;
+  --text-soft: #5a5a56;
+  --text-muted: #9a9a96;
+  --accent: #D97556;
+  --accent-soft: rgba(217, 117, 86, 0.1);
+  --accent-text: #c46848;
   --success: #6B9080;
   --success-soft: rgba(107, 144, 128, 0.1);
-  --border: rgba(0, 0, 0, 0.06);
+  --border: rgba(0, 0, 0, 0.08);
+  --border-subtle: rgba(0, 0, 0, 0.04);
+  --border-focus: rgba(217, 117, 86, 0.35);
   --danger: #DC6B6B;
-  --danger-soft: rgba(220, 107, 107, 0.1);
+  --danger-soft: rgba(220, 107, 107, 0.14);
+  --link: #4a8cba;
+  --link-soft: rgba(74, 140, 186, 0.1);
+  --ai-bg: #F5F4F2;
+  --ai-border: rgba(0, 0, 0, 0.06);
+  --user-bg: rgba(217, 117, 86, 0.08);
+
+  --bg: var(--canvas);
+  --border-light: rgba(0, 0, 0, 0.06);
+  --sage: var(--success);
+  --sage-soft: var(--success-soft);
+  --rose: var(--danger);
+  --rose-soft: rgba(220, 107, 107, 0.18);
+  --sky-soft: rgba(74, 140, 186, 0.15);
 }
 
-/* Dark mode */
+/* Dark mode - coral accent per design spec */
 .dark {
   --canvas: #0a0a0a;
-  --surface: rgba(255, 255, 255, 0.05);
+  --canvas-tint: #141414;
+  --canvas-glow: #1a1a1a;
+  --surface: rgba(255, 255, 255, 0.06);
   --elevated: #141414;
-  --text: #f5f5f5;
-  --text-soft: #a0a0a0;
-  --text-muted: #555555;
+  --card: #1a1a1a;
+  --card-hover: #1f1f1f;
+  --subtle: #1a1a1a;
+  --text: #FAFAFA;
+  --text-soft: #a3a3a3;
+  --text-muted: #525252;
   --accent: #E8A990;
   --accent-soft: rgba(232, 169, 144, 0.12);
+  --accent-text: #E8A990;
   --success: #9ECBB3;
   --success-soft: rgba(158, 203, 179, 0.12);
-  --border: rgba(255, 255, 255, 0.1);
-  --danger: #E87A7A;
-  --danger-soft: rgba(232, 122, 122, 0.12);
+  --border: rgba(255, 255, 255, 0.08);
+  --border-subtle: rgba(255, 255, 255, 0.04);
+  --border-focus: rgba(232, 169, 144, 0.5);
+  --danger: #f08d82;
+  --danger-soft: rgba(240, 141, 130, 0.16);
+  --link: #80b4dc;
+  --link-soft: rgba(128, 180, 220, 0.1);
+  --ai-bg: #1a1a1a;
+  --ai-border: rgba(255, 255, 255, 0.06);
+  --user-bg: rgba(232, 169, 144, 0.12);
+
+  --bg: var(--canvas);
+  --border-light: rgba(255, 255, 255, 0.08);
+  --sage: var(--success);
+  --sage-soft: var(--success-soft);
+  --rose: var(--danger);
+  --rose-soft: rgba(240, 141, 130, 0.22);
+  --sky-soft: rgba(128, 180, 220, 0.15);
 }
 
 * {
@@ -41,18 +96,128 @@
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  background: var(--canvas);
+  font-family: var(--font-sans);
+  background-color: var(--canvas);
   color: var(--text);
   min-height: 100vh;
   line-height: 1.6;
-  transition: background-color 0.3s ease, color 0.3s ease;
+  transition: background-color var(--duration-slow) var(--ease-out), color var(--duration-slow) var(--ease-out);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Login screen */
+.login-gradient {
+  background: linear-gradient(145deg, #fafaf8 0%, #f5f4f0 50%, #f0efe8 100%);
+}
+
+.dark .login-gradient {
+  background: linear-gradient(145deg, #0a0a0a 0%, #0f0f0e 50%, #141412 100%);
+}
+
+.login-container {
+  animation: loginFadeIn 0.4s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+@keyframes loginFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Staggered login animations */
+.login-title {
+  animation: loginFadeIn 0.5s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+  animation-delay: 0.1s;
+}
+
+.login-subtitle {
+  animation: loginFadeIn 0.5s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+  animation-delay: 0.2s;
+}
+
+.login-body {
+  animation: loginFadeIn 0.5s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+  animation-delay: 0.3s;
+}
+
+.login-actions {
+  animation: loginFadeIn 0.5s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+  animation-delay: 0.45s;
+}
+
+/* Blinking cursor */
+.cursor-blink {
+  display: inline-block;
+  width: 2px;
+  height: 1.2em;
+  background: var(--accent);
+  margin-left: 3px;
+  vertical-align: text-bottom;
+  animation: cursorBlink 1s step-end infinite;
+}
+
+@keyframes cursorBlink {
+  50% { opacity: 0; }
+}
+
+/* Google button - tactile, confident */
+.google-btn {
+  background: white;
+  border: none;
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.04),
+    0 4px 12px rgba(0, 0, 0, 0.08),
+    0 0 0 1px rgba(0, 0, 0, 0.04);
+  transition: all 0.2s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+.google-btn:hover {
+  box-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.06),
+    0 8px 24px rgba(0, 0, 0, 0.12),
+    0 0 0 1px rgba(0, 0, 0, 0.06);
+  transform: translateY(-1px);
+}
+
+.google-btn:active {
+  transform: translateY(0);
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.06),
+    0 2px 8px rgba(0, 0, 0, 0.08),
+    0 0 0 1px rgba(0, 0, 0, 0.06);
+}
+
+.dark .google-btn {
+  background: #1f1f1f;
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.2),
+    0 4px 12px rgba(0, 0, 0, 0.3),
+    0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+
+.dark .google-btn:hover {
+  background: #262626;
+  box-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.3),
+    0 8px 24px rgba(0, 0, 0, 0.4),
+    0 0 0 1px rgba(255, 255, 255, 0.08);
 }
 
 /* Input placeholder styling */
 input::placeholder,
 textarea::placeholder {
   color: var(--text-muted);
+}
+
+input:focus-visible,
+textarea:focus-visible {
+  box-shadow: none;
 }
 
 /* Loading dots animation */
@@ -62,7 +227,7 @@ textarea::placeholder {
 }
 
 .loading-dot {
-  animation: bounce 1.4s ease-in-out infinite;
+  animation: bounce 1.4s var(--ease-in-out) infinite;
 }
 
 .loading-dot:nth-child(2) { animation-delay: 0.2s; }
@@ -75,7 +240,42 @@ textarea::placeholder {
 }
 
 .animate-fade-in {
-  animation: fadeIn 0.4s ease;
+  animation: fadeIn var(--duration-base) var(--ease-out);
+}
+
+@keyframes fadeOut {
+  from { opacity: 1; transform: translateY(0); }
+  to { opacity: 0; transform: translateY(6px); }
+}
+
+.animate-fade-out {
+  animation: fadeOut var(--duration-base) var(--ease-in) forwards;
+}
+
+@keyframes floaty {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  50% { transform: translate3d(0, -14px, 0); }
+}
+
+.float-slower {
+  animation: floaty 18s var(--ease-in-out) infinite;
+}
+
+.float-slow {
+  animation: floaty 14s var(--ease-in-out) infinite;
+}
+
+.float-fast {
+  animation: floaty 10s var(--ease-in-out) infinite;
+}
+
+@keyframes riseIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-rise {
+  animation: riseIn var(--duration-base) var(--ease-out) both;
 }
 
 /* Subtask row hover states */
@@ -85,48 +285,183 @@ textarea::placeholder {
 
 .subtask-actions {
   opacity: 0;
-  transition: opacity 0.15s ease;
+  transition: opacity var(--duration-fast) var(--ease-out);
 }
 
 .subtask-row[draggable="true"]:active {
   cursor: grabbing;
 }
 
-/* Focus ring utility */
-.focus-ring:focus {
-  outline: none;
-  box-shadow: 0 0 0 3px var(--accent-soft);
+/* Focus ring utility - coral accent */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  box-shadow: none;
 }
 
 /* Button press animation */
+.btn-press {
+  transition: transform var(--duration-fast) var(--ease-in-out);
+}
+
 .btn-press:active {
   transform: scale(0.97);
 }
 
+.tap-target {
+  min-height: 44px;
+  min-width: 44px;
+}
+
 /* Card hover lift */
 .card-hover {
-  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: box-shadow var(--duration-fast) var(--ease-out);
 }
 
 .card-hover:hover {
-  transform: scale(1.01) translateY(-2px);
-  box-shadow: 0 8px 24px -8px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.dark .card-hover:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
 /* Checkbox animation */
 .checkbox-check {
   stroke-dasharray: 16;
   stroke-dashoffset: 16;
-  transition: stroke-dashoffset 0.25s ease-out;
+  transition: stroke-dashoffset var(--duration-base) var(--ease-out);
 }
 
 .checkbox-checked .checkbox-check {
   stroke-dashoffset: 0;
+  animation: checkPulse var(--duration-base) var(--ease-out);
+}
+
+@keyframes checkPulse {
+  0% { transform: scale(0.9); }
+  60% { transform: scale(1.08); }
+  100% { transform: scale(1); }
+}
+
+/* Satisfying checkbox pop on complete */
+@keyframes checkPop {
+  0% { transform: scale(1); }
+  30% { transform: scale(0.85); }
+  60% { transform: scale(1.15); }
+  80% { transform: scale(0.97); }
+  100% { transform: scale(1); }
+}
+
+.animate-check-pop {
+  animation: checkPop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Success burst ring */
+@keyframes checkBurst {
+  0% {
+    transform: scale(0.8);
+    opacity: 0.6;
+  }
+  100% {
+    transform: scale(1.5);
+    opacity: 0;
+  }
+}
+
+.animate-check-burst {
+  animation: checkBurst 0.5s cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
+}
+
+/* Next step card - inviting and alive */
+.next-step-card {
+  box-shadow:
+    0 0 0 1px var(--border),
+    0 2px 8px rgba(0, 0, 0, 0.04);
+  transition: all 0.2s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+.next-step-card:hover {
+  box-shadow:
+    0 0 0 1px var(--accent),
+    0 4px 16px rgba(0, 0, 0, 0.08),
+    0 0 20px var(--accent-soft);
+  transform: translateY(-2px);
+}
+
+.next-step-card:active {
+  transform: translateY(0);
+}
+
+/* Quick reply buttons - tactile and responsive */
+.quick-reply-btn {
+  transition: all 0.15s cubic-bezier(0.22, 0.61, 0.36, 1);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.quick-reply-btn:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.quick-reply-btn:active {
+  transform: translateY(0) scale(0.97);
+  box-shadow: 0 0 0 rgba(0, 0, 0, 0);
+}
+
+.dark .quick-reply-btn:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* Progress bar with subtle glow */
+.progress-bar-fill {
+  box-shadow: 0 0 8px var(--success-soft);
+}
+
+/* Progress bar pulse animation on completion */
+@keyframes progressPulse {
+  0%, 100% { box-shadow: 0 0 8px var(--success-soft); }
+  50% { box-shadow: 0 0 16px var(--success); }
+}
+
+.progress-bar-fill[style*="100%"] {
+  animation: progressPulse 1.5s ease-in-out;
+}
+
+/* Main input focus polish */
+.main-input-wrapper {
+  transform-origin: center center;
+}
+
+/* Step items */
+.step-item {
+  position: relative;
+}
+
+.step-item-next {
+  background: linear-gradient(135deg, var(--card) 0%, color-mix(in srgb, var(--success) 3%, var(--card)) 100%);
+}
+
+.step-item-next::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 8px;
+  bottom: 8px;
+  width: 3px;
+  background: var(--success);
+  border-radius: 0 2px 2px 0;
+}
+
+.dark .step-item:not(.step-item-next):hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
 /* Progress segment animation */
 .progress-segment {
-  transition: background-color 0.3s ease;
+  transition: background-color var(--duration-base) var(--ease-in-out);
 }
 
 /* Confetti animation */
@@ -142,7 +477,51 @@ textarea::placeholder {
 }
 
 .confetti-piece {
-  animation: confettiFall var(--fall-duration, 3s) linear var(--fall-delay, 0s) forwards;
+  animation: confettiFall var(--fall-duration, 3s) var(--ease-in) var(--fall-delay, 0s) forwards;
+}
+
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(90deg, rgba(0, 0, 0, 0.06), rgba(0, 0, 0, 0.12), rgba(0, 0, 0, 0.06));
+  border-radius: 999px;
+}
+
+.dark .skeleton {
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.06));
+}
+
+.skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-60%);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.35), transparent);
+  animation: shimmer 1.2s var(--ease-in-out) infinite;
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-60%); }
+  100% { transform: translateX(60%); }
+}
+
+.step-complete {
+  animation: stepComplete 0.3s var(--ease-out);
+}
+
+@keyframes stepComplete {
+  0% {
+    transform: scale(1);
+    background-color: var(--success-soft);
+  }
+  50% {
+    transform: scale(0.97);
+    background-color: var(--success-soft);
+  }
+  100% {
+    transform: scale(1);
+    background-color: transparent;
+  }
 }
 
 /* Scrollbar styling for dark mode consistency */
@@ -162,4 +541,12 @@ textarea::placeholder {
 
 .dark ::-webkit-scrollbar-thumb:hover {
   background: var(--text-muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
