@@ -7,11 +7,11 @@ import { splitStepText } from '@/lib/stepText'
 import { getDeadlineUrgency } from './DeadlineBadge'
 
 // Card types that can appear in the stack
-type StackCardType =
-  | { type: 'step'; task: Task; step: Step; dismissCount?: number }
-  | { type: 'email'; id: string; subject: string; from: string; snippet: string; date: string }
+type StackCard =
+  | { type: 'step'; task: Task; step: Step; dismissCount: number }
+  | { type: 'task'; task: Task; dismissCount: number }
+  | { type: 'email'; id: string; subject: string; from: string; snippet: string }
   | { type: 'calendar'; id: string; title: string; time: string; location?: string }
-  | { type: 'input' }
 
 interface StackViewProps {
   tasks: Task[]
@@ -22,7 +22,7 @@ interface StackViewProps {
   onAddEmailAsTask?: (email: { subject: string; from: string }) => void
 }
 
-// Get dismiss counts from localStorage
+// Persist dismiss counts
 function getDismissCounts(): Record<string, number> {
   if (typeof window === 'undefined') return {}
   try {
@@ -50,62 +50,75 @@ export function StackView({
   onToggleStep,
   onGoToTask,
   onAddTask,
-  onDismissEmail,
   onAddEmailAsTask,
 }: StackViewProps) {
   const { session } = useAuth()
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set())
-  const [swipeOffset, setSwipeOffset] = useState(0)
-  const [isAnimating, setIsAnimating] = useState(false)
-  const [flashComplete, setFlashComplete] = useState(false)
-  const [emails, setEmails] = useState<StackCardType[]>([])
-  const [calendarEvents, setCalendarEvents] = useState<StackCardType[]>([])
+  const [swipeX, setSwipeX] = useState(0)
+  const [isDragging, setIsDragging] = useState(false)
+  const [isAnimatingOut, setIsAnimatingOut] = useState(false)
+  const [showFlash, setShowFlash] = useState(false)
+  const [emails, setEmails] = useState<StackCard[]>([])
+  const [calendarEvents, setCalendarEvents] = useState<StackCard[]>([])
   const [inputValue, setInputValue] = useState('')
-  const inputRef = useRef<HTMLInputElement>(null)
+  const [showInput, setShowInput] = useState(false)
+
+  const dragStartX = useRef(0)
   const cardRef = useRef<HTMLDivElement>(null)
-  const startX = useRef(0)
-  const startY = useRef(0)
-  const isDragging = useRef(false)
 
-  // Build the stack of cards
+  // Build the card stack
   const stack = useMemo(() => {
-    const cards: StackCardType[] = []
-    const dismissCounts = getDismissCounts()
+    const cards: StackCard[] = []
+    const counts = getDismissCounts()
 
-    // Get all incomplete steps from all tasks, sorted by urgency
-    const allSteps: StackCardType[] = []
-    const sortedTasks = [...tasks].sort((a, b) => {
-      const urgencyA = getDeadlineUrgency(a.due_date)
-      const urgencyB = getDeadlineUrgency(b.due_date)
-      return urgencyA - urgencyB
-    })
+    // Sort tasks by urgency
+    const sortedTasks = [...tasks].sort((a, b) =>
+      getDeadlineUrgency(a.due_date) - getDeadlineUrgency(b.due_date)
+    )
 
+    // Add task steps or tasks without steps
     for (const task of sortedTasks) {
-      if (!task.steps) continue
-      for (const step of task.steps) {
-        if (step.done) continue
-        const stepId = `step-${task.id}-${step.id}`
-        if (dismissedIds.has(stepId)) continue
-        allSteps.push({
-          type: 'step',
-          task,
-          step,
-          dismissCount: dismissCounts[stepId] || 0,
-        })
+      const hasSteps = task.steps && task.steps.length > 0
+      const incompleteSteps = task.steps?.filter(s => !s.done) || []
+
+      if (hasSteps && incompleteSteps.length > 0) {
+        // Add the first incomplete step
+        const step = incompleteSteps[0]
+        const id = `step-${task.id}-${step.id}`
+        if (!dismissedIds.has(id)) {
+          cards.push({
+            type: 'step',
+            task,
+            step,
+            dismissCount: counts[id] || 0,
+          })
+        }
+      } else if (!hasSteps) {
+        // Task without steps - show as a card itself
+        const id = `task-${task.id}`
+        if (!dismissedIds.has(id)) {
+          cards.push({
+            type: 'task',
+            task,
+            dismissCount: counts[id] || 0,
+          })
+        }
       }
     }
 
-    // Add steps to the stack
-    cards.push(...allSteps)
+    // Add emails (limit to 3)
+    for (const email of emails.slice(0, 3)) {
+      if (!dismissedIds.has(email.id)) {
+        cards.push(email)
+      }
+    }
 
-    // Add emails
-    cards.push(...emails.filter(e => e.type === 'email' && !dismissedIds.has(e.id)))
-
-    // Add calendar events
-    cards.push(...calendarEvents.filter(e => e.type === 'calendar' && !dismissedIds.has(e.id)))
-
-    // Always have input card at the bottom
-    cards.push({ type: 'input' })
+    // Add calendar events (limit to 2)
+    for (const event of calendarEvents.slice(0, 2)) {
+      if (!dismissedIds.has(event.id)) {
+        cards.push(event)
+      }
+    }
 
     return cards
   }, [tasks, emails, calendarEvents, dismissedIds])
@@ -120,15 +133,13 @@ export function StackView({
         })
         if (res.ok) {
           const data = await res.json()
-          const emailCards: StackCardType[] = (data.potentialTasks || []).slice(0, 5).map((e: { id: string; subject: string; from: string; snippet: string; date: string }) => ({
+          setEmails((data.potentialTasks || []).slice(0, 5).map((e: { id: string; subject: string; from: string; snippet: string }) => ({
             type: 'email' as const,
             id: `email-${e.id}`,
             subject: e.subject,
             from: e.from,
             snippet: e.snippet,
-            date: e.date,
-          }))
-          setEmails(emailCards)
+          })))
         }
       } catch (err) {
         console.error('Error fetching emails:', err)
@@ -137,7 +148,7 @@ export function StackView({
     fetchEmails()
   }, [session?.access_token])
 
-  // Fetch calendar events
+  // Fetch calendar
   useEffect(() => {
     async function fetchCalendar() {
       if (!session?.access_token) return
@@ -148,14 +159,13 @@ export function StackView({
         if (res.ok) {
           const data = await res.json()
           if (data.enabled && data.events) {
-            const eventCards: StackCardType[] = data.events.slice(0, 3).map((e: { id: string; title: string; start_time: string; location?: string }) => ({
+            setCalendarEvents(data.events.slice(0, 3).map((e: { id: string; title: string; start_time: string; location?: string }) => ({
               type: 'calendar' as const,
               id: `cal-${e.id}`,
               title: e.title,
-              time: formatEventTime(e.start_time),
+              time: formatTime(e.start_time),
               location: e.location,
-            }))
-            setCalendarEvents(eventCards)
+            })))
           }
         }
       } catch (err) {
@@ -165,218 +175,210 @@ export function StackView({
     fetchCalendar()
   }, [session?.access_token])
 
-  function formatEventTime(dateStr: string): string {
+  function formatTime(dateStr: string): string {
     const date = new Date(dateStr)
     const now = new Date()
     const tomorrow = new Date(now)
     tomorrow.setDate(tomorrow.getDate() + 1)
+    const time = date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
 
-    const timeStr = date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
-
-    if (date.toDateString() === now.toDateString()) {
-      return `Today at ${timeStr}`
-    } else if (date.toDateString() === tomorrow.toDateString()) {
-      return `Tomorrow at ${timeStr}`
-    }
-    return date.toLocaleDateString([], { weekday: 'short' }) + ` at ${timeStr}`
+    if (date.toDateString() === now.toDateString()) return `Today ${time}`
+    if (date.toDateString() === tomorrow.toDateString()) return `Tomorrow ${time}`
+    return `${date.toLocaleDateString([], { weekday: 'short' })} ${time}`
   }
 
-  // Handle swipe gestures (touch)
-  const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    if (stack[0]?.type === 'input') return
-    startX.current = e.touches[0].clientX
-    startY.current = e.touches[0].clientY
-    isDragging.current = true
-  }, [stack])
+  // Drag handlers
+  const handleDragStart = (clientX: number) => {
+    if (stack.length === 0) return
+    dragStartX.current = clientX
+    setIsDragging(true)
+  }
 
-  const handleTouchMove = useCallback((e: React.TouchEvent) => {
-    if (!isDragging.current) return
-    const deltaX = e.touches[0].clientX - startX.current
-    const deltaY = Math.abs(e.touches[0].clientY - startY.current)
-
-    // Only swipe horizontally
-    if (deltaY > Math.abs(deltaX) * 0.5) {
-      isDragging.current = false
-      setSwipeOffset(0)
-      return
-    }
-
-    setSwipeOffset(deltaX)
-  }, [])
-
-  // Handle mouse drag (desktop)
-  const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    if (stack[0]?.type === 'input') return
-    startX.current = e.clientX
-    startY.current = e.clientY
-    isDragging.current = true
-  }, [stack])
-
-  const handleMouseMove = useCallback((e: React.MouseEvent) => {
-    if (!isDragging.current) return
-    const deltaX = e.clientX - startX.current
-    setSwipeOffset(deltaX)
-  }, [])
+  const handleDragMove = (clientX: number) => {
+    if (!isDragging) return
+    setSwipeX(clientX - dragStartX.current)
+  }
 
   const handleDragEnd = useCallback(() => {
-    if (!isDragging.current) return
-    isDragging.current = false
+    if (!isDragging) return
+    setIsDragging(false)
 
-    const threshold = 100
+    const threshold = 120
     const topCard = stack[0]
 
-    if (Math.abs(swipeOffset) > threshold && topCard && topCard.type !== 'input') {
-      // Dismiss the card
-      setIsAnimating(true)
-      const direction = swipeOffset > 0 ? 1 : -1
-      setSwipeOffset(direction * window.innerWidth)
+    if (Math.abs(swipeX) > threshold && topCard) {
+      // Animate out
+      setIsAnimatingOut(true)
+      setSwipeX(swipeX > 0 ? 500 : -500)
 
       setTimeout(() => {
         let cardId = ''
         if (topCard.type === 'step') {
           cardId = `step-${topCard.task.id}-${topCard.step.id}`
-          incrementDismissCount(cardId)
-        } else if (topCard.type === 'email') {
-          cardId = topCard.id
-          onDismissEmail?.(topCard.id.replace('email-', ''))
-        } else if (topCard.type === 'calendar') {
+        } else if (topCard.type === 'task') {
+          cardId = `task-${topCard.task.id}`
+        } else {
           cardId = topCard.id
         }
 
+        incrementDismissCount(cardId)
         setDismissedIds(prev => new Set(prev).add(cardId))
-        setSwipeOffset(0)
-        setIsAnimating(false)
+        setSwipeX(0)
+        setIsAnimatingOut(false)
       }, 200)
     } else {
-      // Snap back
-      setSwipeOffset(0)
+      setSwipeX(0)
     }
-  }, [swipeOffset, stack, onDismissEmail])
+  }, [isDragging, swipeX, stack])
 
-  const handleTouchEnd = handleDragEnd
-  const handleMouseUp = handleDragEnd
+  // Complete action
+  const handleComplete = useCallback((card: StackCard) => {
+    let cardId = ''
 
-  // Handle completing a step
-  const handleComplete = useCallback((task: Task, step: Step) => {
-    const stepId = `step-${task.id}-${step.id}`
-    clearDismissCount(stepId)
+    if (card.type === 'step') {
+      cardId = `step-${card.task.id}-${card.step.id}`
+      clearDismissCount(cardId)
+      onToggleStep(card.task.id, card.step.id)
+    } else if (card.type === 'task') {
+      cardId = `task-${card.task.id}`
+      clearDismissCount(cardId)
+      // For tasks without steps, just go to the task view
+      onGoToTask(card.task.id)
+      return
+    } else if (card.type === 'email') {
+      onAddEmailAsTask?.({ subject: card.subject, from: card.from })
+      cardId = card.id
+    } else if (card.type === 'calendar') {
+      cardId = card.id
+    }
 
     // Flash effect
-    setFlashComplete(true)
-    setTimeout(() => setFlashComplete(false), 300)
+    setShowFlash(true)
+    setTimeout(() => setShowFlash(false), 300)
 
-    onToggleStep(task.id, step.id)
-  }, [onToggleStep])
+    // Remove from view
+    setDismissedIds(prev => new Set(prev).add(cardId))
+  }, [onToggleStep, onGoToTask, onAddEmailAsTask])
 
-  // Handle input submit
-  const handleSubmit = useCallback((e: React.FormEvent) => {
+  // Submit new task
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (inputValue.trim()) {
       onAddTask(inputValue.trim())
       setInputValue('')
+      setShowInput(false)
     }
-  }, [inputValue, onAddTask])
+  }
 
-  // Render a card
-  const renderCard = (card: StackCardType, index: number) => {
-    const isTop = index === 0
-    const peekOffset = index * 8
-    const scale = 1 - index * 0.03
-    const opacity = index === 0 ? 1 : index === 1 ? 0.7 : 0.4
+  // Get wear level (0-3) based on dismiss count
+  const getWearLevel = (count: number) => Math.min(count, 3)
 
-    const style: React.CSSProperties = {
-      transform: isTop
-        ? `translateX(${swipeOffset}px) rotate(${swipeOffset * 0.03}deg)`
-        : `translateY(${peekOffset}px) scale(${scale})`,
-      opacity: isTop ? 1 : opacity,
-      zIndex: 100 - index,
-      transition: isAnimating || !isTop ? 'all 0.2s ease-out' : 'none',
-    }
+  // Render the top card
+  const renderTopCard = (card: StackCard) => {
+    const wearLevel = 'dismissCount' in card ? getWearLevel(card.dismissCount) : 0
 
-    if (card.type === 'input') {
-      return (
-        <div
-          key="input"
-          className="absolute inset-x-4 top-1/2 -translate-y-1/2"
-          style={{ ...style, transform: `translateY(${peekOffset}px)` }}
-        >
-          <form onSubmit={handleSubmit}>
-            <input
-              ref={inputRef}
-              type="text"
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              placeholder="What's on your mind?"
-              className="w-full px-6 py-5 text-xl bg-card border border-border rounded-2xl
-                         text-text placeholder:text-text-muted
-                         focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent"
-            />
-          </form>
-        </div>
-      )
-    }
+    // Wear styles
+    const wearStyles = [
+      'border-border',
+      'border-border shadow-[inset_0_2px_4px_rgba(0,0,0,0.1)]',
+      'border-accent/20 shadow-[inset_0_2px_8px_rgba(0,0,0,0.15)]',
+      'border-accent/40 shadow-[inset_0_4px_12px_rgba(0,0,0,0.2)]',
+    ][wearLevel]
+
+    const rotation = swipeX * 0.05
+    const opacity = Math.max(0.5, 1 - Math.abs(swipeX) / 400)
 
     if (card.type === 'step') {
       const { title } = splitStepText(card.step.text)
-      const wearLevel = Math.min(card.dismissCount || 0, 3)
-
       return (
         <div
-          key={`step-${card.task.id}-${card.step.id}`}
-          ref={isTop ? cardRef : undefined}
-          className={`
-            absolute inset-x-4 top-1/2 -translate-y-1/2
-            bg-card rounded-2xl border overflow-hidden
-            ${wearLevel === 0 ? 'border-border' : ''}
-            ${wearLevel === 1 ? 'border-border bg-gradient-to-br from-card to-surface/50' : ''}
-            ${wearLevel === 2 ? 'border-border-strong bg-gradient-to-br from-surface/80 to-surface' : ''}
-            ${wearLevel >= 3 ? 'border-accent/30 bg-gradient-to-br from-accent/5 to-surface shadow-inner' : ''}
-          `}
-          style={style}
-          onTouchStart={isTop ? handleTouchStart : undefined}
-          onTouchMove={isTop ? handleTouchMove : undefined}
-          onTouchEnd={isTop ? handleTouchEnd : undefined}
-          onMouseDown={isTop ? handleMouseDown : undefined}
-          onMouseMove={isTop ? handleMouseMove : undefined}
-          onMouseUp={isTop ? handleMouseUp : undefined}
-          onMouseLeave={isTop ? handleMouseUp : undefined}
+          ref={cardRef}
+          className={`bg-card rounded-3xl border-2 ${wearStyles} overflow-hidden cursor-grab active:cursor-grabbing select-none`}
+          style={{
+            transform: `translateX(${swipeX}px) rotate(${rotation}deg)`,
+            opacity,
+            transition: isDragging ? 'none' : 'all 0.3s ease-out',
+          }}
+          onMouseDown={(e) => handleDragStart(e.clientX)}
+          onMouseMove={(e) => handleDragMove(e.clientX)}
+          onMouseUp={handleDragEnd}
+          onMouseLeave={handleDragEnd}
+          onTouchStart={(e) => handleDragStart(e.touches[0].clientX)}
+          onTouchMove={(e) => handleDragMove(e.touches[0].clientX)}
+          onTouchEnd={handleDragEnd}
         >
           {/* Wear indicator */}
           {wearLevel > 0 && (
-            <div className="absolute top-3 right-3 flex gap-0.5">
+            <div className="absolute top-4 right-4 flex gap-1">
               {Array.from({ length: wearLevel }).map((_, i) => (
-                <div key={i} className="w-1.5 h-1.5 rounded-full bg-accent/40" />
+                <div key={i} className="w-2 h-2 rounded-full bg-accent/50" />
               ))}
             </div>
           )}
 
-          <div className="p-6">
-            {/* Task context */}
-            <div className="text-sm text-text-muted mb-2 truncate">
-              {card.task.title}
-            </div>
+          <div className="p-8">
+            {/* Context: task name */}
+            <div className="text-base text-text-muted mb-3">{card.task.title}</div>
 
-            {/* Step title - THE focus */}
-            <div className="text-2xl font-semibold text-text leading-tight mb-6">
+            {/* THE step - big and clear */}
+            <h2 className="text-3xl font-semibold text-text leading-tight mb-8">
               {title}
-            </div>
+            </h2>
 
-            {/* Single action button */}
+            {/* Single action */}
             <button
-              onClick={() => handleComplete(card.task, card.step)}
-              className="w-full py-4 bg-accent text-white rounded-xl text-lg font-medium
+              onClick={() => handleComplete(card)}
+              className="w-full py-5 bg-accent text-white rounded-2xl text-xl font-semibold
                          hover:bg-accent/90 active:scale-[0.98] transition-all"
             >
               Done
             </button>
           </div>
 
-          {/* Swipe hint */}
-          {isTop && (
-            <div className="absolute bottom-3 left-0 right-0 text-center text-xs text-text-muted">
-              swipe to skip
-            </div>
-          )}
+          <div className="pb-4 text-center text-sm text-text-muted">
+            swipe to skip for now
+          </div>
+        </div>
+      )
+    }
+
+    if (card.type === 'task') {
+      return (
+        <div
+          ref={cardRef}
+          className={`bg-card rounded-3xl border-2 ${wearStyles} overflow-hidden cursor-grab active:cursor-grabbing select-none`}
+          style={{
+            transform: `translateX(${swipeX}px) rotate(${rotation}deg)`,
+            opacity,
+            transition: isDragging ? 'none' : 'all 0.3s ease-out',
+          }}
+          onMouseDown={(e) => handleDragStart(e.clientX)}
+          onMouseMove={(e) => handleDragMove(e.clientX)}
+          onMouseUp={handleDragEnd}
+          onMouseLeave={handleDragEnd}
+          onTouchStart={(e) => handleDragStart(e.touches[0].clientX)}
+          onTouchMove={(e) => handleDragMove(e.touches[0].clientX)}
+          onTouchEnd={handleDragEnd}
+        >
+          <div className="p-8">
+            <div className="text-base text-text-muted mb-3">Task</div>
+
+            <h2 className="text-3xl font-semibold text-text leading-tight mb-8">
+              {card.task.title}
+            </h2>
+
+            <button
+              onClick={() => handleComplete(card)}
+              className="w-full py-5 bg-accent text-white rounded-2xl text-xl font-semibold
+                         hover:bg-accent/90 active:scale-[0.98] transition-all"
+            >
+              Break it down
+            </button>
+          </div>
+
+          <div className="pb-4 text-center text-sm text-text-muted">
+            swipe to skip for now
+          </div>
         </div>
       )
     }
@@ -384,49 +386,48 @@ export function StackView({
     if (card.type === 'email') {
       return (
         <div
-          key={card.id}
-          ref={isTop ? cardRef : undefined}
-          className="absolute inset-x-4 top-1/2 -translate-y-1/2 bg-card rounded-2xl border border-border overflow-hidden"
-          style={style}
-          onTouchStart={isTop ? handleTouchStart : undefined}
-          onTouchMove={isTop ? handleTouchMove : undefined}
-          onTouchEnd={isTop ? handleTouchEnd : undefined}
-          onMouseDown={isTop ? handleMouseDown : undefined}
-          onMouseMove={isTop ? handleMouseMove : undefined}
-          onMouseUp={isTop ? handleMouseUp : undefined}
-          onMouseLeave={isTop ? handleMouseUp : undefined}
+          ref={cardRef}
+          className="bg-card rounded-3xl border-2 border-border overflow-hidden cursor-grab active:cursor-grabbing select-none"
+          style={{
+            transform: `translateX(${swipeX}px) rotate(${rotation}deg)`,
+            opacity,
+            transition: isDragging ? 'none' : 'all 0.3s ease-out',
+          }}
+          onMouseDown={(e) => handleDragStart(e.clientX)}
+          onMouseMove={(e) => handleDragMove(e.clientX)}
+          onMouseUp={handleDragEnd}
+          onMouseLeave={handleDragEnd}
+          onTouchStart={(e) => handleDragStart(e.touches[0].clientX)}
+          onTouchMove={(e) => handleDragMove(e.touches[0].clientX)}
+          onTouchEnd={handleDragEnd}
         >
-          <div className="p-6">
-            <div className="flex items-center gap-2 text-sm text-accent mb-2">
-              <svg width={16} height={16} viewBox="0 0 24 24">
-                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" stroke="currentColor" strokeWidth="2" fill="none"/>
-                <polyline points="22,6 12,13 2,6" stroke="currentColor" strokeWidth="2" fill="none"/>
+          <div className="p-8">
+            <div className="flex items-center gap-2 text-base text-accent mb-3">
+              <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="2" y="4" width="20" height="16" rx="2" />
+                <path d="M22 6L12 13L2 6" />
               </svg>
-              Email from {card.from}
+              {card.from}
             </div>
 
-            <div className="text-xl font-semibold text-text leading-tight mb-2">
+            <h2 className="text-2xl font-semibold text-text leading-tight mb-4">
               {card.subject}
-            </div>
+            </h2>
 
-            <div className="text-sm text-text-muted line-clamp-2 mb-6">
-              {card.snippet}
-            </div>
+            <p className="text-text-muted line-clamp-2 mb-8">{card.snippet}</p>
 
             <button
-              onClick={() => onAddEmailAsTask?.({ subject: card.subject, from: card.from })}
-              className="w-full py-4 bg-accent text-white rounded-xl text-lg font-medium
+              onClick={() => handleComplete(card)}
+              className="w-full py-5 bg-accent text-white rounded-2xl text-xl font-semibold
                          hover:bg-accent/90 active:scale-[0.98] transition-all"
             >
               Add as task
             </button>
           </div>
 
-          {isTop && (
-            <div className="absolute bottom-3 left-0 right-0 text-center text-xs text-text-muted">
-              swipe to dismiss
-            </div>
-          )}
+          <div className="pb-4 text-center text-sm text-text-muted">
+            swipe to dismiss
+          </div>
         </div>
       )
     }
@@ -434,56 +435,50 @@ export function StackView({
     if (card.type === 'calendar') {
       return (
         <div
-          key={card.id}
-          ref={isTop ? cardRef : undefined}
-          className="absolute inset-x-4 top-1/2 -translate-y-1/2 bg-card rounded-2xl border border-border overflow-hidden"
-          style={style}
-          onTouchStart={isTop ? handleTouchStart : undefined}
-          onTouchMove={isTop ? handleTouchMove : undefined}
-          onTouchEnd={isTop ? handleTouchEnd : undefined}
-          onMouseDown={isTop ? handleMouseDown : undefined}
-          onMouseMove={isTop ? handleMouseMove : undefined}
-          onMouseUp={isTop ? handleMouseUp : undefined}
-          onMouseLeave={isTop ? handleMouseUp : undefined}
+          ref={cardRef}
+          className="bg-card rounded-3xl border-2 border-border overflow-hidden cursor-grab active:cursor-grabbing select-none"
+          style={{
+            transform: `translateX(${swipeX}px) rotate(${rotation}deg)`,
+            opacity,
+            transition: isDragging ? 'none' : 'all 0.3s ease-out',
+          }}
+          onMouseDown={(e) => handleDragStart(e.clientX)}
+          onMouseMove={(e) => handleDragMove(e.clientX)}
+          onMouseUp={handleDragEnd}
+          onMouseLeave={handleDragEnd}
+          onTouchStart={(e) => handleDragStart(e.touches[0].clientX)}
+          onTouchMove={(e) => handleDragMove(e.touches[0].clientX)}
+          onTouchEnd={handleDragEnd}
         >
-          <div className="p-6">
-            <div className="flex items-center gap-2 text-sm text-accent mb-2">
-              <svg width={16} height={16} viewBox="0 0 24 24">
-                <rect x="3" y="4" width="18" height="18" rx="2" stroke="currentColor" strokeWidth="2" fill="none" />
-                <line x1="16" y1="2" x2="16" y2="6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                <line x1="8" y1="2" x2="8" y2="6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                <line x1="3" y1="10" x2="21" y2="10" stroke="currentColor" strokeWidth="2" />
+          <div className="p-8">
+            <div className="flex items-center gap-2 text-base text-accent mb-3">
+              <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="3" y="4" width="18" height="18" rx="2" />
+                <path d="M16 2v4M8 2v4M3 10h18" />
               </svg>
               {card.time}
             </div>
 
-            <div className="text-xl font-semibold text-text leading-tight mb-2">
+            <h2 className="text-2xl font-semibold text-text leading-tight mb-4">
               {card.title}
-            </div>
+            </h2>
 
             {card.location && (
-              <div className="text-sm text-text-muted mb-6">
-                {card.location}
-              </div>
+              <p className="text-text-muted mb-8">{card.location}</p>
             )}
 
             <button
-              onClick={() => {
-                const cardId = card.id
-                setDismissedIds(prev => new Set(prev).add(cardId))
-              }}
-              className="w-full py-4 bg-surface text-text border border-border rounded-xl text-lg font-medium
+              onClick={() => handleComplete(card)}
+              className="w-full py-5 bg-surface text-text border border-border rounded-2xl text-xl font-semibold
                          hover:bg-surface/80 active:scale-[0.98] transition-all"
             >
               Got it
             </button>
           </div>
 
-          {isTop && (
-            <div className="absolute bottom-3 left-0 right-0 text-center text-xs text-text-muted">
-              swipe to dismiss
-            </div>
-          )}
+          <div className="pb-4 text-center text-sm text-text-muted">
+            swipe to dismiss
+          </div>
         </div>
       )
     }
@@ -492,59 +487,98 @@ export function StackView({
   }
 
   // Empty state
-  if (stack.length === 1 && stack[0].type === 'input') {
+  if (stack.length === 0) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center px-6">
-        <div className="text-center mb-8">
-          <div className="text-2xl font-medium text-text mb-2">You're clear</div>
-          <div className="text-text-muted">Nothing needs your attention right now</div>
+      <div className="min-h-screen flex flex-col">
+        <div className="flex-1 flex flex-col items-center justify-center px-6">
+          <div className="text-center mb-8">
+            <h1 className="text-3xl font-semibold text-text mb-2">You're clear</h1>
+            <p className="text-lg text-text-muted">Nothing needs your attention</p>
+          </div>
+
+          <form onSubmit={handleSubmit} className="w-full max-w-sm">
+            <input
+              type="text"
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              placeholder="What's on your mind?"
+              autoFocus
+              className="w-full px-6 py-4 text-lg bg-card border border-border rounded-2xl
+                         text-text placeholder:text-text-muted
+                         focus:outline-none focus:border-accent"
+            />
+          </form>
         </div>
-        <form onSubmit={handleSubmit} className="w-full max-w-md">
-          <input
-            ref={inputRef}
-            type="text"
-            value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-            placeholder="Add something..."
-            className="w-full px-6 py-5 text-xl bg-card border border-border rounded-2xl
-                       text-text placeholder:text-text-muted
-                       focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent"
-          />
-        </form>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-canvas relative overflow-hidden">
-      {/* Flash effect on completion */}
-      {flashComplete && (
-        <div className="absolute inset-0 bg-white/20 z-[200] pointer-events-none animate-flash" />
+    <div className="min-h-screen flex flex-col bg-canvas">
+      {/* Flash on complete */}
+      {showFlash && (
+        <div className="fixed inset-0 bg-white/30 pointer-events-none z-50 animate-flash" />
       )}
 
-      {/* Card counter */}
-      <div className="absolute top-6 left-6 z-50">
-        <div className="text-sm text-text-muted">
-          {stack.filter(c => c.type !== 'input').length} remaining
-        </div>
+      {/* Header - minimal */}
+      <div className="px-6 pt-6 flex items-center justify-between">
+        <span className="text-sm text-text-muted">{stack.length} to go</span>
+        <button
+          onClick={() => setShowInput(!showInput)}
+          className="p-2 text-text-muted hover:text-text transition-colors"
+        >
+          <svg width={24} height={24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M12 5v14M5 12h14" strokeLinecap="round" />
+          </svg>
+        </button>
       </div>
 
-      {/* Settings button */}
-      <button
-        onClick={() => {/* Could open settings */}}
-        className="absolute top-6 right-6 z-50 p-2 text-text-muted hover:text-text transition-colors"
-      >
-        <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <circle cx="12" cy="12" r="3" />
-          <path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83" />
-        </svg>
-      </button>
+      {/* Quick add input */}
+      {showInput && (
+        <div className="px-6 pt-4">
+          <form onSubmit={handleSubmit}>
+            <input
+              type="text"
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              placeholder="Quick add..."
+              autoFocus
+              className="w-full px-5 py-3 text-base bg-card border border-border rounded-xl
+                         text-text placeholder:text-text-muted
+                         focus:outline-none focus:border-accent"
+            />
+          </form>
+        </div>
+      )}
 
-      {/* The Stack */}
-      <div className="relative h-screen">
-        {stack.slice(0, 4).reverse().map((card, reverseIndex) =>
-          renderCard(card, stack.slice(0, 4).length - 1 - reverseIndex)
-        )}
+      {/* THE Card - centered and dominant */}
+      <div className="flex-1 flex items-center justify-center px-6 py-8">
+        <div className="w-full max-w-md">
+          {/* Peeking cards behind */}
+          {stack.length > 1 && (
+            <div
+              className="absolute left-6 right-6 max-w-md mx-auto bg-card/50 rounded-3xl border border-border/50 h-32"
+              style={{
+                transform: 'translateY(16px) scale(0.95)',
+                zIndex: 0,
+              }}
+            />
+          )}
+          {stack.length > 2 && (
+            <div
+              className="absolute left-6 right-6 max-w-md mx-auto bg-card/30 rounded-3xl border border-border/30 h-32"
+              style={{
+                transform: 'translateY(32px) scale(0.9)',
+                zIndex: -1,
+              }}
+            />
+          )}
+
+          {/* Top card */}
+          <div className="relative z-10">
+            {renderTopCard(stack[0])}
+          </div>
+        </div>
       </div>
     </div>
   )
