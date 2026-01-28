@@ -397,25 +397,18 @@ export function StackView({
 
   // Render a card
   const renderCard = (card: StackCard, index: number) => {
-    const isTop = index === 0
     const cardId = getCardId(card)
     const isCompleting = completingCard === cardId
     const wearLevel = 'dismissCount' in card ? getWearLevel(card.dismissCount) : 0
 
-    // Transform calculations
-    const baseOffset = index * 12
-    const baseScale = 1 - index * 0.04
-    const baseRotation = index * 1.5 - 1.5
-
-    // Top card follows swipe
-    const swipeRotation = isTop ? swipeX * 0.04 : 0
-    const swipeOffset = isTop ? swipeX : 0
-    const opacity = isTop ? Math.max(0.3, 1 - Math.abs(swipeX) / 500) : 1 - index * 0.15
+    // Swipe transforms
+    const swipeRotation = swipeX * 0.04
+    const opacity = Math.max(0.3, 1 - Math.abs(swipeX) / 500)
 
     // Completing animation
-    const completingScale = isCompleting ? 0.95 : 1
+    const completingScale = isCompleting ? 0.9 : 1
     const completingOpacity = isCompleting ? 0 : opacity
-    const completingY = isCompleting ? -40 : 0
+    const completingY = isCompleting ? -60 : 0
 
     // Wear indicator dots
     const wearDots = wearLevel > 0 && (
@@ -463,30 +456,30 @@ export function StackView({
     return (
       <div
         key={cardId}
-        className="stack-card absolute inset-0"
+        className="stack-card absolute inset-x-0 top-0 bottom-6"
         style={{
           transform: `
-            translateX(${swipeOffset}px)
-            translateY(${baseOffset + completingY}px)
-            scale(${baseScale * completingScale})
-            rotate(${baseRotation + swipeRotation}deg)
+            translateX(${swipeX}px)
+            translateY(${completingY}px)
+            scale(${completingScale})
+            rotate(${swipeRotation}deg)
           `,
           opacity: completingOpacity,
-          zIndex: 10 - index,
-          transition: isDragging && isTop
+          zIndex: 10,
+          transition: isDragging
             ? 'none'
             : isCompleting
               ? 'all 0.5s cubic-bezier(0.32, 0.72, 0, 1)'
               : 'all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)',
-          pointerEvents: isTop && !completingCard ? 'auto' : 'none',
+          pointerEvents: completingCard ? 'none' : 'auto',
         }}
-        onMouseDown={isTop ? (e) => handleDragStart(e.clientX) : undefined}
-        onMouseMove={isTop ? (e) => handleDragMove(e.clientX) : undefined}
-        onMouseUp={isTop ? handleDragEnd : undefined}
-        onMouseLeave={isTop ? handleDragEnd : undefined}
-        onTouchStart={isTop ? (e) => handleDragStart(e.touches[0].clientX) : undefined}
-        onTouchMove={isTop ? (e) => handleDragMove(e.touches[0].clientX) : undefined}
-        onTouchEnd={isTop ? handleDragEnd : undefined}
+        onMouseDown={(e) => handleDragStart(e.clientX)}
+        onMouseMove={(e) => handleDragMove(e.clientX)}
+        onMouseUp={handleDragEnd}
+        onMouseLeave={handleDragEnd}
+        onTouchStart={(e) => handleDragStart(e.touches[0].clientX)}
+        onTouchMove={(e) => handleDragMove(e.touches[0].clientX)}
+        onTouchEnd={handleDragEnd}
       >
         {/* Card body */}
         <div
@@ -497,20 +490,15 @@ export function StackView({
             cursor-grab active:cursor-grabbing select-none
           `}
           style={{
-            boxShadow: isTop
-              ? `
-                0 1px 1px rgba(0,0,0,0.02),
-                0 2px 4px rgba(0,0,0,0.03),
-                0 4px 8px rgba(0,0,0,0.04),
-                0 8px 16px rgba(0,0,0,0.05),
-                0 16px 32px rgba(0,0,0,0.06),
-                inset 0 1px 0 rgba(255,255,255,${isDark ? 0.05 : 0.8}),
-                inset 0 -1px 0 rgba(0,0,0,0.05)
-              `
-              : `
-                0 2px 8px rgba(0,0,0,0.08),
-                inset 0 1px 0 rgba(255,255,255,${isDark ? 0.03 : 0.5})
-              `,
+            boxShadow: `
+              0 1px 1px rgba(0,0,0,0.02),
+              0 2px 4px rgba(0,0,0,0.03),
+              0 4px 8px rgba(0,0,0,0.04),
+              0 8px 16px rgba(0,0,0,0.05),
+              0 16px 32px rgba(0,0,0,0.06),
+              inset 0 1px 0 rgba(255,255,255,${isDark ? 0.05 : 0.8}),
+              inset 0 -1px 0 rgba(0,0,0,0.05)
+            `,
           }}
         >
           {/* Subtle grain texture */}
@@ -564,7 +552,7 @@ export function StackView({
             )}
 
             {/* Action button */}
-            {isTop && !isCompleting && (
+            {!isCompleting && (
               <div className="mt-6">
                 <button
                   onMouseDown={startHold}
@@ -741,12 +729,35 @@ export function StackView({
 
       {/* Stack container */}
       <div className="flex-1 flex items-center justify-center px-6 py-8">
-        <div className="relative w-full max-w-sm" style={{ height: '380px' }}>
-          {/* Render cards in reverse order so top card is last (on top) */}
-          {stack.slice(0, 4).reverse().map((card, reverseIndex) => {
-            const index = Math.min(3, stack.length - 1) - reverseIndex
-            return renderCard(card, index)
-          })}
+        <div className="relative w-full max-w-sm" style={{ height: '400px' }}>
+          {/* Peeking card edges - visual depth indicators */}
+          {stack.length > 2 && (
+            <div
+              className="absolute left-2 right-2 bottom-0 h-3 rounded-b-[24px]"
+              style={{
+                background: isDark
+                  ? 'linear-gradient(to bottom, rgba(30,30,30,0.6), rgba(20,20,20,0.8))'
+                  : 'linear-gradient(to bottom, rgba(240,240,240,0.8), rgba(230,230,230,0.9))',
+                boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                transform: 'translateY(16px)',
+              }}
+            />
+          )}
+          {stack.length > 1 && (
+            <div
+              className="absolute left-1 right-1 bottom-0 h-4 rounded-b-[26px]"
+              style={{
+                background: isDark
+                  ? 'linear-gradient(to bottom, rgba(35,35,35,0.8), rgba(25,25,25,0.9))'
+                  : 'linear-gradient(to bottom, rgba(248,248,248,0.9), rgba(240,240,240,1))',
+                boxShadow: '0 2px 6px rgba(0,0,0,0.12)',
+                transform: 'translateY(8px)',
+              }}
+            />
+          )}
+
+          {/* Main card - only render the top one */}
+          {stack.length > 0 && renderCard(stack[0], 0)}
         </div>
       </div>
     </div>
