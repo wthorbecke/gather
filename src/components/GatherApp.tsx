@@ -6,6 +6,7 @@ import { useTasks, Task, Step } from '@/hooks/useUserData'
 import { useMemory } from '@/hooks/useMemory'
 import { ThemeToggle } from './ThemeProvider'
 import { HomeView } from './HomeView'
+import { StackView } from './StackView'
 import { TaskView } from './TaskView'
 import { AICardState } from './AICard'
 import { Confetti, CompletionCelebration } from './Confetti'
@@ -76,6 +77,9 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
 
   // Integration settings state
   const [showIntegrationSettings, setShowIntegrationSettings] = useState(false)
+
+  // Stack view toggle (new UI experiment)
+  const [useStackView, setUseStackView] = useState(true)
 
   const currentTask = tasks.find((t) => t.id === currentTaskId)
 
@@ -1382,33 +1386,52 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
       {/* Views */}
       {!currentTaskId ? (
         <>
-          <HomeView
-            tasks={tasks}
-            aiCard={aiCard}
-            pendingInput={pendingInput}
-            onSubmit={handleSubmit}
-            onQuickAdd={handleQuickAdd}
-            onQuickReply={handleQuickReply}
-            onDismissAI={dismissAI}
-            onGoToTask={goToTask}
-            onToggleStep={handleToggleStep}
-            onSuggestionClick={handleSuggestionClick}
-            onDeleteTask={handleDeleteTask}
-            onAICardAction={handleAICardAction}
-            onBackQuestion={handleBackQuestion}
-            canGoBack={Boolean(contextGathering && contextGathering.currentIndex > 0)}
-          />
-          {/* Footer */}
-          <div className="px-5 pb-8">
-            <div className="max-w-[540px] mx-auto text-center">
-              <button
-                onClick={onSignOut}
-                className="text-xs text-text-muted hover:text-text-soft"
-              >
-                {isDemoUser ? 'Exit demo' : 'Sign out'}
-              </button>
+          {useStackView ? (
+            <StackView
+              tasks={tasks}
+              onToggleStep={handleToggleStep}
+              onGoToTask={goToTask}
+              onAddTask={handleQuickAdd}
+              onAddEmailAsTask={(email) => handleQuickAdd(email.subject)}
+            />
+          ) : (
+            <HomeView
+              tasks={tasks}
+              aiCard={aiCard}
+              pendingInput={pendingInput}
+              onSubmit={handleSubmit}
+              onQuickAdd={handleQuickAdd}
+              onQuickReply={handleQuickReply}
+              onDismissAI={dismissAI}
+              onGoToTask={goToTask}
+              onToggleStep={handleToggleStep}
+              onSuggestionClick={handleSuggestionClick}
+              onDeleteTask={handleDeleteTask}
+              onAICardAction={handleAICardAction}
+              onBackQuestion={handleBackQuestion}
+              canGoBack={Boolean(contextGathering && contextGathering.currentIndex > 0)}
+            />
+          )}
+          {/* Footer - only show for classic view */}
+          {!useStackView && (
+            <div className="px-5 pb-8">
+              <div className="max-w-[540px] mx-auto text-center">
+                <button
+                  onClick={onSignOut}
+                  className="text-xs text-text-muted hover:text-text-soft"
+                >
+                  {isDemoUser ? 'Exit demo' : 'Sign out'}
+                </button>
+              </div>
             </div>
-          </div>
+          )}
+          {/* View toggle for testing */}
+          <button
+            onClick={() => setUseStackView(!useStackView)}
+            className="fixed bottom-6 right-6 z-50 px-3 py-1.5 bg-card border border-border rounded-lg text-xs text-text-muted hover:text-text shadow-sm"
+          >
+            {useStackView ? 'Classic view' : 'Stack view'}
+          </button>
         </>
       ) : currentTask ? (
         <TaskView
