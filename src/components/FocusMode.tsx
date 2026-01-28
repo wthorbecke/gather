@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Step } from '@/hooks/useUserData'
 import { Checkbox } from './Checkbox'
 import { splitStepText } from '@/lib/stepText'
+import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
 
 interface FocusModeProps {
   step: Step
@@ -45,6 +46,47 @@ export function FocusMode({
     return () => clearInterval(interval)
   }, [isTimerRunning])
 
+  // Keyboard shortcuts
+  const shortcuts = useMemo(() => [
+    {
+      key: 'Escape',
+      action: onExit,
+      description: 'Exit focus mode',
+    },
+    {
+      key: 'Enter',
+      action: () => {
+        onToggleStep()
+        if (!step.done && onNext) {
+          setTimeout(onNext, 300)
+        }
+      },
+      description: 'Mark step complete',
+    },
+    {
+      key: 'ArrowRight',
+      action: () => onNext?.(),
+      description: 'Next step',
+    },
+    {
+      key: 'ArrowLeft',
+      action: () => onPrevious?.(),
+      description: 'Previous step',
+    },
+    {
+      key: 'd',
+      action: () => setShowDetails(prev => !prev),
+      description: 'Toggle details',
+    },
+    {
+      key: ' ',
+      action: () => setIsTimerRunning(prev => !prev),
+      description: 'Pause/resume timer',
+    },
+  ], [onExit, onToggleStep, onNext, onPrevious, step.done])
+
+  useKeyboardShortcuts({ shortcuts, enabled: true })
+
   // Format time as mm:ss
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60)
@@ -74,8 +116,30 @@ export function FocusMode({
         </div>
 
         {/* Timer */}
-        <div className={`font-mono text-sm ${isTimerRunning ? 'text-accent' : 'text-text-muted'}`}>
-          {formatTime(elapsedTime)}
+        <div className="flex items-center gap-3">
+          <div className={`font-mono text-sm ${isTimerRunning ? 'text-accent' : 'text-text-muted'}`}>
+            {formatTime(elapsedTime)}
+          </div>
+          {/* Keyboard hint */}
+          <div className="group relative">
+            <button className="text-text-muted hover:text-text transition-colors">
+              <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <rect x="2" y="6" width="20" height="12" rx="2" />
+                <path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M8 14h8" strokeLinecap="round" />
+              </svg>
+            </button>
+            <div className="absolute right-0 top-full mt-2 bg-elevated border border-border rounded-lg shadow-lg p-3 min-w-[180px] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10">
+              <div className="text-xs font-medium text-text-muted mb-2">Keyboard shortcuts</div>
+              <div className="space-y-1.5 text-xs">
+                <div className="flex justify-between"><span className="text-text-soft">Complete</span><span className="text-text-muted">Enter</span></div>
+                <div className="flex justify-between"><span className="text-text-soft">Next</span><span className="text-text-muted">→</span></div>
+                <div className="flex justify-between"><span className="text-text-soft">Previous</span><span className="text-text-muted">←</span></div>
+                <div className="flex justify-between"><span className="text-text-soft">Details</span><span className="text-text-muted">D</span></div>
+                <div className="flex justify-between"><span className="text-text-soft">Pause timer</span><span className="text-text-muted">Space</span></div>
+                <div className="flex justify-between"><span className="text-text-soft">Exit</span><span className="text-text-muted">Esc</span></div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
