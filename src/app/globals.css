@@ -495,6 +495,86 @@ textarea:focus-visible {
 /* =============================================
    STACK VIEW ANIMATIONS
    ============================================= */
+
+/* Card completion affirmation */
+@keyframes affirmationIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.8) translateY(10px);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.05) translateY(0);
+  }
+  100% {
+    opacity: 0.8;
+    transform: scale(1) translateY(-5px);
+  }
+}
+
+/* Empty state entrance */
+@keyframes emptyStateIn {
+  0% {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Card rise animation when previous card completes */
+@keyframes cardRise {
+  0% {
+    transform: translateY(12px) scale(0.96);
+  }
+  60% {
+    transform: translateY(-4px) scale(1.01);
+  }
+  100% {
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Stack card base styles */
+.stack-card {
+  will-change: transform, opacity;
+  backface-visibility: hidden;
+  -webkit-font-smoothing: subpixel-antialiased;
+}
+
+/* Card breathing animation - subtle idle movement */
+@keyframes cardBreathe {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-2px);
+  }
+}
+
+/* Gentle pulse for urgent cards */
+@keyframes urgentPulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(220, 107, 107, 0);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(220, 107, 107, 0.06);
+  }
+}
+
+/* Button hold progress shimmer */
+@keyframes holdShimmer {
+  0% {
+    background-position: -100% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* Legacy flash animation */
 @keyframes flash {
   0% { opacity: 0; }
   30% { opacity: 1; }
