@@ -293,6 +293,10 @@ export function StackView({
 
     if (card.type === 'step') {
       const { title } = splitStepText(card.step.text)
+      // If step text is same as task title, show "Next step" as context to avoid duplication
+      const contextLabel = title.toLowerCase() === card.task.title.toLowerCase()
+        ? 'Next step'
+        : card.task.title
       return (
         <div
           ref={cardRef}
@@ -320,8 +324,8 @@ export function StackView({
           )}
 
           <div className="p-8">
-            {/* Context: task name */}
-            <div className="text-base text-text-muted mb-3">{card.task.title}</div>
+            {/* Context: task name or "Next step" if same as step text */}
+            <div className="text-base text-text-muted mb-3">{contextLabel}</div>
 
             {/* THE step - big and clear */}
             <h2 className="text-3xl font-semibold text-text leading-tight mb-8">
