@@ -8,11 +8,96 @@ interface StatsCardProps {
   completedTasksThisWeek?: number
 }
 
+// Streak tracking helpers
+const STREAK_KEY = 'gather_completion_streak'
+
+interface StreakData {
+  currentStreak: number
+  lastActiveDate: string
+  completedToday: number
+}
+
+function getStreakData(): StreakData {
+  if (typeof window === 'undefined') {
+    return { currentStreak: 0, lastActiveDate: '', completedToday: 0 }
+  }
+  try {
+    const stored = localStorage.getItem(STREAK_KEY)
+    if (stored) {
+      return JSON.parse(stored)
+    }
+  } catch (e) {
+    console.warn('Failed to load streak data:', e)
+  }
+  return { currentStreak: 0, lastActiveDate: '', completedToday: 0 }
+}
+
+function saveStreakData(data: StreakData) {
+  if (typeof window === 'undefined') return
+  try {
+    localStorage.setItem(STREAK_KEY, JSON.stringify(data))
+  } catch (e) {
+    console.warn('Failed to save streak data:', e)
+  }
+}
+
 /**
  * User stats card showing completion progress, streaks, and patterns
  */
 export function StatsCard({ tasks, completedTasksThisWeek = 0 }: StatsCardProps) {
   const [isExpanded, setIsExpanded] = useState(false)
+  const [streakData, setStreakData] = useState<StreakData>({ currentStreak: 0, lastActiveDate: '', completedToday: 0 })
+
+  // Load and update streak data
+  useEffect(() => {
+    const today = new Date().toISOString().split('T')[0]
+    const savedData = getStreakData()
+    const completedStepsToday = tasks.reduce(
+      (sum, t) => sum + (t.steps?.filter(s => s.done).length || 0),
+      0
+    )
+
+    // Check if this is a new day
+    if (savedData.lastActiveDate !== today) {
+      // Calculate days since last activity
+      const lastDate = savedData.lastActiveDate ? new Date(savedData.lastActiveDate) : null
+      const todayDate = new Date(today)
+
+      let newStreak = savedData.currentStreak
+      if (lastDate) {
+        const daysDiff = Math.floor((todayDate.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24))
+        if (daysDiff === 1) {
+          // Consecutive day - continue streak only if they completed something yesterday
+          if (savedData.completedToday > 0) {
+            newStreak = savedData.currentStreak + 1
+          }
+        } else if (daysDiff > 1) {
+          // Missed days - reset streak
+          newStreak = 0
+        }
+      }
+
+      const newData = {
+        currentStreak: newStreak,
+        lastActiveDate: today,
+        completedToday: completedStepsToday,
+      }
+      saveStreakData(newData)
+      setStreakData(newData)
+    } else {
+      // Same day - just update completed count if it changed
+      if (completedStepsToday !== savedData.completedToday) {
+        const newData = {
+          ...savedData,
+          completedToday: completedStepsToday,
+        }
+        saveStreakData(newData)
+        setStreakData(newData)
+      } else {
+        setStreakData(savedData)
+      }
+    }
+  }, [tasks])
 
   // Calculate stats from tasks
   const stats = useMemo(() => {
@@ -113,6 +198,14 @@ export function StatsCard({ tasks, completedTasksThisWeek = 0 }: StatsCardProps)
 
           {/* Quick stats */}
           <div className="flex gap-4 text-sm">
+            {streakData.currentStreak > 0 && (
+              <span className="text-accent font-medium flex items-center gap-1">
+                <svg width={12} height={12} viewBox="0 0 16 16" fill="currentColor" className="opacity-80">
+                  <path d="M8 1C8 1 3 6 3 10C3 12.76 5.24 15 8 15C10.76 15 13 12.76 13 10C13 6 8 1 8 1ZM8 13C6.34 13 5 11.66 5 10C5 8.07 7 5.36 8 4.11C9 5.36 11 8.07 11 10C11 11.66 9.66 13 8 13Z" />
+                </svg>
+                {streakData.currentStreak} day streak
+              </span>
+            )}
             {stats.overdue > 0 && (
               <span className="text-danger font-medium">
                 {stats.overdue} overdue
@@ -172,7 +265,7 @@ export function StatsCard({ tasks, completedTasksThisWeek = 0 }: StatsCardProps)
           {/* Motivational message */}
           <div className="mt-4 pt-4 border-t border-border text-center">
             <p className="text-sm text-text-soft">
-              {getMotivationalMessage(stats)}
+              {getMotivationalMessage(stats, streakData.currentStreak)}
             </p>
           </div>
         </div>
@@ -205,7 +298,13 @@ function getMotivationalMessage(stats: {
   overdue: number
   quickWins: number
   completedThisWeek: number
-}): string {
+}, streak: number): string {
+  if (streak >= 7) {
+    return `${streak} day streak! You're building real momentum.`
+  }
+  if (streak >= 3) {
+    return `${streak} days in a row. Keep the streak alive.`
+  }
   if (stats.overdue > 0 && stats.quickWins > 0) {
     return `You have ${stats.quickWins} quick wins available. Start there to build momentum.`
   }
