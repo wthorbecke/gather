@@ -2,34 +2,95 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { getValidToken } from '@/lib/google-auth'
 
-// Task-like patterns in email subjects
+// Task-like patterns in email subjects and snippets
 const TASK_PATTERNS = [
+  // Action required
   /action required/i,
   /action needed/i,
+  /response required/i,
+  /response needed/i,
+  /your response/i,
+  /please respond/i,
+  /please reply/i,
   /please review/i,
+  /please confirm/i,
   /please sign/i,
+  /please complete/i,
+  /please update/i,
+  /please provide/i,
+  // Deadlines & due dates
   /deadline/i,
   /due date/i,
+  /due by/i,
+  /due on/i,
   /expires/i,
   /expiring/i,
-  /appointment confirmed/i,
-  /appointment scheduled/i,
+  /expiration/i,
+  /last day/i,
+  /final notice/i,
+  /last chance/i,
+  // Appointments & scheduling
+  /appointment/i,
+  /reservation/i,
+  /booking confirmed/i,
+  /scheduled for/i,
   /your .* is ready/i,
-  /reminder:/i,
+  /pick up/i,
+  /pickup/i,
+  // Reminders
+  /reminder/i,
   /don't forget/i,
+  /friendly reminder/i,
   /follow up/i,
-  /waiting for your/i,
+  /following up/i,
+  /checking in/i,
+  // Requests
+  /waiting for/i,
   /requires your/i,
   /needs your/i,
+  /requesting/i,
+  /request for/i,
+  /asking for/i,
+  // Bills & payments
   /payment due/i,
+  /payment reminder/i,
+  /bill is ready/i,
   /invoice/i,
+  /statement ready/i,
+  /amount due/i,
+  /balance due/i,
+  /pay by/i,
+  /autopay/i,
+  // Renewals & subscriptions
   /renewal/i,
+  /renew your/i,
+  /subscription/i,
+  /membership/i,
+  /will expire/i,
+  /about to expire/i,
+  // Verification & confirmation
   /verify your/i,
   /confirm your/i,
+  /confirmation needed/i,
+  /approval needed/i,
+  /approve/i,
+  // Scheduling
   /schedule your/i,
+  /book your/i,
+  /rsvp/i,
+  // Urgency
   /time.sensitive/i,
   /urgent/i,
+  /important/i,
+  /asap/i,
+  /immediately/i,
   /respond by/i,
+  // Shipping & orders
+  /shipped/i,
+  /delivered/i,
+  /out for delivery/i,
+  /track your/i,
+  /order confirmed/i,
 ]
 
 interface GmailMessage {
@@ -85,11 +146,12 @@ function extractSenderName(from: string): string {
   return from
 }
 
-function matchesTaskPattern(subject: string): string | null {
+function matchesTaskPattern(subject: string, snippet: string = ''): string | null {
+  const textToCheck = `${subject} ${snippet}`
   for (const pattern of TASK_PATTERNS) {
-    if (pattern.test(subject)) {
+    if (pattern.test(textToCheck)) {
       // Return a readable version of the matched pattern
-      const match = subject.match(pattern)
+      const match = textToCheck.match(pattern)
       return match ? match[0] : pattern.source
     }
   }
@@ -140,11 +202,12 @@ export async function GET(request: NextRequest) {
     }
 
     // Fetch recent emails from Gmail API
+    // Include both read and unread from last 14 days, excluding promotions/social
     const listResponse = await fetch(
       'https://gmail.googleapis.com/gmail/v1/users/me/messages?' +
       new URLSearchParams({
-        maxResults: '30',
-        q: 'is:unread newer_than:7d',
+        maxResults: '50',
+        q: 'newer_than:14d -category:promotions -category:social -category:forums',
       }),
       {
         headers: {
@@ -196,7 +259,7 @@ export async function GET(request: NextRequest) {
         const from = getHeader(detail, 'From')
         const date = getHeader(detail, 'Date')
 
-        const matchedPattern = matchesTaskPattern(subject)
+        const matchedPattern = matchesTaskPattern(subject, detail.snippet)
         if (matchedPattern) {
           potentialTasks.push({
             id: msg.id,
