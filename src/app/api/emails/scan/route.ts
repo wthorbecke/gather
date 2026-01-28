@@ -146,6 +146,106 @@ function extractSenderName(from: string): string {
   return from
 }
 
+// Patterns that indicate an email is NOT actionable (informational only)
+const FALSE_POSITIVE_PATTERNS = [
+  // Shipping notifications (informational - package is on its way or arrived)
+  /your (order|package|shipment) (has been |was |is )?(delivered|shipped|sent)/i,
+  /has been delivered/i,
+  /is out for delivery/i,
+  /is on the way/i,
+  /tracking (number|info|update)/i,
+
+  // Order confirmations (already placed, nothing to do)
+  /thanks for your order/i,
+  /order confirmed/i,
+  /order received/i,
+  /we received your order/i,
+
+  // Receipts
+  /your receipt/i,
+  /payment received/i,
+  /payment successful/i,
+  /transaction complete/i,
+
+  // Marketing re-engagement
+  /we miss you/i,
+  /haven't seen you/i,
+  /been a while/i,
+  /ghosting/i,
+  /come back/i,
+  /we noticed you/i,
+
+  // Autopay confirmations
+  /autopay (is |will be )?(enabled|scheduled|set up)/i,
+  /automatic payment (is |will be )?scheduled/i,
+  /no action (is )?needed/i,
+  /no action required/i,
+
+  // Already canceled/done
+  /subscription (was |has been )?cancel/i,
+  /successfully cancel/i,
+  /you('ve| have) unsubscribed/i,
+
+  // Feedback/survey requests (optional)
+  /take (a |our )?survey/i,
+  /feedback request/i,
+  /how did we do/i,
+  /rate your experience/i,
+
+  // Newsletters/digests
+  /weekly digest/i,
+  /daily digest/i,
+  /newsletter/i,
+  /monthly update/i,
+
+  // Otter/transcription ready (informational)
+  /ready to view in otter/i,
+  /transcript is ready/i,
+]
+
+// Check if email is likely a false positive
+function isLikelyFalsePositive(subject: string, snippet: string, from: string): boolean {
+  const text = `${subject} ${snippet}`.toLowerCase()
+
+  // Check against false positive patterns
+  for (const pattern of FALSE_POSITIVE_PATTERNS) {
+    if (pattern.test(text)) {
+      return true
+    }
+  }
+
+  // Amazon shipped/delivered are almost never actionable
+  if (from.toLowerCase().includes('amazon') &&
+      /(shipped|delivered|out for delivery)/i.test(subject)) {
+    return true
+  }
+
+  return false
+}
+
+// De-duplicate emails with same subject from same sender
+function deduplicateEmails(emails: PotentialTask[]): PotentialTask[] {
+  const seen = new Map<string, PotentialTask>()
+
+  for (const email of emails) {
+    // Create a key from sender + normalized subject
+    const normalizedSubject = email.subject
+      .replace(/\[.*?\]/g, '') // Remove bracketed prefixes
+      .replace(/^(re|fwd|fw):\s*/i, '') // Remove Re:/Fwd:
+      .trim()
+      .toLowerCase()
+
+    const key = `${email.from.toLowerCase()}:${normalizedSubject}`
+
+    // Keep the most recent one (first in list since sorted by date)
+    if (!seen.has(key)) {
+      seen.set(key, email)
+    }
+  }
+
+  return Array.from(seen.values())
+}
+
 function matchesTaskPattern(subject: string, snippet: string = ''): string | null {
   const textToCheck = `${subject} ${snippet}`
   for (const pattern of TASK_PATTERNS) {
@@ -261,26 +361,33 @@ export async function GET(request: NextRequest) {
 
         const matchedPattern = matchesTaskPattern(subject, detail.snippet)
         if (matchedPattern) {
-          potentialTasks.push({
-            id: msg.id,
-            subject,
-            from: extractSenderName(from),
-            snippet: detail.snippet,
-            date: new Date(date).toLocaleDateString(),
-            matchedPattern,
-          })
+          // Filter out likely false positives
+          if (!isLikelyFalsePositive(subject, detail.snippet, from)) {
+            potentialTasks.push({
+              id: msg.id,
+              subject,
+              from: extractSenderName(from),
+              snippet: detail.snippet,
+              date: new Date(date).toLocaleDateString(),
+              matchedPattern,
+            })
+          }
         }
       } catch (err) {
         console.error('Error fetching message detail:', err)
       }
     }
 
+    // De-duplicate similar emails from same sender
+    const dedupedTasks = deduplicateEmails(potentialTasks)
+
     return NextResponse.json({
-      potentialTasks,
+      potentialTasks: dedupedTasks,
       scannedCount: messages.length,
-      message: potentialTasks.length > 0
-        ? `Found ${potentialTasks.length} emails that might be tasks`
-        : 'No task-like emails found'
+      beforeDedup: potentialTasks.length,
+      message: dedupedTasks.length > 0
+        ? `Found ${dedupedTasks.length} emails that might need action`
+        : 'No actionable emails found'
     })
 
   } catch (error) {
