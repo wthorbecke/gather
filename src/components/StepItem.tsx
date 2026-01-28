@@ -14,9 +14,10 @@ interface StepItemProps {
   onToggle: () => void
   onExpand: () => void
   onStuck?: (step: Step) => void
+  onFocus?: (step: Step) => void
 }
 
-export function StepItem({ step, isNext, isExpanded, onToggle, onExpand, onStuck }: StepItemProps) {
+export function StepItem({ step, isNext, isExpanded, onToggle, onExpand, onStuck, onFocus }: StepItemProps) {
   const hasExpandableContent = step.detail || step.alternatives || step.examples || step.checklist || step.action || step.source
   const normalizedActionUrl = normalizeActionUrl(step.action?.url)
   const { title: derivedTitle, remainder: derivedRemainder } = splitStepText(step.text)
@@ -214,18 +215,35 @@ export function StepItem({ step, isNext, isExpanded, onToggle, onExpand, onStuck
             </div>
           )}
 
-          {/* I'm stuck button */}
-          {onStuck && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation()
-                onStuck(step)
-              }}
-              className="mt-4 w-full py-2.5 px-4 bg-transparent border border-border rounded-lg text-sm text-text-soft hover:border-accent hover:text-accent transition-all btn-press"
-            >
-              I'm stuck on this step
-            </button>
-          )}
+          {/* Action buttons */}
+          <div className="mt-4 flex gap-2">
+            {onFocus && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onFocus(step)
+                }}
+                className="flex-1 py-2.5 px-4 bg-accent/10 border border-accent/30 rounded-lg text-sm text-accent hover:bg-accent/20 transition-all btn-press flex items-center justify-center gap-2"
+              >
+                <svg width={14} height={14} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <circle cx="8" cy="8" r="6" />
+                  <circle cx="8" cy="8" r="2" fill="currentColor" />
+                </svg>
+                Focus on this
+              </button>
+            )}
+            {onStuck && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onStuck(step)
+                }}
+                className={`${onFocus ? 'flex-1' : 'w-full'} py-2.5 px-4 bg-transparent border border-border rounded-lg text-sm text-text-soft hover:border-accent hover:text-accent transition-all btn-press`}
+              >
+                I'm stuck
+              </button>
+            )}
+          </div>
         </div>
       )}
     </div>

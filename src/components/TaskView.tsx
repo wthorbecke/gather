@@ -8,6 +8,7 @@ import { AICard, AICardState } from './AICard'
 import { StepItem } from './StepItem'
 import { content } from '@/config/content'
 import { SnoozeMenu } from './SnoozeMenu'
+import { FocusMode } from './FocusMode'
 
 interface ContextTag {
   type: 'task' | 'step'
@@ -58,6 +59,7 @@ export function TaskView({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [showFullContext, setShowFullContext] = useState(false)
   const [showSnoozeMenu, setShowSnoozeMenu] = useState(false)
+  const [focusStepIndex, setFocusStepIndex] = useState<number | null>(null)
 
   // Handle step expansion - add/remove step context
   const handleStepExpand = (step: Step) => {
@@ -369,6 +371,7 @@ export function TaskView({
                   onToggle={() => onToggleStep(step.id)}
                   onExpand={() => handleStepExpand(step)}
                   onStuck={handleStuckOnStep}
+                  onFocus={() => setFocusStepIndex(index)}
                 />
               </div>
             )
@@ -393,6 +396,26 @@ export function TaskView({
             onBack() // Return to home after snoozing
           }}
           onCancel={() => setShowSnoozeMenu(false)}
+        />
+      )}
+
+      {/* Focus Mode */}
+      {focusStepIndex !== null && steps[focusStepIndex] && (
+        <FocusMode
+          step={steps[focusStepIndex]}
+          taskTitle={task.title}
+          totalSteps={steps.length}
+          currentStepIndex={focusStepIndex}
+          onToggleStep={() => onToggleStep(steps[focusStepIndex].id)}
+          onExit={() => setFocusStepIndex(null)}
+          onNext={focusStepIndex < steps.length - 1 ? () => setFocusStepIndex(focusStepIndex + 1) : undefined}
+          onPrevious={focusStepIndex > 0 ? () => setFocusStepIndex(focusStepIndex - 1) : undefined}
+          onStuck={() => {
+            setFocusStepIndex(null)
+            if (onStuckOnStep) {
+              onStuckOnStep(steps[focusStepIndex])
+            }
+          }}
         />
       )}
     </div>
