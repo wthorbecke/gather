@@ -99,11 +99,11 @@ export function FocusMode({
 
   return (
     <div className="fixed inset-0 z-50 bg-canvas flex flex-col">
-      {/* Header - minimal */}
+      {/* Header */}
       <div className="p-4 flex items-center justify-between border-b border-border">
         <button
           onClick={onExit}
-          className="text-sm text-text-muted hover:text-text transition-colors flex items-center gap-1"
+          className="text-sm text-text-muted hover:text-text transition-colors flex items-center gap-1.5 btn-press tap-target"
         >
           <svg width={16} height={16} viewBox="0 0 16 16">
             <path d="M10 12L6 8L10 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" fill="none" />
@@ -111,24 +111,33 @@ export function FocusMode({
           Exit focus
         </button>
 
-        <div className="text-sm text-text-muted">
+        <div className="text-sm text-text-muted tabular-nums">
           Step {currentStepIndex + 1} of {totalSteps}
         </div>
 
-        {/* Timer */}
+        {/* Timer and keyboard hint */}
         <div className="flex items-center gap-3">
-          <div className={`font-mono text-sm ${isTimerRunning ? 'text-accent' : 'text-text-muted'}`}>
+          <button
+            onClick={() => setIsTimerRunning(prev => !prev)}
+            className={`font-mono text-sm tabular-nums ${isTimerRunning ? 'text-accent' : 'text-text-muted'}`}
+          >
             {formatTime(elapsedTime)}
-          </div>
-          {/* Keyboard hint */}
+          </button>
           <div className="group relative">
-            <button className="text-text-muted hover:text-text transition-colors">
+            <button className="text-text-muted hover:text-text transition-colors p-1">
               <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                 <rect x="2" y="6" width="20" height="12" rx="2" />
                 <path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M8 14h8" strokeLinecap="round" />
               </svg>
             </button>
-            <div className="absolute right-0 top-full mt-2 bg-elevated border border-border rounded-lg shadow-lg p-3 min-w-[180px] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10">
+            <div className="
+              absolute right-0 top-full mt-2
+              bg-card border border-border rounded-lg shadow-elevated
+              p-3 min-w-[180px]
+              opacity-0 invisible
+              group-hover:opacity-100 group-hover:visible
+              transition-all z-10
+            ">
               <div className="text-xs font-medium text-text-muted mb-2">Keyboard shortcuts</div>
               <div className="space-y-1.5 text-xs">
                 <div className="flex justify-between"><span className="text-text-soft">Complete</span><span className="text-text-muted">Enter</span></div>
@@ -143,14 +152,12 @@ export function FocusMode({
         </div>
       </div>
 
-      {/* Main content - centered, large */}
+      {/* Main content */}
       <div className="flex-1 flex flex-col items-center justify-center p-8 max-w-xl mx-auto">
-        {/* Task context - subtle */}
-        <div className="text-sm text-text-muted mb-8 text-center">
-          {taskTitle}
-        </div>
+        {/* Task title */}
+        <div className="text-sm text-text-muted mb-8 text-center">{taskTitle}</div>
 
-        {/* The step - large and prominent */}
+        {/* Step content */}
         <div className="text-center mb-8">
           <h1 className="text-2xl md:text-3xl font-semibold text-text leading-relaxed mb-4">
             {title}
@@ -159,13 +166,20 @@ export function FocusMode({
           {hasDetail && (
             <button
               onClick={() => setShowDetails(!showDetails)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm text-text-soft bg-surface hover:bg-surface/80 rounded-full transition-colors"
+              className="
+                inline-flex items-center gap-1.5
+                px-3 py-1.5
+                text-sm text-text-soft
+                bg-subtle hover:bg-surface
+                rounded-full
+                transition-colors
+              "
             >
               <svg
                 width={12}
                 height={12}
                 viewBox="0 0 16 16"
-                className={`transition-transform ${showDetails ? 'rotate-180' : ''}`}
+                className={`transition-transform duration-150 ${showDetails ? 'rotate-180' : ''}`}
               >
                 <path d="M4 6L8 10L12 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" fill="none" />
               </svg>
@@ -180,7 +194,7 @@ export function FocusMode({
           )}
         </div>
 
-        {/* Time estimate if available */}
+        {/* Time estimate */}
         {step.time && (
           <div className="text-sm text-text-muted mb-8 flex items-center gap-2">
             <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="opacity-60">
@@ -191,21 +205,24 @@ export function FocusMode({
           </div>
         )}
 
-        {/* Action button - large checkbox */}
+        {/* Action button */}
         <div className="mb-8">
           <button
             onClick={() => {
               onToggleStep()
               if (!step.done && onNext) {
-                // Auto-advance to next step after a brief moment
                 setTimeout(onNext, 300)
               }
             }}
-            className={`flex items-center gap-4 p-6 rounded-2xl transition-all ${
-              step.done
+            className={`
+              flex items-center gap-4
+              p-6 rounded-xl
+              transition-all duration-150 ease-out
+              ${step.done
                 ? 'bg-success/10 border-2 border-success'
-                : 'bg-surface border-2 border-border hover:border-accent'
-            }`}
+                : 'bg-card border-2 border-border hover:border-accent'
+              }
+            `}
           >
             <Checkbox checked={step.done} onToggle={() => {}} size={32} />
             <span className={`text-lg font-medium ${step.done ? 'text-success' : 'text-text'}`}>
@@ -218,9 +235,9 @@ export function FocusMode({
         {onStuck && !step.done && (
           <button
             onClick={onStuck}
-            className="text-sm text-text-muted hover:text-accent transition-colors mb-4"
+            className="text-sm text-text-muted hover:text-accent transition-colors mb-4 btn-press tap-target"
           >
-            I'm stuck on this step
+            I&apos;m stuck on this step
           </button>
         )}
       </div>
@@ -230,7 +247,7 @@ export function FocusMode({
         <button
           onClick={onPrevious}
           disabled={currentStepIndex === 0}
-          className="p-2 text-text-soft hover:text-text transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+          className="p-2 text-text-soft hover:text-text transition-colors disabled:opacity-30 disabled:cursor-not-allowed btn-press tap-target"
           aria-label="Previous step"
         >
           <svg width={20} height={20} viewBox="0 0 16 16">
@@ -256,7 +273,7 @@ export function FocusMode({
         <button
           onClick={onNext}
           disabled={currentStepIndex === totalSteps - 1}
-          className="p-2 text-text-soft hover:text-text transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+          className="p-2 text-text-soft hover:text-text transition-colors disabled:opacity-30 disabled:cursor-not-allowed btn-press tap-target"
           aria-label="Next step"
         >
           <svg width={20} height={20} viewBox="0 0 16 16">

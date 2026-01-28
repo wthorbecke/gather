@@ -40,23 +40,22 @@ export function SnoozeMenu({ onSnooze, onCancel }: SnoozeMenuProps) {
     }
   }
 
-  // Get minimum date (tomorrow)
   const minDate = getDateString(1)
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+        className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-backdrop-in"
         onClick={onCancel}
       />
 
       {/* Menu */}
-      <div className="relative bg-elevated rounded-t-2xl sm:rounded-2xl w-full sm:max-w-sm p-4 animate-rise">
+      <div className="relative bg-elevated border border-border rounded-t-2xl sm:rounded-2xl w-full sm:max-w-sm p-4 shadow-modal animate-rise">
         <div className="text-center mb-4">
           <h3 className="text-lg font-semibold text-text">Snooze until...</h3>
           <p className="text-sm text-text-muted mt-1">
-            No guilt. Come back when you're ready.
+            No guilt. Come back when you&apos;re ready.
           </p>
         </div>
 
@@ -67,7 +66,13 @@ export function SnoozeMenu({ onSnooze, onCancel }: SnoozeMenuProps) {
                 <button
                   key={option.days}
                   onClick={() => onSnooze(getDateString(option.days))}
-                  className="w-full flex items-center justify-between p-3 rounded-xl bg-surface hover:bg-surface/80 transition-all btn-press"
+                  className="
+                    w-full flex items-center justify-between
+                    p-3 rounded-lg
+                    bg-subtle hover:bg-surface
+                    transition-all duration-150 ease-out
+                    btn-press
+                  "
                 >
                   <span className="font-medium text-text">{option.label}</span>
                   <span className="text-sm text-text-muted">{formatDate(option.days)}</span>
@@ -76,7 +81,14 @@ export function SnoozeMenu({ onSnooze, onCancel }: SnoozeMenuProps) {
 
               <button
                 onClick={() => setShowCustom(true)}
-                className="w-full flex items-center justify-center gap-2 p-3 rounded-xl border border-border hover:border-accent hover:text-accent transition-all"
+                className="
+                  w-full flex items-center justify-center gap-2
+                  p-3 rounded-lg
+                  border border-border
+                  text-text-soft
+                  hover:border-accent hover:text-accent
+                  transition-all duration-150 ease-out
+                "
               >
                 <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
@@ -96,33 +108,49 @@ export function SnoozeMenu({ onSnooze, onCancel }: SnoozeMenuProps) {
             </button>
           </>
         ) : (
-          <>
-            <div className="space-y-4">
-              <input
-                type="date"
-                min={minDate}
-                value={customDate}
-                onChange={(e) => setCustomDate(e.target.value)}
-                className="w-full p-3 rounded-xl bg-surface border border-border text-text focus:border-accent focus:outline-none"
-              />
+          <div className="space-y-4">
+            <input
+              type="date"
+              min={minDate}
+              value={customDate}
+              onChange={(e) => setCustomDate(e.target.value)}
+              className="
+                w-full p-3 rounded-lg
+                bg-subtle border border-border
+                text-text
+                focus:border-accent focus:outline-none
+                transition-colors
+              "
+            />
 
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setShowCustom(false)}
-                  className="flex-1 p-3 rounded-xl border border-border text-text-soft hover:bg-surface transition-all"
-                >
-                  Back
-                </button>
-                <button
-                  onClick={handleCustomSnooze}
-                  disabled={!customDate}
-                  className="flex-1 p-3 rounded-xl bg-accent text-white font-medium hover:bg-accent/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Snooze
-                </button>
-              </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowCustom(false)}
+                className="
+                  flex-1 p-3 rounded-lg
+                  border border-border
+                  text-text-soft
+                  hover:bg-subtle
+                  transition-all duration-150 ease-out
+                "
+              >
+                Back
+              </button>
+              <button
+                onClick={handleCustomSnooze}
+                disabled={!customDate}
+                className="
+                  flex-1 p-3 rounded-lg
+                  bg-accent text-white font-medium
+                  hover:bg-accent/90
+                  transition-all duration-150 ease-out
+                  disabled:opacity-50 disabled:cursor-not-allowed
+                "
+              >
+                Snooze
+              </button>
             </div>
-          </>
+          </div>
         )}
       </div>
     </div>

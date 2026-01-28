@@ -14,34 +14,29 @@ test.describe('Authentication', () => {
     await expect(page.getByRole('button', { name: /continue with google/i })).toBeVisible()
 
     // Should show demo option
-    await expect(page.getByRole('button', { name: /try demo/i })).toBeVisible()
+    await expect(page.getByRole('button', { name: /try the demo/i })).toBeVisible()
   })
 
   test('can enter demo mode', async ({ page }) => {
     await page.goto('/')
 
-    await page.getByRole('button', { name: /try demo/i }).click()
+    await page.getByRole('button', { name: /try the demo/i }).click()
 
-    // Should show the main app (default is Tasks tab now)
-    await expect(page.getByRole('button', { name: 'Sign in' })).toBeVisible()
-
-    // Should show the tabs
-    await expect(page.getByRole('button', { name: 'Today' })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Soul' })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Tasks' })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Money' })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Space' })).toBeVisible()
+    // Demo mode goes directly into the app with the Gather header
+    await expect(page.locator('h1:has-text("Gather")')).toBeVisible()
+    // Shows Exit demo button instead of Sign out
+    await expect(page.getByRole('button', { name: 'Exit demo' })).toBeVisible()
   })
 
-  test('can exit demo mode via sign in link', async ({ page }) => {
+  test('can exit demo mode', async ({ page }) => {
     await page.goto('/')
 
     // Enter demo mode
-    await page.getByRole('button', { name: /try demo/i }).click()
-    await expect(page.getByRole('button', { name: 'Sign in' })).toBeVisible()
+    await page.getByRole('button', { name: /try the demo/i }).click()
+    await expect(page.getByRole('button', { name: 'Exit demo' })).toBeVisible()
 
-    // Click sign in to exit demo
-    await page.getByRole('button', { name: 'Sign in' }).click()
+    // Exit demo mode
+    await page.getByRole('button', { name: 'Exit demo' }).click()
 
     // Should return to login page
     await expect(page.getByRole('button', { name: /continue with google/i })).toBeVisible()
@@ -52,7 +47,6 @@ test.describe('Authentication', () => {
 
     // Verify feature highlights are shown
     await expect(page.locator('text=AI breaks down overwhelming tasks')).toBeVisible()
-    await expect(page.locator('text=Ongoing collaboration when you get stuck')).toBeVisible()
-    await expect(page.locator('text=No judgment, no guilt')).toBeVisible()
+    await expect(page.locator('text=No judgment, just progress')).toBeVisible()
   })
 })

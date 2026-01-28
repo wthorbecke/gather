@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { Task } from '@/hooks/useUserData'
 import { hasAuthoritativeSources } from '@/lib/sourceQuality'
-import { content } from '@/config/content'
 
 const loadingMessages = [
   'Finding the steps...',
@@ -94,19 +93,29 @@ export function AICard({
   const handleDismiss = () => {
     if (isDismissing) return
     setIsDismissing(true)
-    setTimeout(() => onDismiss(), 200)
+    setTimeout(() => onDismiss(), 150)
   }
 
   return (
     <div
-      className={`bg-ai-bg border border-ai-border rounded-lg p-4 relative ${
-        attachInput ? 'rounded-b-none border-b-0 mb-0' : 'mb-6'
-      } ${isDismissing ? 'animate-fade-out' : 'animate-fade-in'}`}
+      className={`
+        relative
+        bg-subtle rounded-lg p-4
+        border border-border
+        ${attachInput ? 'rounded-b-none border-b-0 mb-0' : 'mb-6'}
+        ${isDismissing ? 'animate-fade-out' : 'animate-fade-in'}
+      `}
     >
       {/* Dismiss button */}
       <button
         onClick={handleDismiss}
-        className="absolute top-3 right-3 p-1.5 text-text-soft hover:text-text hover:bg-surface/50 rounded-md transition-all tap-target btn-press"
+        className="
+          absolute top-3 right-3
+          p-1.5 rounded-md
+          text-text-muted hover:text-text hover:bg-surface
+          transition-colors duration-150
+          tap-target btn-press
+        "
         aria-label="Dismiss"
       >
         <svg width={16} height={16} viewBox="0 0 16 16">
@@ -131,7 +140,7 @@ export function AICard({
             <div className="skeleton h-3 w-1/3" />
             <div className="skeleton h-3 w-full" />
             <div className="skeleton h-3 w-4/5" />
-            <div className="text-xs text-text-muted">{loadingMessages[loadingMessageIndex]}</div>
+            <div className="text-xs text-text-muted mt-2">{loadingMessages[loadingMessageIndex]}</div>
           </div>
         </>
       ) : (
@@ -139,7 +148,7 @@ export function AICard({
           {/* User's input echo */}
           {pendingInput && (
             <div className="text-sm text-text-muted mb-3 pb-3 border-b border-border-subtle">
-              "{pendingInput}"
+              &ldquo;{pendingInput}&rdquo;
             </div>
           )}
 
@@ -154,12 +163,13 @@ export function AICard({
             </div>
           )}
 
+          {/* Question */}
           {card.question && (
             <div className="mb-4">
               <div className="flex items-center justify-between gap-3 text-xs text-text-muted mb-2">
-                {card.question.total > 1 ? (
-                  <div>{card.question.index} of {card.question.total}</div>
-                ) : null}
+                {card.question.total > 1 && (
+                  <div className="tabular-nums">{card.question.index} of {card.question.total}</div>
+                )}
                 {onBackQuestion && canGoBack && (
                   <button
                     onClick={onBackQuestion}
@@ -172,9 +182,7 @@ export function AICard({
                   </button>
                 )}
               </div>
-              <div className="text-base font-medium leading-snug">
-                {questionText}
-              </div>
+              <div className="text-base font-medium leading-snug">{questionText}</div>
             </div>
           )}
 
@@ -190,7 +198,7 @@ export function AICard({
                   width={12}
                   height={12}
                   viewBox="0 0 16 16"
-                  className={`transition-transform duration-200 ${sourcesOpen ? 'rotate-180' : ''}`}
+                  className={`transition-transform duration-150 ${sourcesOpen ? 'rotate-180' : ''}`}
                 >
                   <path d="M4 6L8 10L12 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" fill="none" />
                 </svg>
@@ -203,7 +211,15 @@ export function AICard({
                       href={source.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 rounded-full border border-border-subtle bg-canvas/70 px-2.5 py-1 text-xs text-text-soft hover:text-text hover:border-border transition-colors btn-press tap-target animate-rise"
+                      className="
+                        inline-flex items-center gap-1
+                        rounded-full border border-border
+                        bg-canvas px-2.5 py-1
+                        text-xs text-text-soft
+                        hover:text-text hover:border-accent
+                        transition-colors
+                        btn-press tap-target animate-rise
+                      "
                       style={{ animationDelay: `${i * 40}ms` }}
                     >
                       {source.title}
@@ -216,6 +232,7 @@ export function AICard({
               )}
             </div>
           )}
+
           {hasSources && sourceCount > 0 && !hasOfficialSources && (
             <div className="text-xs text-text-muted mb-3">
               Couldn&apos;t find an official source. Treat requirements as provisional.
@@ -229,7 +246,14 @@ export function AICard({
                 <button
                   key={reply}
                   onClick={() => onQuickReply(reply)}
-                  className="quick-reply-btn px-3.5 py-2 bg-canvas border border-border rounded-full text-sm text-text tap-target animate-rise"
+                  className="
+                    px-3.5 py-2
+                    bg-card border border-border rounded-full
+                    text-sm text-text
+                    hover:border-accent hover:bg-accent-soft
+                    transition-all duration-150 ease-out
+                    tap-target btn-press animate-rise
+                  "
                   style={{ animationDelay: `${index * 30}ms` }}
                 >
                   {reply}
@@ -238,13 +262,21 @@ export function AICard({
             </div>
           )}
 
+          {/* Actions */}
           {actions.length > 0 && onAction && (
             <div className="flex flex-wrap gap-2 mt-3">
               {actions.map((action, index) => (
                 <button
                   key={`${action.type}-${index}`}
                   onClick={() => onAction(action)}
-                  className="px-4 py-2 bg-canvas border border-border rounded-full text-sm text-text hover:border-accent transition-all btn-press tap-target animate-rise"
+                  className="
+                    px-4 py-2
+                    bg-card border border-border rounded-full
+                    text-sm text-text
+                    hover:border-accent hover:bg-accent-soft
+                    transition-all duration-150 ease-out
+                    btn-press tap-target animate-rise
+                  "
                   style={{ animationDelay: `${index * 40}ms` }}
                 >
                   {action.label || action.type}
@@ -257,9 +289,17 @@ export function AICard({
           {card.taskCreated && onGoToTask && (
             <div
               onClick={() => onGoToTask(card.taskCreated!.id)}
-              className="p-4 bg-success-soft rounded-lg flex items-center gap-3 cursor-pointer transition-transform hover:-translate-y-0.5 btn-press animate-rise"
+              className="
+                p-4 mt-3
+                bg-success-soft rounded-lg
+                flex items-center gap-3
+                cursor-pointer
+                transition-all duration-150 ease-out
+                hover:-translate-y-0.5
+                btn-press animate-rise
+              "
             >
-              <div className="w-8 h-8 rounded-full bg-success/30 flex items-center justify-center">
+              <div className="w-8 h-8 rounded-full bg-success/20 flex items-center justify-center flex-shrink-0">
                 <svg width={16} height={16} viewBox="0 0 16 16" className="text-success">
                   <path
                     d="M3 8L6.5 11.5L13 4.5"
@@ -271,13 +311,13 @@ export function AICard({
                   />
                 </svg>
               </div>
-              <div className="flex-1">
-                <div className="text-base font-medium">{card.taskCreated.title}</div>
+              <div className="flex-1 min-w-0">
+                <div className="text-base font-medium truncate">{card.taskCreated.title}</div>
                 <div className="text-sm text-text-soft">
-                  {card.taskCreated.steps?.length || 0} steps - Click to view
+                  {card.taskCreated.steps?.length || 0} steps &middot; Click to view
                 </div>
               </div>
-              <svg width={16} height={16} viewBox="0 0 16 16" className="text-text-muted">
+              <svg width={16} height={16} viewBox="0 0 16 16" className="text-text-muted flex-shrink-0">
                 <path
                   d="M6 4L10 8L6 12"
                   stroke="currentColor"
@@ -290,7 +330,6 @@ export function AICard({
           )}
         </>
       )}
-
     </div>
   )
 }

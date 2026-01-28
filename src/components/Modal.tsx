@@ -76,7 +76,7 @@ export function Modal({
             </div>
             <button
               onClick={handleClose}
-              className="w-8 h-8 flex items-center justify-center rounded-lg bg-surface text-text-muted hover:text-text hover:scale-105 active:scale-95 transition-all"
+              className="w-10 h-10 flex items-center justify-center rounded-lg bg-surface text-text-muted hover:text-text transition-all btn-press tap-target"
               aria-label="Close modal"
             >
               <span className="text-lg leading-none">×</span>

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { AI_MODELS } from '@/config/ai'
 
 export async function POST(request: Request) {
   try {
@@ -9,15 +10,20 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'API key not configured' }, { status: 500 })
     }
 
-    const prompt = `You're helping someone with ADHD capture a task. They just typed: "${title}"
+    const now = new Date()
+    const prompt = `You're helping someone with ADHD capture a task. Current date: ${now.toISOString()}. They just typed: "${title}"
 
-Your job: Figure out if you need any clarifying info to give them a great action plan. Ask ONLY questions that will meaningfully change your recommendations.
+Your job: Do a quick task-type classification and decide if you need clarifying info to give a great action plan. Ask ONLY questions that will meaningfully change your recommendations.
 
 Think about what context would actually help you give better, more specific advice:
 - Location/state if requirements vary by location
 - Current status (e.g., new vs renewal, do they already have X)
 - Timeline/urgency if it affects the approach
 - Key details that determine the process
+- For learning: current level + time per week + focus area
+- For creative: audience + tone + deliverable format
+- For habits: frequency + time of day + barriers
+- For multi-phase: dates + budget + constraints
 
 But DON'T ask unnecessary questions:
 - If the task is simple and clear, don't ask anything
@@ -27,6 +33,7 @@ But DON'T ask unnecessary questions:
 Respond with ONLY valid JSON:
 {
   "needsClarification": true/false,
+  "taskType": "bureaucratic|learning|creative|habit|multi_phase|vague_goal|other",
   "taskCategory": "government|medical|financial|travel|home|work|errand|personal|other",
   "questions": [
     {
@@ -36,14 +43,31 @@ Respond with ONLY valid JSON:
       "options": ["Option 1", "Option 2", "Option 3"] or null for free text
     }
   ],
+  "deadline": {
+    "date": "YYYY-MM-DD" or null,
+    "type": "hard|soft|flexible",
+    "source": "explicit (user stated) | inferred (common deadline) | none",
+    "note": "Why this deadline matters, or null"
+  },
   "immediateInsight": "Something genuinely useful you notice about this task, or null if nothing notable"
 }
+
+Deadline detection:
+- "hard" = real consequences (fees, expiration, legal)
+- "soft" = preferred but movable (appointments, goals)
+- "flexible" = nice-to-have timeline
+- Extract explicit dates ("by Friday", "before Dec 31")
+- Infer common deadlines (tax deadline = April 15, passport renewal = 6 months before travel)
+- If no deadline mentioned or inferred, date: null
 
 Rules:
 - Max 2-3 questions, only if they'll change your advice
 - Simple tasks (buy milk, send email) → needsClarification: false
 - Options should be practical choices, not exhaustive lists
-- immediateInsight should be actually helpful, not generic encouragement`
+- immediateInsight should be actually helpful, not generic encouragement
+- If you include any year in options (deadlines, tax years, etc.), do not invent past years. Use the current year and next year if needed unless the user explicitly referenced past years.
+- If the user says they missed prior years, ask which years or include only the years they provided.
+- If you mention "end of year," make the year explicit (e.g., "by the end of 2026").`
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -53,7 +77,7 @@ Rules:
         'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
+        model: AI_MODELS.taskAnalysis,
         max_tokens: 800,
         messages: [
           {

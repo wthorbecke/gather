@@ -61,34 +61,31 @@ export function TaskView({
   const [showSnoozeMenu, setShowSnoozeMenu] = useState(false)
   const [focusStepIndex, setFocusStepIndex] = useState<number | null>(null)
 
-  // Handle step expansion - add/remove step context
+  // Handle step expansion
   const handleStepExpand = (step: Step) => {
     const isCurrentlyExpanded = expandedStepId === step.id
     if (isCurrentlyExpanded) {
       setExpandedStepId(null)
-      onSetStepContext(null) // Remove step context
+      onSetStepContext(null)
     } else {
       setExpandedStepId(step.id)
-      onSetStepContext(step) // Add step context
+      onSetStepContext(step)
     }
   }
 
   // Handle "I'm stuck" on a step
   const handleStuckOnStep = (step: Step) => {
-    // First, set the step context so the AI knows what step we're talking about
     onSetStepContext(step)
     setExpandedStepId(step.id)
-
-    // Use the explicit handler if provided, otherwise send a stuck message via onSubmit
     if (onStuckOnStep) {
       onStuckOnStep(step)
     } else {
-      // Send a contextual "stuck" message
       onSubmit(`I'm stuck on the step: "${step.text}"`)
     }
   }
 
   const steps = task.steps || []
+
   useEffect(() => {
     if (!focusStepId) return
     const target = steps.find((s) => s.id === focusStepId)
@@ -100,16 +97,16 @@ export function TaskView({
       element.scrollIntoView({ behavior: 'smooth', block: 'center' })
     }
   }, [focusStepId, steps, onSetStepContext])
+
   const doneCount = steps.filter((s) => s.done).length
   const totalCount = steps.length
   const progress = totalCount > 0 ? (doneCount / totalCount) * 100 : 0
   const contextText = task.context_text?.trim() || ''
   const normalizeText = (value: string) => value.replace(/\s+/g, ' ').trim().toLowerCase()
 
-  // Clean up context before checking if it should show
+  // Clean up context
   const cleanContext = (text: string): string => {
     let cleaned = text
-    // Skip useless placeholder context
     const skipPhrases = [
       /^none provided\.?$/i,
       /^no additional context\.?$/i,
@@ -120,7 +117,6 @@ export function TaskView({
     for (const phrase of skipPhrases) {
       if (phrase.test(cleaned.trim())) return ''
     }
-    // Remove verbose AI-generated prefixes
     const verbosePrefixes = [
       /^the user wants to /i,
       /^the user needs to /i,
@@ -131,9 +127,7 @@ export function TaskView({
     for (const prefix of verbosePrefixes) {
       cleaned = cleaned.replace(prefix, '')
     }
-    // Remove trailing periods and clean up
     cleaned = cleaned.replace(/\.$/, '').trim()
-    // Capitalize first letter
     if (cleaned.length > 0) {
       cleaned = cleaned.charAt(0).toUpperCase() + cleaned.slice(1)
     }
@@ -144,7 +138,6 @@ export function TaskView({
   const shouldShowContext =
     processedContext.length > 0 &&
     normalizeText(processedContext) !== normalizeText(task.title) &&
-    // Also skip if it's just a slightly longer paraphrase
     !(normalizeText(processedContext).includes(normalizeText(task.title)) && processedContext.length < task.title.length + 20)
 
   const contextParts = processedContext
@@ -152,11 +145,8 @@ export function TaskView({
     .map((part) => part.trim())
     .filter(Boolean)
     .map((part) => {
-      // Clean up various patterns
       if (part.toLowerCase().includes('other (i will specify)')) return 'Not specified'
-      // Remove "Yes, " prefix from boolean answers
       if (part.toLowerCase().startsWith('yes, ')) return part.slice(5)
-      // Remove "No, " prefix from boolean answers
       if (part.toLowerCase().startsWith('no, ')) return part.slice(4)
       return part
     })
@@ -171,38 +161,44 @@ export function TaskView({
   const fullText = formatList(contextItems)
   const hasMoreContext = contextItems.length > 2 || contextText.length > 160
   const visibleContext = showFullContext ? fullText : summaryText
-
-  // Find the next incomplete step
   const nextStepId = steps.find((s) => !s.done)?.id
 
   return (
-    <div className="min-h-screen px-5 py-8">
+    <div className="min-h-screen px-5 py-6">
       <div className="max-w-[540px] mx-auto">
-        {/* Header row */}
+        {/* Header */}
         <div className="flex items-center gap-3 mb-6">
           <button
             onClick={onBack}
-            className="w-11 h-11 rounded-lg bg-subtle text-text-soft hover:text-text flex items-center justify-center transition-colors btn-press tap-target"
+            className="
+              w-10 h-10 rounded-lg
+              bg-subtle text-text-soft
+              hover:text-text
+              flex items-center justify-center
+              transition-colors duration-150
+              btn-press tap-target
+            "
           >
             <svg width={16} height={16} viewBox="0 0 16 16">
-              <path
-                d="M10 12L6 8L10 4"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                fill="none"
-              />
+              <path d="M10 12L6 8L10 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" fill="none" />
             </svg>
           </button>
           <h1 className="flex-1 text-xl font-display font-semibold text-text truncate">{task.title}</h1>
 
           <div className="flex items-center gap-2">
             <ThemeToggle compact />
-            {/* Overflow menu */}
+            {/* Menu */}
             <div className="relative">
               <button
                 onClick={() => setShowMenu(!showMenu)}
-                className="w-11 h-11 rounded-lg bg-subtle text-text-muted hover:text-text flex items-center justify-center transition-colors btn-press tap-target"
+                className="
+                  w-10 h-10 rounded-lg
+                  bg-subtle text-text-muted
+                  hover:text-text
+                  flex items-center justify-center
+                  transition-colors duration-150
+                  btn-press tap-target
+                "
               >
                 <svg width={16} height={16} viewBox="0 0 16 16">
                   <circle cx="8" cy="3" r="1.5" fill="currentColor" />
@@ -213,13 +209,8 @@ export function TaskView({
 
               {showMenu && (
                 <>
-                  {/* Backdrop */}
-                  <div
-                    className="fixed inset-0 z-10"
-                    onClick={() => setShowMenu(false)}
-                  />
-                  {/* Menu */}
-                  <div className="absolute right-0 top-full mt-1 z-20 bg-card border border-border rounded-lg shadow-lg overflow-hidden min-w-[140px] animate-rise">
+                  <div className="fixed inset-0 z-10" onClick={() => setShowMenu(false)} />
+                  <div className="absolute right-0 top-full mt-1 z-20 bg-card border border-border rounded-lg shadow-elevated overflow-hidden min-w-[140px] animate-rise">
                     {onSnoozeTask && (
                       <button
                         onClick={() => {
@@ -240,7 +231,7 @@ export function TaskView({
                         setShowMenu(false)
                         setShowDeleteConfirm(true)
                       }}
-                      className="w-full px-4 py-3 text-left text-sm text-danger hover:bg-danger/10 transition-colors tap-target"
+                      className="w-full px-4 py-3 text-left text-sm text-danger hover:bg-danger-soft transition-colors tap-target"
                     >
                       Delete task
                     </button>
@@ -253,7 +244,7 @@ export function TaskView({
 
         {/* Delete confirmation */}
         {showDeleteConfirm && (
-          <div className="bg-danger/10 border border-danger/30 rounded-lg p-4 mb-6 animate-fade-in">
+          <div className="bg-danger-soft border border-danger/30 rounded-lg p-4 mb-6 animate-fade-in">
             <p className="text-sm text-text mb-3">Delete this task? This can&apos;t be undone.</p>
             <div className="flex gap-2">
               <button
@@ -261,13 +252,13 @@ export function TaskView({
                   setShowDeleteConfirm(false)
                   onDeleteTask()
                 }}
-                className="px-4 py-2 bg-danger text-white rounded-md text-sm font-medium hover:bg-danger/90 transition-colors btn-press tap-target"
+                className="px-4 py-2 bg-danger text-white rounded-lg text-sm font-medium hover:bg-danger/90 transition-colors btn-press tap-target"
               >
                 Delete
               </button>
               <button
                 onClick={() => setShowDeleteConfirm(false)}
-                className="px-4 py-2 bg-subtle text-text rounded-md text-sm font-medium hover:bg-subtle/80 transition-colors btn-press tap-target"
+                className="px-4 py-2 bg-subtle text-text rounded-lg text-sm font-medium hover:bg-subtle/80 transition-colors btn-press tap-target"
               >
                 Cancel
               </button>
@@ -285,7 +276,7 @@ export function TaskView({
           />
         )}
 
-        {/* Input with context tags */}
+        {/* Input */}
         {(() => {
           const stepTagIndices = contextTags
             .map((tag, index) => ({ tag, index }))
@@ -308,7 +299,7 @@ export function TaskView({
           )
         })()}
 
-        {/* Context - collapsed by default with info toggle */}
+        {/* Context */}
         {shouldShowContext && visibleContext && (
           <div className="mb-4">
             {!showFullContext ? (
@@ -325,8 +316,7 @@ export function TaskView({
               </button>
             ) : (
               <div className="text-sm text-text-soft leading-relaxed animate-fade-in">
-                <span className="text-text-muted">Context:</span>{' '}
-                {fullText}
+                <span className="text-text-muted">Context:</span> {fullText}
                 <button
                   onClick={() => setShowFullContext(false)}
                   className="ml-2 text-xs text-text-muted hover:text-text transition-colors"
@@ -341,23 +331,23 @@ export function TaskView({
         {/* Progress */}
         {totalCount > 0 && (
           <div className="mb-6">
-            <div className="h-[4px] bg-border rounded-full overflow-hidden relative">
+            <div className="h-1 bg-border rounded-full overflow-hidden">
               <div
                 className="h-full bg-success rounded-full transition-all duration-300 ease-out progress-bar-fill"
                 style={{ width: `${progress}%` }}
               />
             </div>
-            <div className="text-sm text-text-muted mt-2">
+            <div className="text-sm text-text-muted mt-2 tabular-nums">
               {doneCount} of {totalCount} complete
               {doneCount === totalCount && totalCount > 0 && (
-                <span className="ml-2 text-success">✓</span>
+                <span className="ml-2 text-success">Done</span>
               )}
             </div>
           </div>
         )}
 
         {/* Steps */}
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-2">
           {steps.map((step, index) => {
             const isNext = step.id === nextStepId
             const isExpanded = expandedStepId === step.id
@@ -378,7 +368,7 @@ export function TaskView({
           })}
         </div>
 
-        {/* Empty steps state */}
+        {/* Empty state */}
         {steps.length === 0 && (
           <div className="text-center py-12">
             <div className="text-text-muted mb-2">{content.emptyStates.taskNoStepsTitle}</div>
@@ -393,7 +383,7 @@ export function TaskView({
           onSnooze={(date) => {
             onSnoozeTask(date)
             setShowSnoozeMenu(false)
-            onBack() // Return to home after snoozing
+            onBack()
           }}
           onCancel={() => setShowSnoozeMenu(false)}
         />

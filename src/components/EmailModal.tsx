@@ -43,13 +43,13 @@ export function EmailModal({ isOpen, onClose, title, template }: EmailModalProps
         <>
           <button
             onClick={onClose}
-            className="px-4 py-2.5 bg-[var(--bg-warm)] border border-[var(--border)] text-[var(--text-soft)] rounded-lg text-[0.8rem] hover:bg-[var(--bg)] transition-all"
+            className="px-4 py-2.5 bg-surface border border-border text-text-soft rounded-lg text-[0.8rem] hover:bg-canvas transition-all btn-press tap-target"
           >
             Close
           </button>
           <button
             onClick={copyEmail}
-            className="px-4 py-2.5 bg-[var(--text)] text-white rounded-lg text-[0.8rem] hover:bg-[var(--text-soft)] transition-all"
+            className="px-4 py-2.5 bg-text text-white rounded-lg text-[0.8rem] hover:opacity-90 transition-opacity btn-press tap-target"
           >
             {copied ? 'Copied!' : 'Copy to clipboard'}
           </button>
@@ -58,25 +58,25 @@ export function EmailModal({ isOpen, onClose, title, template }: EmailModalProps
     >
       <div className="space-y-4">
         <div>
-          <label className="block text-[0.8rem] text-[var(--text-muted)] mb-1.5">To</label>
+          <label className="block text-[0.8rem] text-text-muted mb-1.5">To</label>
           <input
             type="text"
             value={template.to}
             readOnly
-            className="w-full px-4 py-2.5 border border-[var(--border)] rounded-lg text-[0.9rem] bg-[var(--bg)]"
+            className="w-full px-4 py-2.5 border border-border rounded-lg text-[0.9rem] bg-canvas"
           />
         </div>
         <div>
-          <label className="block text-[0.8rem] text-[var(--text-muted)] mb-1.5">Subject</label>
+          <label className="block text-[0.8rem] text-text-muted mb-1.5">Subject</label>
           <input
             type="text"
             value={template.subject}
             readOnly
-            className="w-full px-4 py-2.5 border border-[var(--border)] rounded-lg text-[0.9rem] bg-[var(--bg)]"
+            className="w-full px-4 py-2.5 border border-border rounded-lg text-[0.9rem] bg-canvas"
           />
         </div>
         <div>
-          <label className="block text-[0.8rem] text-[var(--text-muted)] mb-1.5">
+          <label className="block text-[0.8rem] text-text-muted mb-1.5">
             Your BCBS Member ID
           </label>
           <input
@@ -84,11 +84,11 @@ export function EmailModal({ isOpen, onClose, title, template }: EmailModalProps
             value={memberId}
             onChange={(e) => setMemberId(e.target.value)}
             placeholder="Enter your member ID"
-            className="w-full px-4 py-2.5 border border-[var(--border)] rounded-lg text-[0.9rem] bg-[var(--bg)] focus:outline-none focus:border-[var(--accent)]"
+            className="w-full px-4 py-2.5 border border-border rounded-lg text-[0.9rem] bg-canvas focus:outline-none focus:border-accent"
           />
         </div>
         <div>
-          <label className="block text-[0.8rem] text-[var(--text-muted)] mb-1.5">
+          <label className="block text-[0.8rem] text-text-muted mb-1.5">
             Your Group Number
           </label>
           <input
@@ -96,14 +96,14 @@ export function EmailModal({ isOpen, onClose, title, template }: EmailModalProps
             value={groupNumber}
             onChange={(e) => setGroupNumber(e.target.value)}
             placeholder="Enter your group number"
-            className="w-full px-4 py-2.5 border border-[var(--border)] rounded-lg text-[0.9rem] bg-[var(--bg)] focus:outline-none focus:border-[var(--accent)]"
+            className="w-full px-4 py-2.5 border border-border rounded-lg text-[0.9rem] bg-canvas focus:outline-none focus:border-accent"
           />
         </div>
         <div>
-          <label className="block text-[0.8rem] text-[var(--text-muted)] mb-2">
+          <label className="block text-[0.8rem] text-text-muted mb-2">
             Email body — copy this:
           </label>
-          <div className="bg-[var(--bg)] rounded-xl p-5 text-[0.85rem] leading-relaxed whitespace-pre-wrap border border-[var(--border-light)]">
+          <div className="bg-canvas rounded-xl p-5 text-[0.85rem] leading-relaxed whitespace-pre-wrap border border-border">
             {getFilledBody()}
           </div>
         </div>

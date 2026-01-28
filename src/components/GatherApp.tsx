@@ -1280,15 +1280,15 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
     <div className="min-h-screen bg-canvas">
       {/* Header - only show on home view */}
       {!currentTaskId && (
-        <div className="px-5 pt-8">
+        <div className="px-5 pt-8 pb-4">
           <div className="max-w-[540px] mx-auto">
             <div className="flex justify-between items-center">
-              <h1 className="text-4xl font-display font-semibold tracking-tight">Gather</h1>
-              <div className="flex items-center gap-3">
+              <h1 className="text-4xl font-display font-semibold tracking-tight text-text">Gather</h1>
+              <div className="flex items-center gap-2">
                 <ThemeToggle />
                 <button
                   onClick={onSignOut}
-                  className="text-sm text-text-muted hover:text-text transition-colors"
+                  className="text-sm text-text-muted hover:text-text transition-colors duration-150 px-2 py-1"
                 >
                   {isDemoUser ? 'Exit demo' : 'Sign out'}
                 </button>

@@ -69,8 +69,10 @@ CREATE TABLE IF NOT EXISTS public.tasks (
   badge TEXT,
   due_date DATE,
   context JSONB DEFAULT '{}', -- Stores member IDs, case numbers, etc.
+  context_text TEXT, -- v17: Simple context string shown below task title
   actions JSONB DEFAULT '[]', -- Stores action buttons
   subtasks JSONB DEFAULT '[]', -- Array of subtask objects: [{ id, title, completed }]
+  steps JSONB DEFAULT '[]', -- v17: Rich step objects: [{ id, text, done, summary, detail, ... }]
   notes TEXT, -- Freeform notes and context
   created_at TIMESTAMPTZ DEFAULT NOW(),
   completed_at TIMESTAMPTZ

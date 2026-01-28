@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo } from 'react'
-import { Task, Step } from '@/hooks/useUserData'
+import { Task } from '@/hooks/useUserData'
 import { splitStepText } from '@/lib/stepText'
 import { getNextStep } from '@/hooks/useTaskSearch'
 import { UnifiedInput } from './UnifiedInput'
@@ -44,16 +44,16 @@ export function HomeView({
   onBackQuestion,
   canGoBack = false,
 }: HomeViewProps) {
-  // Filter out snoozed tasks (hidden until their snooze date)
+  // Filter out snoozed tasks
   const activeTasks = useMemo(() => {
     const today = new Date().toISOString().split('T')[0]
     return tasks.filter(task => {
       if (!task.snoozed_until) return true
-      return task.snoozed_until <= today // Show if snooze date has passed
+      return task.snoozed_until <= today
     })
   }, [tasks])
 
-  // Sort tasks by deadline urgency (overdue/today first, then by due date, then no deadline last)
+  // Sort by deadline urgency
   const sortedTasks = useMemo(() => {
     return [...activeTasks].sort((a, b) => {
       const urgencyA = getDeadlineUrgency(a.due_date)
@@ -62,15 +62,11 @@ export function HomeView({
     })
   }, [activeTasks])
 
-  // Count snoozed tasks
   const snoozedCount = tasks.length - activeTasks.length
-
   const nextStep = getNextStep(activeTasks)
   const awaitingFreeText = Boolean(aiCard?.question && (!aiCard.quickReplies || aiCard.quickReplies.length === 0))
   const isQuestionFlow = Boolean(aiCard?.question)
-  const inputPlaceholder = isQuestionFlow
-    ? content.placeholders.aiFreeText
-    : content.placeholders.homeInput
+  const inputPlaceholder = isQuestionFlow ? content.placeholders.aiFreeText : content.placeholders.homeInput
   const totalSteps = activeTasks.reduce((sum, task) => sum + (task.steps?.length || 0), 0)
   const incompleteSteps = activeTasks.reduce(
     (sum, task) => sum + (task.steps?.filter((step) => !step.done).length || 0),
@@ -79,16 +75,23 @@ export function HomeView({
   const getDerivedStepTitle = (text: string) => splitStepText(text).title
 
   return (
-    <div className="min-h-screen px-5 py-8">
+    <div className="min-h-screen px-5 pb-8">
       <div className="max-w-[540px] mx-auto">
-        {/* Suggestions - only show when no tasks yet */}
+        {/* Suggestions - only show when no tasks */}
         {!aiCard && activeTasks.length === 0 && (
           <div className="flex flex-wrap gap-2 mb-8">
             {content.homeSuggestions.map((s, index) => (
               <button
                 key={s}
                 onClick={() => onSuggestionClick(s)}
-                className="px-4 py-2 bg-transparent border border-border rounded-full text-sm text-text-soft hover:border-accent hover:text-accent transition-all btn-press tap-target animate-rise"
+                className="
+                  px-4 py-2
+                  bg-transparent border border-border rounded-full
+                  text-sm text-text-soft
+                  hover:border-accent hover:text-accent
+                  transition-all duration-150 ease-out
+                  btn-press tap-target animate-rise
+                "
                 style={{ animationDelay: `${index * 40}ms` }}
               >
                 {s}
@@ -137,18 +140,25 @@ export function HomeView({
           <div className="mb-6">
             <div className="text-xs font-medium text-accent mb-3 flex items-center gap-2">
               <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent opacity-50"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-accent"></span>
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent opacity-50" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-accent" />
               </span>
               Next step
             </div>
 
             <div
               onClick={() => onGoToTask(nextStep.task.id)}
-              className="next-step-card bg-card rounded-lg cursor-pointer overflow-hidden transition-all border-l-[3px] border-l-accent animate-rise"
+              className="
+                bg-card rounded-lg cursor-pointer overflow-hidden
+                border border-border
+                border-l-[3px] border-l-accent
+                shadow-card hover:shadow-card-hover
+                transition-all duration-150 ease-out
+                hover:-translate-y-0.5
+                animate-rise
+              "
             >
               <div className="p-4 flex gap-4">
-                {/* Checkbox - using a visual checkbox with hover effect */}
                 <div className="flex-shrink-0" aria-label="Mark as done">
                   <Checkbox
                     checked={nextStep.step.done}
@@ -156,28 +166,22 @@ export function HomeView({
                     size={20}
                   />
                 </div>
-                <div>
-                  <div className="text-base font-medium mb-1">{getDerivedStepTitle(nextStep.step.text)}</div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-base font-medium mb-0.5">{getDerivedStepTitle(nextStep.step.text)}</div>
                   {nextStep.step.summary && (
                     <div className="text-sm text-text-soft">{nextStep.step.summary}</div>
                   )}
                 </div>
               </div>
-              <div className="px-4 py-3 bg-subtle flex justify-between items-center">
-                <div className="min-w-0">
-                  <span className="text-sm text-text-soft truncate block">
-                    {nextStep.task.title}
-                  </span>
-                </div>
-                <span className="text-sm text-text-muted">
-                  {nextStep.task.steps?.filter((s) => s.done).length || 0}/
-                  {nextStep.task.steps?.length || 0}
+              <div className="px-4 py-3 bg-subtle flex justify-between items-center border-t border-border-subtle">
+                <span className="text-sm text-text-soft truncate">{nextStep.task.title}</span>
+                <span className="text-sm text-text-muted tabular-nums">
+                  {nextStep.task.steps?.filter((s) => s.done).length || 0}/{nextStep.task.steps?.length || 0}
                 </span>
               </div>
             </div>
           </div>
         )}
-
 
         {/* All done state */}
         {!nextStep && tasks.length > 0 && totalSteps > 0 && incompleteSteps === 0 && (
@@ -206,13 +210,11 @@ export function HomeView({
           </div>
         )}
 
-        {/* All Tasks - sorted by deadline urgency */}
+        {/* All Tasks */}
         {sortedTasks.length > 0 && (
           <div>
             <div className="flex items-center justify-between mb-3">
-              <div className="text-xs font-medium text-text-muted">
-                All tasks
-              </div>
+              <div className="text-xs font-medium text-text-muted uppercase tracking-wide">All tasks</div>
               {snoozedCount > 0 && (
                 <div className="text-xs text-text-muted flex items-center gap-1.5">
                   <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="opacity-60">

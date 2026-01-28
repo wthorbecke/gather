@@ -19,7 +19,7 @@ interface ContextTag {
 
 interface UnifiedInputProps {
   tasks: Task[]
-  contextTags?: ContextTag[]  // Current context tags
+  contextTags?: ContextTag[]
   onSubmit: (value: string) => void
   onQuickAdd?: (value: string) => void
   onSelectResult?: (result: SearchResult) => void
@@ -52,6 +52,7 @@ export function UnifiedInput({
   const visibleTagEntries = contextTags
     .map((tag, index) => ({ tag, index }))
     .filter(({ tag }) => (stepTag ? tag.type !== 'step' : true))
+
   const [value, setValue] = useState('')
   const [focused, setFocused] = useState(false)
   const [animatedText, setAnimatedText] = useState('')
@@ -69,9 +70,7 @@ export function UnifiedInput({
       }
     }
     document.addEventListener('mousedown', handleClick)
-    return () => {
-      document.removeEventListener('mousedown', handleClick)
-    }
+    return () => document.removeEventListener('mousedown', handleClick)
   }, [])
 
   useEffect(() => {
@@ -180,17 +179,15 @@ export function UnifiedInput({
     return () => clearTimeout(timer)
   }, [animatedText, animatedIndex, animatedPlaceholders, isDeleting, isPaused, shouldAnimatePlaceholder])
 
-  // Keyboard navigation for search results
+  // Keyboard navigation
   const [selectedIndex, setSelectedIndex] = useState<number>(-1)
-  const totalOptions = searchResults.length + 1 + (onQuickAdd ? 1 : 0) // results + AI help + quick add
+  const totalOptions = searchResults.length + 1 + (onQuickAdd ? 1 : 0)
 
-  // Reset selection when dropdown opens/closes or value changes
   useEffect(() => {
     setSelectedIndex(-1)
   }, [showDropdown, value])
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    // Handle escape to close dropdown (but don't clear input)
     if (e.key === 'Escape') {
       if (showDropdown) {
         e.preventDefault()
@@ -221,15 +218,11 @@ export function UnifiedInput({
       setSelectedIndex(prev => (prev - 1 + totalOptions) % totalOptions)
     } else if (e.key === 'Enter' && selectedIndex >= 0) {
       e.preventDefault()
-      // Determine which option is selected
       if (selectedIndex < searchResults.length) {
-        // Search result
         handleSelectResult(searchResults[selectedIndex])
       } else if (selectedIndex === searchResults.length) {
-        // AI help
         handleSubmit(e)
       } else if (selectedIndex === searchResults.length + 1 && onQuickAdd) {
-        // Quick add
         handleQuickAdd()
       }
     }
@@ -239,22 +232,19 @@ export function UnifiedInput({
     ? (animatedText || animatedPlaceholders[animatedIndex % animatedPlaceholders.length] || placeholder)
     : placeholder
 
-  const combinedInputWrapperClassName = inputWrapperClassName
-
   return (
     <div ref={containerRef} className={`mb-6 ${containerClassName}`}>
       <form onSubmit={handleSubmit}>
         <div
           className={`
-            flex items-center flex-wrap gap-2 bg-elevated
-            border rounded-xl px-4
-            transition-all duration-200 ease-out
-            main-input-wrapper
+            flex items-center flex-wrap gap-2
+            bg-elevated rounded-xl
+            transition-all duration-150 ease-out
             ${focused
-              ? 'border-border-focus shadow-[0_0_0_4px_var(--accent-soft),0_4px_20px_rgba(0,0,0,0.08)] scale-[1.01]'
-              : 'border-transparent shadow-[0_1px_2px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.06),0_0_0_1px_rgba(0,0,0,0.03)]'
+              ? 'shadow-focus border border-accent'
+              : 'shadow-elevated border border-transparent'
             }
-            ${combinedInputWrapperClassName}
+            ${inputWrapperClassName}
           `}
           style={{ padding: hasContext ? '10px 16px' : '16px' }}
         >
@@ -263,7 +253,9 @@ export function UnifiedInput({
             <div
               key={index}
               className={`
-                flex items-center gap-1.5 px-2.5 py-1 rounded-full text-sm font-medium
+                flex items-center gap-1.5
+                px-2.5 py-1 rounded-full
+                text-sm font-medium
                 ${tag.type === 'task' ? 'bg-accent-soft text-accent-text' : 'bg-success-soft text-success'}
               `}
             >
@@ -276,7 +268,7 @@ export function UnifiedInput({
                     e.stopPropagation()
                     onRemoveTag(index)
                   }}
-                  className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-black/10 dark:hover:bg-white/10 tap-target btn-press"
+                  className="w-5 h-5 flex items-center justify-center rounded-full hover:bg-black/10 dark:hover:bg-white/10 tap-target btn-press"
                 >
                   <svg width={8} height={8} viewBox="0 0 8 8">
                     <path d="M1 1L7 7M7 1L1 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
@@ -295,10 +287,12 @@ export function UnifiedInput({
             onKeyDown={handleKeyDown}
             placeholder={hasContext ? content.placeholders.taskStepContext : effectivePlaceholder}
             className={`
-              flex-1 min-w-[120px] border-none outline-none
+              flex-1 min-w-[120px]
+              border-none outline-none
               bg-transparent text-text
               ${hasContext ? 'text-base' : 'text-lg'}
               focus-visible:outline-none focus-visible:ring-0
+              placeholder:text-text-muted
             `}
           />
 
@@ -324,17 +318,19 @@ export function UnifiedInput({
 
       {/* Dropdown */}
       {showDropdown && (
-        <div
-          className="mt-1.5 bg-card border border-border-subtle rounded-xl shadow-[0_4px_20px_rgba(0,0,0,0.08),0_0_0_1px_rgba(0,0,0,0.03)] overflow-hidden animate-fade-in"
-        >
+        <div className="mt-1.5 bg-card border border-border rounded-xl shadow-elevated overflow-hidden animate-fade-in">
           {/* Search results */}
           {searchResults.map((r, i) => (
             <div
               key={i}
               onClick={() => handleSelectResult(r)}
-              className={`px-4 py-3 min-h-[44px] flex items-center gap-3 cursor-pointer transition-colors animate-rise ${
-                selectedIndex === i ? 'bg-card-hover' : 'hover:bg-card-hover'
-              }`}
+              className={`
+                px-4 py-3 min-h-[44px]
+                flex items-center gap-3
+                cursor-pointer transition-colors
+                animate-rise
+                ${selectedIndex === i ? 'bg-subtle' : 'hover:bg-subtle'}
+              `}
               style={{ animationDelay: `${i * 40}ms` }}
             >
               <div className="w-6 h-6 rounded-md bg-subtle flex items-center justify-center">
@@ -346,25 +342,29 @@ export function UnifiedInput({
                   <div className="w-2 h-2 rounded-full border-[1.5px] border-text-muted" />
                 )}
               </div>
-              <div>
-                <div className="text-sm">
+              <div className="flex-1 min-w-0">
+                <div className="text-sm truncate">
                   {highlightMatch(r.type === 'task' ? r.task.title : r.step!.text, value)}
                 </div>
                 {r.type === 'step' && (
-                  <div className="text-xs text-text-muted">in {r.task.title}</div>
+                  <div className="text-xs text-text-muted truncate">in {r.task.title}</div>
                 )}
               </div>
             </div>
           ))}
 
-          {searchResults.length > 0 && <div className="h-px bg-border-subtle" />}
+          {searchResults.length > 0 && <div className="h-px bg-border" />}
 
           {/* AI help option */}
           <div
             onClick={handleSubmit}
-            className={`px-4 py-3 min-h-[44px] flex items-center gap-3 cursor-pointer transition-colors animate-rise ${
-              selectedIndex === searchResults.length ? 'bg-card-hover' : 'hover:bg-card-hover'
-            }`}
+            className={`
+              px-4 py-3 min-h-[44px]
+              flex items-center gap-3
+              cursor-pointer transition-colors
+              animate-rise
+              ${selectedIndex === searchResults.length ? 'bg-subtle' : 'hover:bg-subtle'}
+            `}
             style={{ animationDelay: `${searchResults.length * 40}ms` }}
           >
             <div className="w-6 h-6 rounded-md bg-accent-soft flex items-center justify-center">
@@ -374,7 +374,7 @@ export function UnifiedInput({
               </svg>
             </div>
             <div>
-              <div className="text-sm">Help me with "{value}"</div>
+              <div className="text-sm">Help me with &ldquo;{value}&rdquo;</div>
               <div className="text-xs text-text-muted">AI breakdown</div>
             </div>
           </div>
@@ -383,9 +383,13 @@ export function UnifiedInput({
           {onQuickAdd && (
             <div
               onClick={handleQuickAdd}
-              className={`px-4 py-3 min-h-[44px] flex items-center gap-3 cursor-pointer transition-colors animate-rise ${
-                selectedIndex === searchResults.length + 1 ? 'bg-card-hover' : 'hover:bg-card-hover'
-              }`}
+              className={`
+                px-4 py-3 min-h-[44px]
+                flex items-center gap-3
+                cursor-pointer transition-colors
+                animate-rise
+                ${selectedIndex === searchResults.length + 1 ? 'bg-subtle' : 'hover:bg-subtle'}
+              `}
               style={{ animationDelay: `${(searchResults.length + 1) * 40}ms` }}
             >
               <div className="w-6 h-6 rounded-md bg-success-soft flex items-center justify-center">
@@ -394,7 +398,7 @@ export function UnifiedInput({
                 </svg>
               </div>
               <div>
-                <div className="text-sm">Add "{value}"</div>
+                <div className="text-sm">Add &ldquo;{value}&rdquo;</div>
                 <div className="text-xs text-text-muted">Quick add</div>
               </div>
             </div>

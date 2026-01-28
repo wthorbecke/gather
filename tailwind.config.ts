@@ -10,57 +10,78 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // v17 Gather palette - gold/amber accent, sage success
+        // Background layers
         canvas: 'var(--canvas)',
         surface: 'var(--surface)',
-        elevated: 'var(--elevated)',
         card: 'var(--card)',
         'card-hover': 'var(--card-hover)',
+        elevated: 'var(--elevated)',
         subtle: 'var(--subtle)',
+
+        // Borders
         border: 'var(--border)',
         'border-subtle': 'var(--border-subtle)',
         'border-focus': 'var(--border-focus)',
+
+        // Text hierarchy
         text: {
           DEFAULT: 'var(--text)',
           soft: 'var(--text-soft)',
           muted: 'var(--text-muted)',
         },
+
+        // Accent (coral)
         accent: {
           DEFAULT: 'var(--accent)',
           soft: 'var(--accent-soft)',
           text: 'var(--accent-text)',
         },
+
+        // Success (sage)
         success: {
           DEFAULT: 'var(--success)',
           soft: 'var(--success-soft)',
         },
+
+        // Danger
         danger: {
           DEFAULT: 'var(--danger)',
           soft: 'var(--danger-soft)',
         },
+
+        // Links
         link: {
           DEFAULT: 'var(--link)',
           soft: 'var(--link-soft)',
         },
+
+        // AI card
         ai: {
           bg: 'var(--ai-bg)',
           border: 'var(--ai-border)',
         },
         'user-bg': 'var(--user-bg)',
       },
+
       fontFamily: {
         sans: ['var(--font-sans)'],
         display: ['var(--font-display)'],
         serif: ['var(--font-serif)'],
       },
+
+      // Typography scale - consistent sizing
       fontSize: {
-        'xs': '12px',
-        'sm': '13px',
-        'base': '14px',
-        'lg': '16px',
-        'xl': '18px',
-        '2xl': '20px',
+        'xs': ['12px', { lineHeight: '1.5' }],
+        'sm': ['13px', { lineHeight: '1.5' }],
+        'base': ['14px', { lineHeight: '1.6' }],
+        'lg': ['16px', { lineHeight: '1.5' }],
+        'xl': ['18px', { lineHeight: '1.4' }],
+        '2xl': ['20px', { lineHeight: '1.3' }],
+        '3xl': ['24px', { lineHeight: '1.2' }],
+        '4xl': ['32px', { lineHeight: '1.1' }],
       },
+
+      // Border radius - consistent scale
       borderRadius: {
         'sm': '6px',
         'md': '10px',
@@ -68,15 +89,33 @@ const config: Config = {
         'xl': '16px',
         '2xl': '20px',
       },
+
+      // Shadow scale - consistent and purposeful
       boxShadow: {
+        // Card shadows
+        'card': '0 1px 2px rgba(0, 0, 0, 0.04)',
+        'card-hover': '0 4px 12px rgba(0, 0, 0, 0.08)',
+
+        // Elevated surfaces
         'soft': '0 2px 12px -4px rgba(0, 0, 0, 0.08)',
         'hover': '0 8px 24px -8px rgba(0, 0, 0, 0.12)',
-        'elevated': '0 0 0 3px var(--accent-soft), 0 20px 40px -15px rgba(0, 0, 0, 0.12)',
+        'elevated': '0 4px 20px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(0, 0, 0, 0.03)',
+
+        // Modal
         'modal': '0 20px 60px -15px rgba(0, 0, 0, 0.3)',
+
+        // Focus ring
+        'focus': '0 0 0 4px var(--accent-soft)',
       },
+
+      // Timing functions
       transitionTimingFunction: {
+        'out': 'cubic-bezier(0.22, 0.61, 0.36, 1)',
+        'in-out': 'cubic-bezier(0.45, 0, 0.55, 1)',
         'spring': 'cubic-bezier(0.34, 1.56, 0.64, 1)',
       },
+
+      // Animations
       animation: {
         'fade-up': 'fadeUp 0.2s cubic-bezier(0.22, 0.61, 0.36, 1)',
         'modal-in': 'modalIn 0.22s cubic-bezier(0.22, 0.61, 0.36, 1)',
@@ -87,6 +126,7 @@ const config: Config = {
         'dot-pulse': 'dotPulse 0.9s ease-in-out infinite',
         'celebrate': 'celebrateIn 0.3s cubic-bezier(0.22, 0.61, 0.36, 1)',
       },
+
       keyframes: {
         fadeUp: {
           from: { opacity: '0', transform: 'translateY(12px)' },

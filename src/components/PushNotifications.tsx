@@ -24,6 +24,9 @@ export function PushNotifications() {
   const [isSubscribed, setIsSubscribed] = useState(false)
 
   useEffect(() => {
+    if (process.env.NODE_ENV !== 'production') {
+      return
+    }
     if (!('Notification' in window) || !('serviceWorker' in navigator)) {
       setPermission('unsupported')
       return
@@ -84,20 +87,20 @@ export function PushNotifications() {
   if (!user) return null
 
   return (
-    <div className="fixed bottom-4 left-4 right-4 md:left-auto md:right-4 md:w-80 bg-white border border-[var(--border-light)] rounded-2xl p-4 shadow-lg z-50 animate-fade-in">
-      <p className="text-[0.9rem] text-[var(--text)] mb-3">
+    <div className="fixed bottom-4 left-4 right-4 md:left-auto md:right-4 md:w-80 bg-elevated border border-border rounded-2xl p-4 shadow-lg z-50 animate-fade-in">
+      <p className="text-[0.9rem] text-text mb-3">
         Get gentle reminders to check in with Gather?
       </p>
       <div className="flex gap-2">
         <button
           onClick={subscribe}
-          className="flex-1 py-2 bg-[var(--text)] text-white rounded-lg text-[0.85rem]"
+          className="flex-1 py-2 bg-text text-white rounded-lg text-[0.85rem] hover:opacity-90 transition-opacity btn-press tap-target"
         >
           Enable notifications
         </button>
         <button
           onClick={() => setIsSubscribed(true)}
-          className="px-3 py-2 text-[var(--text-muted)] text-[0.85rem]"
+          className="px-3 py-2 text-text-muted text-[0.85rem] hover:text-text transition-colors btn-press tap-target"
         >
           Not now
         </button>

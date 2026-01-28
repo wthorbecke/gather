@@ -1,4 +1,4 @@
-import { Page, expect, APIRequestContext } from '@playwright/test'
+import { Page, expect } from '@playwright/test'
 import { createClient } from '@supabase/supabase-js'
 
 /**
@@ -22,14 +22,14 @@ export function setupApiErrorMonitoring(page: Page) {
   // Monitor all responses for Supabase/PostgREST errors
   page.on('response', async (response) => {
     const url = response.url()
-    
+
     // Only monitor Supabase API calls
     if (!url.includes('supabase') && !url.includes('/rest/v1/')) {
       return
     }
 
     const status = response.status()
-    
+
     // Check for error status codes
     if (status >= 400) {
       try {
@@ -54,7 +54,7 @@ export function setupApiErrorMonitoring(page: Page) {
      */
     expectNoErrors: () => {
       if (errors.length > 0) {
-        const errorDetails = errors.map(e => 
+        const errorDetails = errors.map(e =>
           `  - ${e.code || 'HTTP ' + e.status}: ${e.message || 'Unknown error'}\n    URL: ${e.url}${e.details ? '\n    Details: ' + e.details : ''}`
         ).join('\n')
         throw new Error(`API errors occurred during test:\n${errorDetails}`)
@@ -73,26 +73,28 @@ export function setupApiErrorMonitoring(page: Page) {
 
 /**
  * Enter demo mode from the login page
+ * Note: v17 demo mode requires sign in for full functionality
  */
 export async function enterDemoMode(page: Page) {
   await page.goto('/')
-  await page.getByRole('button', { name: /try demo/i }).click()
-  // Wait for the main app to load (Sign in button appears in demo mode)
-  await page.waitForSelector('button:has-text("Sign in")')
+  await page.getByRole('button', { name: /try the demo/i }).click()
+  // Wait for the app to load
+  await page.waitForTimeout(500)
 }
 
 /**
- * Navigate to a specific tab
+ * Navigate to a specific tab (DEPRECATED - v17 has no tabs)
+ * Kept for backward compatibility with old tests
  */
 export async function navigateToTab(page: Page, tabName: 'Today' | 'Soul' | 'Tasks' | 'Money' | 'Space') {
-  await page.getByRole('button', { name: tabName }).click()
-  // Wait for tab content to load
+  // v17 has no tabs - all content is on single page
+  // Just wait for app to load
   await page.waitForTimeout(300)
 }
 
 /**
- * Add a new task using the quick capture input
- * Handles the AI analysis flow automatically (waits for AI or timeout)
+ * Add a new task using the unified input (v17)
+ * Handles the AI analysis flow automatically
  */
 export async function addTask(
   page: Page,
@@ -103,35 +105,82 @@ export async function addTask(
     badge?: string
   }
 ) {
-  // Use the quick capture input (always visible at top)
-  const quickInput = page.getByPlaceholder(/what's on your mind/i)
-  await quickInput.fill(title)
-  await quickInput.press('Enter')
+  // Use the unified input
+  const unifiedInput = page.getByPlaceholder(/what do you need to get done/i)
+  await unifiedInput.fill(title)
+  await unifiedInput.press('Enter')
 
-  // Wait for AI analysis - could show "Thinking...", then modal, or just add task
-  // The app has a 15-second timeout for AI, so we wait up to 18 seconds
-  const cancelButton = page.getByRole('button', { name: 'Cancel' })
-  if (await cancelButton.isVisible({ timeout: 18000 }).catch(() => false)) {
-    await cancelButton.click()
-    // Wait for modal to close
-    await expect(cancelButton).not.toBeVisible({ timeout: 5000 }).catch(() => {})
-    await page.waitForTimeout(500)
-  } else {
-    // No modal appeared - AI either added task directly or timed out
+  // Wait for AI response - could show thinking, then quick replies
+  // The app has a timeout, so we wait up to 10 seconds
+  await page.waitForTimeout(1000)
+
+  // Check for quick replies and click the first one if present
+  const quickReply = page.locator('button:has-text("No rush"), button:has-text("This month"), button:has-text("ASAP")').first()
+  if (await quickReply.isVisible({ timeout: 5000 }).catch(() => false)) {
+    await quickReply.click()
     await page.waitForTimeout(1000)
+  }
+
+  // Dismiss AI card if still visible
+  const dismissButton = page.locator('.animate-fade-in button[class*="absolute"]').first()
+  if (await dismissButton.isVisible({ timeout: 1000 }).catch(() => false)) {
+    await dismissButton.click()
+    await page.waitForTimeout(300)
+  }
+}
+
+/**
+ * Quick add a task without AI (v17)
+ */
+export async function quickAddTask(page: Page, title: string) {
+  // Type in the unified input
+  const unifiedInput = page.getByPlaceholder(/what do you need to get done/i)
+  await unifiedInput.fill(title)
+
+  // Wait for dropdown to appear, then click "Add" option
+  await page.waitForTimeout(300)
+  const addOption = page.locator(`text=Add "${title}"`).first()
+  if (await addOption.isVisible({ timeout: 1000 }).catch(() => false)) {
+    await addOption.click()
+    await page.waitForTimeout(500)
   }
 }
 
 /**
  * Verify a task exists in the list
- * Uses longer timeout to account for AI analysis
  */
 export async function expectTaskVisible(page: Page, title: string) {
   await expect(page.locator(`text=${title}`)).toBeVisible({ timeout: 15000 })
 }
 
 /**
- * Toggle a habit checkbox
+ * Click on a task to open the task view (v17)
+ */
+export async function openTask(page: Page, taskTitle: string) {
+  await page.locator(`text=${taskTitle}`).first().click()
+  // Wait for task view to load
+  await page.waitForTimeout(300)
+}
+
+/**
+ * Go back from task view to home (v17)
+ */
+export async function goBackToHome(page: Page) {
+  await page.locator('button:has(svg path[d*="M10 12L6 8L10 4"])').click()
+  await page.waitForTimeout(300)
+}
+
+/**
+ * Toggle a step checkbox in task view (v17)
+ */
+export async function toggleStep(page: Page, stepText: string) {
+  const stepRow = page.locator(`text=${stepText}`).locator('..')
+  const checkbox = stepRow.locator('button').first()
+  await checkbox.click()
+}
+
+/**
+ * Toggle a habit checkbox (DEPRECATED - v17 has no habits panel)
  */
 export async function toggleHabit(page: Page, habitName: string) {
   const habitItem = page.locator(`text=${habitName}`).locator('..')
@@ -139,7 +188,7 @@ export async function toggleHabit(page: Page, habitName: string) {
 }
 
 /**
- * Check if a habit is completed
+ * Check if a habit is completed (DEPRECATED - v17 has no habits panel)
  */
 export async function isHabitCompleted(page: Page, habitName: string): Promise<boolean> {
   const habitRow = page.locator(`text=${habitName}`).locator('..')
@@ -203,7 +252,7 @@ export function createTestSupabaseClient() {
  */
 export async function loginAsTestUser(page: Page) {
   const config = getTestConfig()
-  
+
   if (!config.isConfigured) {
     throw new Error(
       'Test credentials not configured. Set these env vars:\n' +
@@ -215,7 +264,7 @@ export async function loginAsTestUser(page: Page) {
   }
 
   const supabase = createTestSupabaseClient()
-  
+
   // Authenticate via Supabase
   const { data, error } = await supabase.auth.signInWithPassword({
     email: config.testEmail!,
@@ -232,20 +281,20 @@ export async function loginAsTestUser(page: Page) {
 
   // Navigate to the app first (needed to set localStorage on the correct origin)
   await page.goto('/')
-  
+
   // Inject the session into localStorage (this is how Supabase stores auth state)
   const storageKey = `sb-${new URL(config.supabaseUrl!).hostname.split('.')[0]}-auth-token`
-  
+
   await page.evaluate(({ key, session }) => {
     localStorage.setItem(key, JSON.stringify(session))
   }, { key: storageKey, session: data.session })
 
   // Reload to pick up the session
   await page.reload()
-  
-  // Wait for authenticated state
-  await page.waitForSelector('text=Today', { timeout: 10000 })
-  
+
+  // Wait for authenticated state - v17 shows "Sign out" button
+  await page.waitForSelector('text=Sign out', { timeout: 10000 })
+
   return data.session
 }
 
@@ -255,11 +304,11 @@ export async function loginAsTestUser(page: Page) {
 export async function logoutTestUser(page: Page) {
   const config = getTestConfig()
   const storageKey = `sb-${new URL(config.supabaseUrl!).hostname.split('.')[0]}-auth-token`
-  
+
   await page.evaluate((key) => {
     localStorage.removeItem(key)
   }, storageKey)
-  
+
   await page.reload()
 }
 
@@ -268,21 +317,21 @@ export async function logoutTestUser(page: Page) {
  */
 export async function cleanupTestUserData(userId: string) {
   const supabase = createTestSupabaseClient()
-  
+
   // Delete test tasks (keep only starter tasks by checking created_at or title patterns)
   await supabase
     .from('tasks')
     .delete()
     .eq('user_id', userId)
     .like('title', 'Test:%')  // Convention: prefix test-created tasks with "Test:"
-  
+
   // Delete test habits
   await supabase
     .from('habits')
     .delete()
     .eq('user_id', userId)
     .like('name', 'Test:%')
-    
+
   // Could add more cleanup as needed
 }
 
