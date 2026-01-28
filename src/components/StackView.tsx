@@ -609,7 +609,7 @@ export function StackView({
                 >
                   {phoneNumber ? (
                     <>
-                      {mainText.replace(phoneNumber, '')}
+                      {mainText.split(phoneNumber)[0]}
                       <a
                         href={`tel:${phoneNumber.replace(/\D/g, '')}`}
                         className="text-[var(--accent)] underline decoration-[var(--accent)]/30 underline-offset-2 hover:decoration-[var(--accent)]"
@@ -617,6 +617,7 @@ export function StackView({
                       >
                         {phoneNumber}
                       </a>
+                      {mainText.split(phoneNumber)[1] || ''}
                     </>
                   ) : (
                     mainText
