@@ -412,7 +412,7 @@ aiCard,
             {onSwitchView && (
               <button
                 onClick={onSwitchView}
-                className="p-2.5 rounded-full text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--surface)] transition-all duration-150"
+                className="p-3 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--surface)] transition-all duration-150"
                 title="Switch to list view"
               >
                 <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -425,7 +425,7 @@ aiCard,
             {onSignOut && (
               <button
                 onClick={onSignOut}
-                className="p-2.5 rounded-full text-[var(--text-muted)]/50 hover:text-[var(--text-muted)] hover:bg-[var(--surface)] transition-all duration-150"
+                className="p-3 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full text-[var(--text-muted)]/50 hover:text-[var(--text-muted)] hover:bg-[var(--surface)] transition-all duration-150"
                 title={isDemoUser ? 'Exit demo' : 'Sign out'}
                 aria-label={isDemoUser ? 'Exit demo' : 'Sign out'}
               >
@@ -469,7 +469,7 @@ aiCard,
                   >
                     {emptyState.title}
                   </h1>
-                  <p className="text-sm text-[var(--text-muted)]">
+                  <p className="text-sm text-[var(--text-soft)]">
                     {emptyState.subtitle}
                   </p>
                 </div>
@@ -559,7 +559,7 @@ aiCard,
           <button
             onClick={() => setShowInput(!showInput)}
             className={`
-              p-2.5 rounded-full transition-all duration-150
+              p-3 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full transition-all duration-150
               ${showInput
                 ? 'bg-[var(--accent)] text-white shadow-sm'
                 : 'text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--surface)]'
@@ -576,7 +576,7 @@ aiCard,
           {onSwitchView && (
             <button
               onClick={onSwitchView}
-              className="p-2.5 rounded-full text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--surface)] transition-all duration-150"
+              className="p-3 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--surface)] transition-all duration-150"
               title="Switch to list view"
             >
               <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -591,7 +591,7 @@ aiCard,
           {onSignOut && (
             <button
               onClick={onSignOut}
-              className="p-2.5 rounded-full text-[var(--text-muted)]/50 hover:text-[var(--text-muted)] hover:bg-[var(--surface)] transition-all duration-150"
+              className="p-3 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full text-[var(--text-muted)]/50 hover:text-[var(--text-muted)] hover:bg-[var(--surface)] transition-all duration-150"
               title={isDemoUser ? 'Exit demo' : 'Sign out'}
               aria-label={isDemoUser ? 'Exit demo' : 'Sign out'}
             >
@@ -707,9 +707,9 @@ aiCard,
                 }}
               >
                 {/* Card content preview - same layout as main card */}
-                <div className="h-full flex flex-col p-6">
+                <div className="h-full flex flex-col p-6 overflow-hidden">
                   <h2
-                    className="text-[28px] leading-tight font-semibold text-[var(--text)]"
+                    className="text-[28px] leading-tight font-semibold text-[var(--text)] line-clamp-4"
                     style={{ fontFamily: 'var(--font-display)' }}
                   >
                     {cardText}
@@ -773,7 +773,7 @@ aiCard,
 
                 {/* Main action - THE thing */}
                 <h2
-                  className="text-[28px] leading-tight font-semibold text-[var(--text)] flex-1"
+                  className="text-[28px] leading-tight font-semibold text-[var(--text)] flex-1 overflow-hidden line-clamp-5"
                   style={{ fontFamily: 'var(--font-display)' }}
                 >
                   {phoneNumber ? (

@@ -175,7 +175,7 @@ export function TaskView({
               <button
                 onClick={onBack}
                 className="
-                  -ml-2 p-2 rounded-md
+                  -ml-2 p-3 min-w-[44px] min-h-[44px] rounded-md
                   text-text-muted hover:text-text hover:bg-surface
                   flex items-center justify-center
                   transition-colors duration-150
@@ -194,7 +194,7 @@ export function TaskView({
                 <button
                   onClick={() => setShowMenu(!showMenu)}
                   className="
-                    -mr-2 p-2 rounded-md
+                    -mr-2 p-3 min-w-[44px] min-h-[44px] rounded-md
                     text-text-muted hover:text-text hover:bg-surface
                     flex items-center justify-center
                     btn-press

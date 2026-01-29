@@ -62,7 +62,7 @@ export function ThemeToggle({ compact = false }: { compact?: boolean }) {
   return (
     <button
       onClick={toggleTheme}
-      className="p-2 rounded-md text-text-muted hover:text-text hover:bg-surface transition-colors duration-150 btn-press"
+      className="p-3 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-md text-text-muted hover:text-text hover:bg-surface transition-colors duration-150 btn-press"
       aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
     >
       {theme === 'light' ? (

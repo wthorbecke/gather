@@ -128,7 +128,7 @@ export function AICard({
       {/* Header row with dismiss button */}
       {pendingInput && (
         <div className="flex items-start justify-between gap-3 mb-3 pb-3 border-b border-border-subtle">
-          <div className="text-sm text-text-muted flex-1 min-w-0">
+          <div className="text-sm text-text-muted flex-1 min-w-0 truncate">
             &ldquo;{pendingInput}&rdquo;
           </div>
           <button

@@ -1377,7 +1377,7 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => setShowIntegrationSettings(true)}
-                    className="p-2 rounded-lg text-text-muted hover:text-text hover:bg-surface transition-colors"
+                    className="p-3 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg text-text-muted hover:text-text hover:bg-surface transition-colors"
                     title="Integrations"
                   >
                     <svg className="w-[20px] h-[20px] md:w-[24px] md:h-[24px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

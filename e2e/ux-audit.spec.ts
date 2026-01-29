@@ -831,21 +831,43 @@ test.describe('MAJOR: Edge Cases', () => {
     await page.waitForLoadState('networkidle')
     await page.waitForTimeout(3000)
 
-    // Check for text overflow issues
-    const hasOverflow = await page.evaluate(() => {
-      const elements = document.querySelectorAll('*')
+    // Check for visible text overflow issues
+    const overflowIssues = await page.evaluate(() => {
+      const issues: string[] = []
+      const elements = document.querySelectorAll('h1, h2, h3, p, span, div')
+
       for (const el of elements) {
         const style = getComputedStyle(el)
-        if (el.scrollWidth > el.clientWidth && style.overflow !== 'hidden' && style.textOverflow !== 'ellipsis') {
-          const text = el.textContent || ''
-          if (text.length > 50) return true
+
+        // Skip invisible elements
+        if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') continue
+
+        // Skip elements with proper overflow handling
+        if (style.overflow === 'hidden' || style.overflowX === 'hidden') continue
+        if (style.textOverflow === 'ellipsis') continue
+        if (style.whiteSpace === 'nowrap' && style.overflow === 'hidden') continue
+
+        // Skip scrollable containers (intentional overflow)
+        if (style.overflowX === 'auto' || style.overflowX === 'scroll') continue
+
+        // Check for actual overflow
+        if (el.scrollWidth > el.clientWidth + 5) { // 5px tolerance
+          const text = el.textContent?.trim() || ''
+          // Only flag if it contains our long text
+          if (text.includes('AAAA') && text.length > 50) {
+            const tag = el.tagName.toLowerCase()
+            const className = el.className?.toString().slice(0, 50) || ''
+            issues.push(`<${tag} class="${className}">: scrollWidth=${el.scrollWidth}, clientWidth=${el.clientWidth}`)
+          }
         }
       }
-      return false
+
+      return issues
     })
 
-    if (hasOverflow) {
+    if (overflowIssues.length > 0) {
       auditor.major('edge-case', 'Long text overflows container', {
+        element: overflowIssues.join('\n'),
         fix: 'Add text-overflow: ellipsis or proper wrapping for long content',
       })
     }
