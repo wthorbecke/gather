@@ -84,10 +84,22 @@ export const TaskListItem = memo(function TaskListItem({ task, onClick, onDelete
             <div className="text-base font-medium text-text truncate">{task.title}</div>
             {task.due_date && <DeadlineBadge dueDate={task.due_date} compact />}
           </div>
-          <div className="text-sm text-text-muted truncate">
-            {shouldShowContext ? condensedContext : !hasMeaningfulSteps ? 'Tap to add steps' : null}
+          <div className="flex items-center gap-3 mt-1">
+            {/* Progress bar - matches StackView and HomeView style */}
             {hasMeaningfulSteps && (
-              <span className={shouldShowContext ? 'ml-2' : ''}>{done}/{total} steps</span>
+              <div className="flex items-center gap-2">
+                <div className="w-12 h-1 bg-border rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-accent rounded-full transition-all duration-300"
+                    style={{ width: `${total > 0 ? (done / total) * 100 : 0}%` }}
+                  />
+                </div>
+                <span className="text-xs text-text-muted tabular-nums">{done}/{total}</span>
+              </div>
+            )}
+            {/* Context info */}
+            {shouldShowContext && (
+              <span className="text-xs text-text-muted truncate">{condensedContext}</span>
             )}
           </div>
         </div>

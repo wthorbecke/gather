@@ -14,9 +14,35 @@ const loadingMessages = [
   'making this doable...',
 ]
 
-// Strip <cite> tags from AI responses (they're metadata, not display content)
+// Extract message content from AI responses
+// AI may return raw JSON like {"message":"...", "actions":[...]}
+// We need to extract just the message field for display
 function cleanMessage(message: string): string {
-  return message.replace(/<cite[^>]*>.*?<\/cite>/g, '').trim()
+  if (!message) return ''
+
+  let text = message.trim()
+
+  // Try to parse as JSON and extract message field
+  if (text.startsWith('{') && text.includes('"message"')) {
+    try {
+      const parsed = JSON.parse(text)
+      if (typeof parsed.message === 'string') {
+        text = parsed.message
+      }
+    } catch {
+      // Not valid JSON, try regex extraction ([\s\S]* matches any char including newlines)
+      const match = text.match(/"message"\s*:\s*"((?:[^"\\]|\\[\s\S])*)"/)
+      if (match) {
+        // Unescape the JSON string
+        text = match[1].replace(/\\"/g, '"').replace(/\\n/g, '\n').replace(/\\\\/g, '\\')
+      }
+    }
+  }
+
+  // Strip <cite> tags (they're metadata, not display content)
+  text = text.replace(/<cite[^>]*>.*?<\/cite>/g, '').trim()
+
+  return text
 }
 
 export interface AICardState {

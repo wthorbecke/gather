@@ -21,6 +21,84 @@ import { consumeStream } from '@/lib/ai/streaming'
 import type { ChatAction, SubtaskItem, AnalyzeIntentStep } from '@/lib/api-types'
 import type { ContextTag } from './useTaskNavigation'
 
+// Helper to extract message from potential JSON response
+// AI may return {"message":"...", "actions":[...]} - we need just the message
+function extractMessageFromJSON(text: string): string {
+  if (!text) return ''
+  const trimmed = text.trim()
+
+  // Try to parse as JSON and extract message field
+  if (trimmed.startsWith('{') && trimmed.includes('"message"')) {
+    try {
+      const parsed = JSON.parse(trimmed)
+      if (typeof parsed.message === 'string') {
+        return parsed.message
+      }
+    } catch {
+      // Not valid JSON, try regex extraction ([\s\S]* matches any char including newlines)
+      const match = trimmed.match(/"message"\s*:\s*"((?:[^"\\]|\\[\s\S])*)"/)
+      if (match) {
+        // Unescape the JSON string
+        return match[1].replace(/\\"/g, '"').replace(/\\n/g, '\n').replace(/\\\\/g, '\\')
+      }
+    }
+  }
+
+  return trimmed
+}
+
+// Helper to extract partial message during streaming
+// During streaming, we may get incomplete JSON like: {"message":"Working on it...
+// We want to show just the message part as it streams
+function extractStreamingMessage(text: string): string {
+  if (!text) return ''
+  const trimmed = text.trim()
+
+  // If it looks like JSON is starting, try to extract the message value
+  if (trimmed.startsWith('{') && trimmed.includes('"message"')) {
+    // Find where the message value starts
+    const messageStart = trimmed.indexOf('"message"')
+    if (messageStart === -1) return ''
+
+    // Find the colon and opening quote
+    const colonIdx = trimmed.indexOf(':', messageStart)
+    if (colonIdx === -1) return ''
+
+    // Find the opening quote of the value
+    let valueStart = trimmed.indexOf('"', colonIdx + 1)
+    if (valueStart === -1) return ''
+    valueStart++ // Move past the opening quote
+
+    // Extract everything after the opening quote
+    // Handle escape sequences as we go
+    let result = ''
+    let i = valueStart
+    while (i < trimmed.length) {
+      const char = trimmed[i]
+      if (char === '\\' && i + 1 < trimmed.length) {
+        // Escape sequence
+        const next = trimmed[i + 1]
+        if (next === '"') result += '"'
+        else if (next === 'n') result += '\n'
+        else if (next === 't') result += '\t'
+        else if (next === '\\') result += '\\'
+        else result += next
+        i += 2
+      } else if (char === '"') {
+        // End of string value
+        break
+      } else {
+        result += char
+        i++
+      }
+    }
+
+    return result
+  }
+
+  return trimmed
+}
+
 // Types for context gathering
 export interface ContextGatheringState {
   questions: Array<{ key: string; question?: string; text?: string; options: string[] }>
@@ -294,7 +372,7 @@ export function useAIConversation(deps: AIConversationDeps): AIConversationState
                   setAiCard(prev => ({
                     ...prev,
                     streaming: true,
-                    streamingText: fullText,
+                    streamingText: extractStreamingMessage(fullText),
                   }))
                 },
                 onSources: (sources) => {
@@ -341,7 +419,7 @@ export function useAIConversation(deps: AIConversationDeps): AIConversationState
             setAiCard({
               streaming: false,
               streamingText: undefined,
-              message: fullText,
+              message: extractMessageFromJSON(fullText),
               sources: streamedSources,
               pendingTaskName: currentAiCard?.pendingTaskName,
               quickReplies: actions.length > 0 ? undefined : (completionPrompt ? [completionPrompt] : currentAiCard?.quickReplies),
@@ -517,7 +595,7 @@ export function useAIConversation(deps: AIConversationDeps): AIConversationState
                 setAiCard(prev => ({
                   ...prev,
                   streaming: true,
-                  streamingText: fullText,
+                  streamingText: extractStreamingMessage(fullText),
                 }))
               },
               onSources: (sources) => {
@@ -555,7 +633,7 @@ export function useAIConversation(deps: AIConversationDeps): AIConversationState
 
             // Finalize with streaming complete
             setAiCard({
-              message: fullText,
+              message: extractMessageFromJSON(fullText),
               sources: streamedSources,
               streaming: false,
               pendingTaskName: currentAiCard?.pendingTaskName,
@@ -842,32 +920,97 @@ export function useAIConversation(deps: AIConversationDeps): AIConversationState
           }
         }
       } else {
-        // AI didn't generate questions or steps - just create simple task
+        // AI didn't generate questions or steps - create task and generate steps
+        const taskName = data.taskName || value
         const detectedDeadline = data.deadline?.date || null
-        const newTask = await addTask(
-          data.taskName || value,
-          'soon',
-          undefined,
-          undefined,
-          undefined,
-          undefined,
-          detectedDeadline
-        )
-        if (newTask && detectedDeadline) {
-          await updateTask(newTask.id, { due_date: detectedDeadline } as Partial<Task>)
-        }
-        if (newTask) {
-          setAiCard({
-            message: "I've added that to your list. Click on it to add steps or ask me for help breaking it down.",
-            taskCreated: newTask,
+
+        setAiCard({ thinking: true, message: "Breaking this down for you..." })
+
+        try {
+          // Generate steps even for "simple" tasks
+          const stepResponse = await authFetch('/api/suggest-subtasks', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              title: taskName,
+              description: '',
+            }),
           })
+
+          let steps: Step[] = []
+          if (stepResponse.ok) {
+            const stepData = await stepResponse.json()
+            steps = (stepData.subtasks || []).map((item: SubtaskItem | string, i: number) => {
+              if (typeof item === 'string') {
+                return { id: `step-${Date.now()}-${i}`, text: item, done: false }
+              }
+              const parsed = splitStepText(item.text || '')
+              return {
+                id: `step-${Date.now()}-${i}`,
+                text: item.text || '',
+                done: false,
+                summary: item.summary || parsed.remainder,
+                detail: item.detail,
+                time: item.time,
+                source: item.source,
+                action: item.action,
+              }
+            })
+          }
+
+          // Fallback if no steps generated
+          if (steps.length === 0) {
+            steps = createFallbackSteps(taskName, '')
+          }
+
+          const newTask = await addTask(
+            taskName,
+            'soon',
+            undefined,
+            undefined,
+            undefined,
+            undefined,
+            detectedDeadline
+          )
+
+          if (newTask) {
+            await updateTask(newTask.id, {
+              steps,
+              due_date: detectedDeadline,
+            } as Partial<Task>)
+
+            const updatedTask: Task = { ...newTask, steps }
+
+            addEntry({
+              type: 'task_created',
+              taskTitle: taskName,
+              context: {},
+            })
+
+            setAiCard({
+              message: "Here's your plan.",
+              taskCreated: updatedTask,
+            })
+          }
+        } catch {
+          // Fallback - still create task with generic steps
+          const steps = createFallbackSteps(taskName, '')
+          const newTask = await addTask(taskName, 'soon', undefined, undefined, undefined, undefined, detectedDeadline)
+          if (newTask) {
+            await updateTask(newTask.id, { steps, due_date: detectedDeadline } as Partial<Task>)
+            const updatedTask: Task = { ...newTask, steps }
+            setAiCard({
+              message: "Here's your plan.",
+              taskCreated: updatedTask,
+            })
+          }
         }
       }
     } catch {
       // AI failed - show friendly error with options
       setAiCard({
-        message: "I couldn't analyze that right now. You can try again or I'll just add it to your list.",
-        quickReplies: ['Try again', 'Add task without steps'],
+        message: "I couldn't analyze that right now. You can try again or I'll add it with basic steps.",
+        quickReplies: ['Try again', 'Add with basic steps'],
         pendingTaskName: value,
       })
     }
@@ -890,12 +1033,16 @@ export function useAIConversation(deps: AIConversationDeps): AIConversationState
       return
     }
 
-    if (reply === 'Add task without steps') {
+    if (reply === 'Add task without steps' || reply === 'Add with basic steps') {
+      // Always add with steps - use fallback steps at minimum
+      const steps = createFallbackSteps(taskName, '')
       const newTask = await addTask(taskName, 'soon')
       if (newTask) {
+        await updateTask(newTask.id, { steps } as Partial<Task>)
+        const updatedTask: Task = { ...newTask, steps }
         setAiCard({
-          message: "Okay — I've added it. You can ask me to break it down anytime.",
-          taskCreated: newTask,
+          message: "Here's your plan.",
+          taskCreated: updatedTask,
         })
       } else {
         setAiCard({

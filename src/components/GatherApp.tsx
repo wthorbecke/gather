@@ -120,17 +120,63 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
     clearContextTags()
   }, [setCurrentTaskId, navGoHome, clearConversation, clearContextTags])
 
-  // Handle quick add (simple task without AI)
+  // Handle quick add - creates task immediately, then generates AI steps in background
   const handleQuickAdd = useCallback(async (value: string) => {
     const newTask = await addTask(value, 'soon')
     if (newTask) {
-      // Try to add a single step matching the task title
+      // Add a placeholder step immediately so the task doesn't look empty
+      const placeholderStep = { id: `step-${Date.now()}`, text: 'Breaking this down...', done: false }
       try {
         await updateTask(newTask.id, {
-          steps: [{ id: `step-${Date.now()}`, text: value, done: false }],
+          steps: [placeholderStep],
         } as Partial<Task>)
       } catch {
         // Steps column may need migration
+      }
+
+      // Generate AI steps in the background
+      try {
+        const response = await fetch('/api/suggest-subtasks', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title: value,
+            description: '',
+          }),
+        })
+
+        if (response.ok) {
+          const data = await response.json()
+          const aiSteps: Step[] = (data.subtasks || []).map((item: string | {
+            text?: string
+            summary?: string
+            detail?: string
+            time?: string
+            source?: { name: string; url: string }
+            action?: { text: string; url: string }
+          }, i: number) => {
+            if (typeof item === 'string') {
+              return { id: `step-${Date.now()}-${i}`, text: item, done: false }
+            }
+            return {
+              id: `step-${Date.now()}-${i}`,
+              text: item.text || String(item),
+              done: false,
+              summary: item.summary,
+              detail: item.detail,
+              time: item.time,
+              source: item.source,
+              action: item.action,
+            }
+          })
+
+          // Update with real AI-generated steps
+          if (aiSteps.length > 0) {
+            await updateTask(newTask.id, { steps: aiSteps } as Partial<Task>)
+          }
+        }
+      } catch {
+        // If AI fails, keep the placeholder - user can manually add steps
       }
     }
   }, [addTask, updateTask])

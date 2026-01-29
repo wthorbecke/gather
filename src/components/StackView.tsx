@@ -492,7 +492,7 @@ aiCard,
   // Card content - memoized and called unconditionally to satisfy Rules of Hooks
   const cardContent = useMemo(() => {
     if (!topCard) {
-      return { contextLabel: '', mainText: '', buttonText: '', progress: null, isSecondary: false, phoneNumber: null }
+      return { contextLabel: '', mainText: '', buttonText: '', progress: null, isSecondary: false, phoneNumber: null, summary: '', timeEstimate: '', dueInfo: '', skipConsequence: '' }
     }
 
     let contextLabel = ''
@@ -501,31 +501,71 @@ aiCard,
     let progress: { current: number; total: number } | null = null
     let isSecondary = false
     let phoneNumber: string | null = null
+    let summary = ''
+    let timeEstimate = ''
+    let dueInfo = ''
+    let skipConsequence = 'Skip for now'
 
     if (topCard.type === 'step') {
-      const { title } = splitStepText(topCard.step.text)
+      const { title, remainder } = splitStepText(topCard.step.text)
       mainText = title
+      summary = topCard.step.summary || remainder || ''
+      timeEstimate = topCard.step.time || ''
       progress = { current: topCard.stepIndex, total: topCard.totalSteps }
       const stepMatchesTask = title.toLowerCase().trim() === topCard.task.title.toLowerCase().trim()
       contextLabel = stepMatchesTask ? 'next step' : topCard.task.title
       const phoneMatch = title.match(/(\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4})/)
       if (phoneMatch) phoneNumber = phoneMatch[1]
+
+      // Calculate skip consequence based on dismiss count
+      if (topCard.dismissCount === 0) {
+        skipConsequence = 'Skip for now'
+      } else if (topCard.dismissCount === 1) {
+        skipConsequence = 'Move to back'
+      } else {
+        skipConsequence = 'Hiding for today'
+      }
+
+      // Due date info
+      if (topCard.task.due_date) {
+        const due = new Date(topCard.task.due_date)
+        const today = new Date()
+        today.setHours(0, 0, 0, 0)
+        due.setHours(0, 0, 0, 0)
+        const diff = Math.ceil((due.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+        if (diff < 0) {
+          dueInfo = `${Math.abs(diff)} days overdue`
+        } else if (diff === 0) {
+          dueInfo = 'Due today'
+        } else if (diff === 1) {
+          dueInfo = 'Due tomorrow'
+        } else if (diff <= 7) {
+          dueInfo = `Due in ${diff} days`
+        }
+      }
     } else if (topCard.type === 'task') {
-      contextLabel = ''
+      contextLabel = topCard.task.steps?.length ? `${topCard.task.steps.length} steps` : 'No steps yet'
       mainText = topCard.task.title
       buttonText = 'Break it down'
+      skipConsequence = topCard.dismissCount > 0 ? 'Move to back' : 'Skip for now'
     } else if (topCard.type === 'email') {
       contextLabel = topCard.from
       mainText = topCard.subject
+      summary = topCard.snippet
       buttonText = 'Add as task'
+      skipConsequence = 'Dismiss email'
     } else if (topCard.type === 'calendar') {
       contextLabel = topCard.time
       mainText = topCard.title
+      if (topCard.location) {
+        summary = topCard.location
+      }
       buttonText = 'Noted'
       isSecondary = true
+      skipConsequence = 'Dismiss'
     }
 
-    return { contextLabel, mainText, buttonText, progress, isSecondary, phoneNumber }
+    return { contextLabel, mainText, buttonText, progress, isSecondary, phoneNumber, summary, timeEstimate, dueInfo, skipConsequence }
   }, [topCard])
 
   // Card surface styles - memoized unconditionally
@@ -667,7 +707,7 @@ aiCard,
     : `translateX(${swipeX}px) rotate(${touchRotation + swipeRotation}deg)`
 
   // Destructure card content from the memoized value
-  const { contextLabel, mainText, buttonText, progress, isSecondary, phoneNumber } = cardContent
+  const { contextLabel, mainText, buttonText, progress, isSecondary, phoneNumber, summary, timeEstimate, dueInfo, skipConsequence } = cardContent
 
   return (
     <div className="min-h-screen flex flex-col transition-all duration-500" style={ambientStyle}>
@@ -890,7 +930,7 @@ aiCard,
 
                 {/* Main action - THE thing */}
                 <h2
-                  className="text-[28px] leading-tight font-semibold text-[var(--text)] flex-1 overflow-hidden line-clamp-5"
+                  className="text-[26px] leading-tight font-semibold text-[var(--text)] overflow-hidden line-clamp-3"
                   style={{ fontFamily: 'var(--font-display)' }}
                 >
                   {phoneNumber ? (
@@ -909,6 +949,39 @@ aiCard,
                     mainText
                   )}
                 </h2>
+
+                {/* Summary and metadata - fills the card with useful context */}
+                <div className="flex-1 flex flex-col justify-center py-4 space-y-3">
+                  {summary && (
+                    <p className="text-[15px] leading-relaxed text-[var(--text-soft)] line-clamp-3">
+                      {summary}
+                    </p>
+                  )}
+                  {(timeEstimate || dueInfo) && (
+                    <div className="flex items-center gap-3 text-[13px]">
+                      {timeEstimate && (
+                        <span className="flex items-center gap-1.5 text-[var(--text-muted)]">
+                          <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <circle cx="12" cy="12" r="10" />
+                            <path d="M12 6v6l4 2" strokeLinecap="round" />
+                          </svg>
+                          {timeEstimate}
+                        </span>
+                      )}
+                      {dueInfo && (
+                        <span className={`flex items-center gap-1.5 ${dueInfo.includes('overdue') ? 'text-[var(--danger)]' : dueInfo.includes('today') ? 'text-[var(--accent)]' : 'text-[var(--text-muted)]'}`}>
+                          <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <rect x="3" y="4" width="18" height="18" rx="2" />
+                            <line x1="16" y1="2" x2="16" y2="6" />
+                            <line x1="8" y1="2" x2="8" y2="6" />
+                            <line x1="3" y1="10" x2="21" y2="10" />
+                          </svg>
+                          {dueInfo}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
 
                 {/* Bottom section */}
                 <div className="mt-auto space-y-3">
@@ -961,9 +1034,12 @@ aiCard,
                     </span>
                   </button>
 
-                  {/* Skip hint */}
-                  <div className="text-center text-xs text-[var(--text-muted)]">
-                    swipe to skip
+                  {/* Skip hint with clear consequence */}
+                  <div className="text-center text-xs text-[var(--text-muted)] flex items-center justify-center gap-1.5">
+                    <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="opacity-60">
+                      <path d="M5 12h14M12 5l7 7-7 7" />
+                    </svg>
+                    <span>{skipConsequence}</span>
                   </div>
                 </div>
               </div>

@@ -157,16 +157,21 @@ export const StepItem = memo(function StepItem({ step, isNext, isExpanded, onTog
               {inlineSource}
             </div>
           )}
-          {/* Quick "I'm stuck" - always visible for incomplete steps */}
+          {/* Quick help button - always visible for incomplete steps */}
           {!isEditing && !isExpanded && !step.done && onStuck && (
             <button
               onClick={(e) => {
                 e.stopPropagation()
                 onStuck(step)
               }}
-              className="mt-1 -ml-2 px-2 py-1.5 min-h-[44px] text-xs text-text-muted hover:text-accent transition-colors duration-[80ms]"
+              className="mt-2 -ml-1 px-2 py-1 text-xs text-accent/70 hover:text-accent flex items-center gap-1 transition-colors duration-[80ms]"
             >
-              stuck?
+              <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="10" />
+                <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" strokeLinecap="round" />
+                <path d="M12 17h.01" strokeLinecap="round" />
+              </svg>
+              Get help with this
             </button>
           )}
         </div>
