@@ -5,6 +5,8 @@ import {
   canRunAuthenticatedTests,
   screenshot,
   getTestConfig,
+  clearAllTestUserTasks,
+  createTestSupabaseClient,
 } from './helpers'
 
 /**
@@ -60,17 +62,14 @@ async function waitForAIResponse(page: Page, timeout = 30000) {
 
 // Helper to navigate to a clean state where we can add a task
 async function ensureHomeState(page: Page) {
-  // If we're in a task view, close it
-  const closeButton = page.locator('button[aria-label="Close"]').first()
-  if (await closeButton.isVisible({ timeout: 500 }).catch(() => false)) {
-    await closeButton.click()
-    await page.waitForTimeout(500)
-  }
+  // With cleared tasks, the input should be visible directly
+  // Wait a moment for page to settle after login/reload
+  await page.waitForTimeout(1000)
 
-  // If there's an "Add task" button, click it to show the input
-  const addButton = page.locator('button:has-text("Add task")').first()
-  if (await addButton.isVisible({ timeout: 500 }).catch(() => false)) {
-    await addButton.click()
+  // If we're somehow in a task view (shouldn't happen after clearing), close it
+  const doneButton = page.locator('button:has-text("Done")').first()
+  if (await doneButton.isVisible({ timeout: 500 }).catch(() => false)) {
+    await page.keyboard.press('Escape')
     await page.waitForTimeout(500)
   }
 }
@@ -87,11 +86,30 @@ async function submitAndWaitForAI(page: Page, text: string) {
   await waitForAIResponse(page)
 }
 
+// Helper to clear test user's tasks before tests
+async function clearTestUserData() {
+  const config = getTestConfig()
+  if (!config.isConfigured) return
+
+  const supabase = createTestSupabaseClient()
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email: config.testEmail!,
+    password: config.testPassword!,
+  })
+
+  if (error || !data.user) return
+
+  await clearAllTestUserTasks(data.user.id)
+}
+
 test.describe('Real AI Integration', () => {
-  test.beforeEach(({ }, testInfo) => {
+  // Clear all tasks before each test to ensure clean state
+  test.beforeEach(async ({ }, testInfo) => {
     if (!canRunAITests()) {
       testInfo.skip(true, 'AI tests require ANTHROPIC_API_KEY and test credentials')
+      return
     }
+    await clearTestUserData()
   })
 
   test.describe('Task Analysis', () => {
@@ -423,11 +441,12 @@ test.describe('Real API Smoke Tests', () => {
     // Should see Gather heading (always present when logged in)
     await expect(page.locator('h1:has-text("Gather")')).toBeVisible({ timeout: 10000 })
 
-    // Should see either the main input or some app content
+    // Should see app content - either input, Done button (in task view), or any visible content
     const hasInput = await page.locator('input[placeholder*="next"], input[placeholder*="Add something"]').isVisible().catch(() => false)
-    const hasContent = await page.locator('[data-testid="task-item"], .text-base').first().isVisible().catch(() => false)
+    const hasDoneButton = await page.locator('button:has-text("Done")').isVisible().catch(() => false)
+    const hasSkipOption = await page.locator('text=Skip for now').isVisible().catch(() => false)
 
-    expect(hasInput || hasContent).toBe(true)
+    expect(hasInput || hasDoneButton || hasSkipOption).toBe(true)
 
     await screenshot(page, 'real-app-loaded')
   })

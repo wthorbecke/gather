@@ -283,6 +283,18 @@ export function createTestSupabaseClient() {
 }
 
 /**
+ * Create a Supabase admin client (service role) for cleanup operations
+ */
+export function createAdminSupabaseClient() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!supabaseUrl || !serviceRoleKey) {
+    throw new Error('SUPABASE_SERVICE_ROLE_KEY required for admin operations')
+  }
+  return createClient(supabaseUrl, serviceRoleKey)
+}
+
+/**
  * Sign in as the test user and inject session into the page
  * This allows testing authenticated flows with real API calls
  */
@@ -384,6 +396,26 @@ export async function cleanupTestUserData(userId: string) {
     .like('name', 'Test:%')
 
   // Could add more cleanup as needed
+}
+
+/**
+ * Clear ALL tasks for a user (use before tests to ensure clean state)
+ * Uses service role to bypass RLS
+ */
+export async function clearAllTestUserTasks(userId: string) {
+  const supabase = createAdminSupabaseClient()
+
+  // First delete all subtasks
+  await supabase
+    .from('subtasks')
+    .delete()
+    .eq('user_id', userId)
+
+  // Then delete all tasks
+  await supabase
+    .from('tasks')
+    .delete()
+    .eq('user_id', userId)
 }
 
 /**
