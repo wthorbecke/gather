@@ -34,6 +34,41 @@ interface EmailTasksCardProps {
 const MAX_RETRIES = 3
 const BASE_DELAY_MS = 1000
 
+// Cache configuration - don't re-scan more than once per 5 minutes
+const SCAN_CACHE_KEY = 'gather_email_scan_cache'
+const SCAN_COOLDOWN_MS = 5 * 60 * 1000 // 5 minutes
+
+interface ScanCache {
+  timestamp: number
+  results: PotentialTask[]
+}
+
+function getCachedScan(): ScanCache | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const cached = sessionStorage.getItem(SCAN_CACHE_KEY)
+    if (!cached) return null
+    const parsed = JSON.parse(cached) as ScanCache
+    // Check if cache is still valid
+    if (Date.now() - parsed.timestamp < SCAN_COOLDOWN_MS) {
+      return parsed
+    }
+    return null
+  } catch {
+    return null
+  }
+}
+
+function setCachedScan(results: PotentialTask[]) {
+  if (typeof window === 'undefined') return
+  try {
+    const cache: ScanCache = { timestamp: Date.now(), results }
+    sessionStorage.setItem(SCAN_CACHE_KEY, JSON.stringify(cache))
+  } catch {
+    // Storage full or unavailable - ignore
+  }
+}
+
 // Category display names and colors
 const CATEGORY_INFO: Record<string, { label: string; color: string }> = {
   BILL_DUE: { label: 'Bill', color: 'text-danger' },
@@ -129,10 +164,12 @@ export function EmailTasksCard({ onAddTask, onIgnoreSender, isDemoUser }: EmailT
         return
       }
 
-      // Success - reset retry counter
+      // Success - reset retry counter and cache results
       retryCountRef.current = 0
-      setPotentialTasks(data.potentialTasks || [])
+      const results = data.potentialTasks || []
+      setPotentialTasks(results)
       setHasScanned(true)
+      setCachedScan(results)
     } catch (err) {
       // Error handled silently('Error scanning emails:', err)
 
@@ -151,12 +188,19 @@ export function EmailTasksCard({ onAddTask, onIgnoreSender, isDemoUser }: EmailT
     }
   }, [session?.access_token])
 
-  // Auto-scan on mount if user is authenticated
+  // Auto-scan on mount if user is authenticated (with caching)
   useEffect(() => {
-    if (session?.access_token && !hasScanned) {
+    if (session?.access_token && !hasScanned && !isDemoUser) {
+      // Check cache first to avoid unnecessary API calls
+      const cached = getCachedScan()
+      if (cached) {
+        setPotentialTasks(cached.results)
+        setHasScanned(true)
+        return
+      }
       scanEmails()
     }
-  }, [session?.access_token, hasScanned, scanEmails])
+  }, [session?.access_token, hasScanned, scanEmails, isDemoUser])
 
   const handleAddTask = (task: PotentialTask) => {
     // Use AI-suggested title and due date if available
