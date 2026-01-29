@@ -17,6 +17,7 @@ type StackCard =
   | EmailCard
   | CalendarCard
 
+
 interface StackViewProps {
   tasks: Task[]
   onToggleStep: (taskId: string, stepId: string | number) => void
@@ -24,12 +25,16 @@ interface StackViewProps {
   onAddTask: (title: string) => void
   onDismissEmail?: (emailId: string) => void
   onAddEmailAsTask?: (email: { subject: string; from: string }) => void
-  // AI Card props
+// AI Card props
   aiCard?: AICardState | null
   pendingInput?: string | null
   onDismissAI?: () => void
   onQuickReply?: (reply: string) => void
   onAICardAction?: (action: { type: string; stepId?: string | number; title?: string; context?: string }) => void
+  // View switching props
+  onSwitchView?: () => void
+  onSignOut?: () => void
+  isDemoUser?: boolean
 }
 
 // Affirmations - brief, unexpected
@@ -64,11 +69,14 @@ export function StackView({
   onGoToTask,
   onAddTask,
   onAddEmailAsTask,
-  aiCard,
+aiCard,
   pendingInput,
   onDismissAI,
   onQuickReply,
   onAICardAction,
+  onSwitchView,
+  onSignOut,
+  isDemoUser,
 }: StackViewProps) {
   const { session } = useAuth()
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set())
@@ -333,27 +341,39 @@ export function StackView({
     }
   }
 
-  // Time-based ambient color
+  // Time-based ambient color - more pronounced for atmosphere
   const getAmbientStyle = () => {
     const hour = new Date().getHours()
-    const stackRatio = Math.max(0, 1 - stack.length / 8)
+    const stackRatio = Math.max(0, 1 - stack.length / 6) // Fewer items = calmer gradient
 
     if (isDark) {
-      // Dark mode - subtle color shifts
+      // Dark mode - richer color shifts
       if (hour >= 5 && hour < 9) {
-        return { background: `linear-gradient(180deg, hsl(25, 20%, ${6 + stackRatio * 2}%) 0%, hsl(220, 15%, 4%) 100%)` }
+        // Morning - warm amber glow
+        return { background: `linear-gradient(170deg, hsl(30, 35%, ${8 + stackRatio * 3}%) 0%, hsl(220, 20%, 4%) 100%)` }
       } else if (hour >= 17 && hour < 21) {
-        return { background: `linear-gradient(180deg, hsl(${20 + stackRatio * 10}, 25%, ${7 + stackRatio * 2}%) 0%, hsl(250, 15%, 4%) 100%)` }
+        // Evening - warm sunset tones
+        return { background: `linear-gradient(170deg, hsl(${15 + stackRatio * 15}, 40%, ${9 + stackRatio * 3}%) 0%, hsl(260, 20%, 5%) 100%)` }
+      } else if (hour >= 21 || hour < 5) {
+        // Night - deep blue
+        return { background: `linear-gradient(170deg, hsl(240, 25%, ${7 + stackRatio * 2}%) 0%, hsl(240, 20%, 3%) 100%)` }
       }
-      return { background: `linear-gradient(180deg, hsl(220, 10%, ${6 + stackRatio * 2}%) 0%, hsl(220, 10%, 4%) 100%)` }
+      // Day - neutral with slight warmth
+      return { background: `linear-gradient(170deg, hsl(220, 15%, ${7 + stackRatio * 2}%) 0%, hsl(220, 12%, 4%) 100%)` }
     } else {
-      // Light mode
+      // Light mode - warmer, more inviting
       if (hour >= 5 && hour < 9) {
-        return { background: `linear-gradient(180deg, hsl(40, ${25 + stackRatio * 15}%, ${96 - stackRatio * 2}%) 0%, hsl(45, 15%, 98%) 100%)` }
+        // Morning - golden warmth
+        return { background: `linear-gradient(170deg, hsl(45, ${40 + stackRatio * 20}%, ${95 - stackRatio * 3}%) 0%, hsl(50, 20%, 98%) 100%)` }
       } else if (hour >= 17 && hour < 21) {
-        return { background: `linear-gradient(180deg, hsl(25, ${20 + stackRatio * 15}%, ${96 - stackRatio * 2}%) 0%, hsl(30, 15%, 98%) 100%)` }
+        // Evening - peachy warmth
+        return { background: `linear-gradient(170deg, hsl(25, ${35 + stackRatio * 20}%, ${95 - stackRatio * 3}%) 0%, hsl(35, 20%, 98%) 100%)` }
+      } else if (hour >= 21 || hour < 5) {
+        // Night - cool blue tint
+        return { background: `linear-gradient(170deg, hsl(220, ${20 + stackRatio * 10}%, ${96 - stackRatio * 2}%) 0%, hsl(220, 15%, 98%) 100%)` }
       }
-      return { background: `linear-gradient(180deg, hsl(45, ${10 + stackRatio * 10}%, ${97 - stackRatio}%) 0%, hsl(45, 10%, 99%) 100%)` }
+      // Day - clean with subtle warmth
+      return { background: `linear-gradient(170deg, hsl(50, ${15 + stackRatio * 15}%, ${97 - stackRatio * 2}%) 0%, hsl(50, 10%, 99%) 100%)` }
     }
   }
 
@@ -428,7 +448,7 @@ export function StackView({
     : `translateX(${swipeX}px) rotate(${touchRotation + swipeRotation}deg)`
 
   // Card content
-  let parentLabel = ''
+  let contextLabel = '' // Small context above the main text
   let mainText = ''
   let buttonText = 'Done'
   let progress: { current: number; total: number } | null = null
@@ -437,22 +457,25 @@ export function StackView({
 
   if (topCard.type === 'step') {
     const { title } = splitStepText(topCard.step.text)
-    parentLabel = topCard.task.title
     mainText = title
     progress = { current: topCard.stepIndex, total: topCard.totalSteps }
+    // Only show task title as context if it's different from the step text
+    const stepMatchesTask = title.toLowerCase().trim() === topCard.task.title.toLowerCase().trim()
+    contextLabel = stepMatchesTask ? 'next step' : topCard.task.title
     // Extract phone numbers
     const phoneMatch = title.match(/(\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4})/)
     if (phoneMatch) phoneNumber = phoneMatch[1]
   } else if (topCard.type === 'task') {
-    parentLabel = 'Task'
+    // For tasks without steps, don't show redundant "Task" label
+    contextLabel = ''
     mainText = topCard.task.title
     buttonText = 'Break it down'
   } else if (topCard.type === 'email') {
-    parentLabel = `From ${topCard.from}`
+    contextLabel = topCard.from
     mainText = topCard.subject
     buttonText = 'Add as task'
   } else if (topCard.type === 'calendar') {
-    parentLabel = topCard.time
+    contextLabel = topCard.time
     mainText = topCard.title
     buttonText = 'Noted'
     isSecondary = true
@@ -465,34 +488,52 @@ export function StackView({
         backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
       }} />
 
-      {/* Header */}
-      <div className="relative z-20 px-5 pt-5 flex items-center justify-between">
+      {/* Toolbar with blur effect */}
+      <div className="sticky top-0 z-20 px-4 py-3 flex items-center justify-between bg-[var(--canvas)]/80 backdrop-blur-md border-b border-[var(--border)]/30">
+        {/* Left: Add button */}
         <button
           onClick={() => setShowInput(!showInput)}
           className="p-2 -ml-2 text-[var(--text-muted)] hover:text-[var(--text)] transition-colors"
+          title="Add task"
         >
-          <svg className="w-[22px] h-[22px] md:w-[26px] md:h-[26px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+<svg className="w-[20px] h-[20px] md:w-[24px] md:h-[24px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
             <path d="M12 5v14M5 12h14" />
           </svg>
         </button>
 
-        {/* Stack depth indicator */}
+        {/* Center: Deck counter */}
         <div className="flex items-center gap-2">
-          {stack.slice(0, 5).map((_, i) => (
-            <div
-              key={i}
-              className="rounded-full transition-all duration-300"
-              style={{
-                width: i === 0 ? 8 : 6,
-                height: i === 0 ? 8 : 6,
-                backgroundColor: i === 0
-                  ? 'var(--accent)'
-                  : `color-mix(in srgb, var(--text-muted) ${100 - i * 20}%, transparent)`,
-              }}
-            />
-          ))}
-          {stack.length > 5 && (
-            <span className="text-xs text-[var(--text-muted)] ml-1">+{stack.length - 5}</span>
+          <span className="text-sm font-medium text-[var(--text)]">{stack.length}</span>
+          <span className="text-xs text-[var(--text-muted)]">cards</span>
+        </div>
+
+        {/* Right: View toggle & actions */}
+        <div className="flex items-center gap-1">
+          {onSwitchView && (
+            <button
+              onClick={onSwitchView}
+              className="p-2 text-[var(--text-muted)] hover:text-[var(--text)] transition-colors"
+              title="Switch to list view"
+            >
+              <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <line x1="3" y1="6" x2="21" y2="6" />
+                <line x1="3" y1="12" x2="21" y2="12" />
+                <line x1="3" y1="18" x2="21" y2="18" />
+              </svg>
+            </button>
+          )}
+          {onSignOut && (
+            <button
+              onClick={onSignOut}
+              className="p-2 text-[var(--text-muted)] hover:text-[var(--text)] transition-colors"
+              title={isDemoUser ? 'Exit demo' : 'Sign out'}
+            >
+              <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                <polyline points="16 17 21 12 16 7" />
+                <line x1="21" y1="12" x2="9" y2="12" />
+              </svg>
+            </button>
           )}
         </div>
       </div>
@@ -553,33 +594,70 @@ export function StackView({
             </svg>
           </div>
 
-          {/* Stacked cards behind (visual depth) */}
-          {stack.length > 2 && (
-            <div
-              className="absolute inset-x-3 top-3 bottom-0 rounded-[22px] transition-transform duration-300"
-              style={{
-                background: isDark ? 'rgba(30,30,30,0.5)' : 'rgba(255,255,255,0.5)',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
-                transform: `translateY(16px) rotate(${baseRotation + 1.5}deg) scale(0.94)`,
-              }}
-            />
-          )}
-          {stack.length > 1 && (
-            <div
-              className="absolute inset-x-1.5 top-1.5 bottom-0 rounded-[24px] transition-transform duration-300"
-              style={{
-                background: isDark ? 'rgba(35,35,35,0.7)' : 'rgba(255,255,255,0.7)',
-                boxShadow: '0 4px 12px rgba(0,0,0,0.06)',
-                transform: `translateY(8px) rotate(${baseRotation + 0.8}deg) scale(0.97)`,
-              }}
-            />
-          )}
+          {/* Cards behind - visible stack effect */}
+          {stack.slice(1, 3).reverse().map((card, reverseIndex) => {
+            const depth = 2 - reverseIndex // 2, 1 (deeper card renders first)
+            let cardText = ''
+
+            if (card.type === 'step') {
+              const { title } = splitStepText(card.step.text)
+              cardText = title
+            } else if (card.type === 'task') {
+              cardText = card.task.title
+            } else if (card.type === 'email') {
+              cardText = card.subject
+            } else if (card.type === 'calendar') {
+              cardText = card.title
+            }
+
+            // Stack offset - cards peek out from behind
+            const yOffset = depth * 24
+            const xOffset = depth * 4
+            const rotation = depth * 1.5
+            const scale = 1 - depth * 0.03
+            const swipeInfluence = Math.min(Math.abs(swipeX) / 80, 1)
+
+            return (
+              <div
+                key={getCardId(card)}
+                className="absolute inset-0 rounded-[24px] overflow-hidden pointer-events-none"
+                style={{
+                  background: isDark
+                    ? 'linear-gradient(180deg, #1c1c1c 0%, #161616 100%)'
+                    : 'linear-gradient(180deg, #ffffff 0%, #f8f8f8 100%)',
+                  boxShadow: isDark
+                    ? '0 4px 20px rgba(0,0,0,0.5)'
+                    : '0 4px 20px rgba(0,0,0,0.1)',
+                  border: isDark ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.06)',
+                  transform: `
+                    translateY(${yOffset - swipeInfluence * yOffset * 0.7}px)
+                    translateX(${xOffset}px)
+                    rotate(${rotation}deg)
+                    scale(${scale + swipeInfluence * 0.02})
+                  `,
+                  transformOrigin: 'center top',
+                  transition: isDragging ? 'none' : 'all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                }}
+              >
+                {/* Card content preview - same layout as main card */}
+                <div className="h-full flex flex-col p-6">
+                  <h2
+                    className="text-[28px] leading-tight font-semibold text-[var(--text)]"
+                    style={{ fontFamily: 'var(--font-display)' }}
+                  >
+                    {cardText}
+                  </h2>
+                </div>
+              </div>
+            )
+          })}
 
           {/* Main card */}
           <div
             ref={cardRef}
             className="absolute inset-0 cursor-grab active:cursor-grabbing select-none"
             style={{
+              zIndex: 10,
               transform: exitTransform,
               opacity: exitDirection ? (exitDirection === 'up' ? 0 : 1) : 1,
               transition: isDragging ? 'none' : 'all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1)',
@@ -594,15 +672,15 @@ export function StackView({
           >
             {/* Card surface */}
             <div
-              className="relative h-full rounded-[26px] overflow-hidden"
+              className="relative h-full rounded-[24px] overflow-hidden"
               style={{
                 background: isDark
-                  ? 'linear-gradient(180deg, #1a1a1a 0%, #141414 100%)'
-                  : 'linear-gradient(180deg, #ffffff 0%, #fafafa 100%)',
+                  ? 'linear-gradient(180deg, #1c1c1c 0%, #161616 100%)'
+                  : 'linear-gradient(180deg, #ffffff 0%, #f8f8f8 100%)',
                 boxShadow: isDark
-                  ? '0 2px 4px rgba(0,0,0,0.2), 0 8px 24px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.05)'
-                  : '0 1px 2px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.06), 0 12px 32px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.9)',
-                border: isDark ? '1px solid rgba(255,255,255,0.06)' : '1px solid rgba(0,0,0,0.04)',
+                  ? '0 2px 4px rgba(0,0,0,0.2), 0 8px 24px rgba(0,0,0,0.4)'
+                  : '0 2px 4px rgba(0,0,0,0.04), 0 8px 24px rgba(0,0,0,0.1)',
+                border: isDark ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.06)',
               }}
             >
               {/* Affirmation overlay */}
@@ -619,38 +697,16 @@ export function StackView({
 
               {/* Card content */}
               <div className="relative h-full flex flex-col p-6">
-                {/* Parent task label - the whisper */}
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-[11px] font-medium uppercase tracking-widest text-[var(--text-muted)]">
-                    {parentLabel}
+                {/* Context label - subtle, top */}
+                {contextLabel && (
+                  <span className="text-[11px] font-medium uppercase tracking-wider text-[var(--text-muted)] mb-2">
+                    {contextLabel}
                   </span>
-
-                  {/* Progress indicator */}
-                  {progress && (
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-xs font-medium text-[var(--accent)]">
-                        {progress.current}/{progress.total}
-                      </span>
-                      <div className="flex gap-0.5">
-                        {Array.from({ length: progress.total }).map((_, i) => (
-                          <div
-                            key={i}
-                            className="w-1.5 h-1.5 rounded-full transition-colors"
-                            style={{
-                              backgroundColor: i < progress.current
-                                ? 'var(--success)'
-                                : 'var(--border)',
-                            }}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
+                )}
 
                 {/* Main action - THE thing */}
                 <h2
-                  className="text-[26px] leading-tight font-semibold text-[var(--text)] mt-2 mb-auto"
+                  className="text-[28px] leading-tight font-semibold text-[var(--text)] flex-1"
                   style={{ fontFamily: 'var(--font-display)' }}
                 >
                   {phoneNumber ? (
@@ -670,46 +726,64 @@ export function StackView({
                   )}
                 </h2>
 
-                {/* Skip hint */}
-                <div className="text-center text-[13px] text-[var(--text-muted)] mb-4 opacity-60">
-                  ← swipe to skip →
-                </div>
-
-                {/* Action button */}
-                <button
-                  onMouseDown={startHold}
-                  onMouseUp={endHold}
-                  onMouseLeave={endHold}
-                  onTouchStart={(e) => { e.stopPropagation(); startHold(); }}
-                  onTouchEnd={(e) => { e.stopPropagation(); endHold(); }}
-                  className={`
-                    relative w-full py-4 rounded-2xl text-[17px] font-semibold overflow-hidden
-                    transition-all duration-150
-                    ${isSecondary
-                      ? 'bg-[var(--surface)] text-[var(--text)] border border-[var(--border)]'
-                      : 'text-white'
-                    }
-                    ${isHolding ? 'scale-[0.97]' : 'active:scale-[0.98]'}
-                  `}
-                  style={isSecondary ? {} : {
-                    background: 'linear-gradient(180deg, #e07a5f 0%, #d56a4f 100%)',
-                    boxShadow: '0 2px 8px rgba(224, 122, 95, 0.3), inset 0 1px 0 rgba(255,255,255,0.15)',
-                  }}
-                >
-                  {/* Hold progress fill */}
-                  {!isSecondary && (
-                    <div
-                      className="absolute inset-0 bg-white/25 origin-left transition-transform"
-                      style={{
-                        transform: `scaleX(${holdProgress})`,
-                        transition: isHolding ? 'none' : 'transform 0.2s ease-out',
-                      }}
-                    />
+                {/* Bottom section */}
+                <div className="mt-auto space-y-3">
+                  {/* Progress bar - only for multi-step tasks */}
+                  {progress && progress.total > 1 && (
+                    <div className="flex items-center gap-3">
+                      <div className="flex-1 h-1 bg-[var(--border)] rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-[var(--accent)] rounded-full transition-all duration-300"
+                          style={{ width: `${((progress.current - 1) / progress.total) * 100}%` }}
+                        />
+                      </div>
+                      <span className="text-xs text-[var(--text-muted)]">
+                        {progress.current} of {progress.total}
+                      </span>
+                    </div>
                   )}
-                  <span className="relative z-10">
-                    {isHolding && holdProgress > 0.5 ? '...' : buttonText}
-                  </span>
-                </button>
+
+                  {/* Action button */}
+                  <button
+                    onMouseDown={startHold}
+                    onMouseUp={endHold}
+                    onMouseLeave={endHold}
+                    onTouchStart={(e) => { e.stopPropagation(); startHold(); }}
+                    onTouchEnd={(e) => { e.stopPropagation(); endHold(); }}
+                    className={`
+                      relative w-full py-4 rounded-2xl text-[17px] font-semibold overflow-hidden
+                      transition-all duration-150
+                      ${isSecondary
+                        ? 'bg-[var(--surface)] text-[var(--text)] border border-[var(--border)]'
+                        : 'text-white'
+                      }
+                      ${isHolding ? 'scale-[0.97]' : 'active:scale-[0.98]'}
+                    `}
+                    style={isSecondary ? {} : {
+                      background: 'linear-gradient(180deg, #e07a5f 0%, #d06a50 100%)',
+                      boxShadow: '0 4px 12px rgba(224, 122, 95, 0.3)',
+                    }}
+                  >
+                    {/* Hold progress fill */}
+                    {!isSecondary && (
+                      <div
+                        className="absolute inset-0 bg-white/25 origin-left"
+                        style={{
+                          transform: `scaleX(${holdProgress})`,
+                          transition: isHolding ? 'none' : 'transform 0.2s ease-out',
+                        }}
+                      />
+                    )}
+                    <span className="relative z-10">
+                      {isHolding && holdProgress > 0.5 ? '...' : buttonText}
+                    </span>
+                  </button>
+
+                  {/* Skip hint */}
+                  <div className="text-center text-xs text-[var(--text-muted)]">
+                    swipe to skip
+                  </div>
+                </div>
               </div>
             </div>
           </div>

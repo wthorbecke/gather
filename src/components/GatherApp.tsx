@@ -1404,13 +1404,16 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
               tasks={tasks}
               onToggleStep={handleToggleStep}
               onGoToTask={goToTask}
-              onAddTask={handleSubmit}
+onAddTask={handleSubmit}
               onAddEmailAsTask={(email) => handleSubmit(email.subject)}
               aiCard={aiCard}
               pendingInput={pendingInput}
               onDismissAI={dismissAI}
               onQuickReply={handleQuickReply}
               onAICardAction={handleAICardAction}
+              onSwitchView={() => setUseStackView(false)}
+              onSignOut={onSignOut}
+              isDemoUser={isDemoUser}
             />
           ) : (
             <HomeView
@@ -1443,13 +1446,26 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
               </div>
             </div>
           )}
-          {/* View toggle for testing */}
-          <button
-            onClick={() => setUseStackView(!useStackView)}
-            className="fixed bottom-6 right-6 z-50 px-3 py-1.5 bg-card border border-border rounded-lg text-xs text-text-muted hover:text-text shadow-sm"
-          >
-            {useStackView ? 'Classic view' : 'Stack view'}
-          </button>
+          {/* View toggle - only show for Classic view (Stack view has it in header) */}
+          {!useStackView && (
+            <button
+              onClick={() => setUseStackView(true)}
+              className="
+                fixed bottom-6 right-6 z-50
+                px-4 py-2
+                bg-card/90 backdrop-blur-sm
+                border border-border-strong
+                rounded-xl
+                text-sm font-medium text-text
+                hover:bg-card hover:border-accent/30
+                active:scale-95
+                shadow-md
+                transition-all duration-150
+              "
+            >
+              Stack view
+            </button>
+          )}
         </>
       ) : currentTask ? (
         <TaskView

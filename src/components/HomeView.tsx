@@ -215,12 +215,24 @@ export function HomeView({
                   )}
                 </div>
               </div>
-              <div className="px-4 py-2.5 bg-subtle flex justify-between items-center border-t border-border-subtle">
-                <span className="text-sm text-text-muted truncate">{nextStep.task.title}</span>
-                <span className="text-sm text-text-muted tabular-nums">
-                  {nextStep.task.steps?.filter((s) => s.done).length || 0}/{nextStep.task.steps?.length || 0}
-                </span>
-              </div>
+              {/* Only show task context if step is different from task title and there are multiple steps */}
+              {(() => {
+                const stepTitle = getDerivedStepTitle(nextStep.step.text).toLowerCase().trim()
+                const taskTitle = nextStep.task.title.toLowerCase().trim()
+                const stepCount = nextStep.task.steps?.length || 0
+                const showContext = stepTitle !== taskTitle && stepCount > 1
+
+                if (!showContext) return null
+
+                return (
+                  <div className="px-4 py-2.5 bg-subtle flex justify-between items-center border-t border-border-subtle">
+                    <span className="text-sm text-text-muted truncate">{nextStep.task.title}</span>
+                    <span className="text-sm text-text-muted tabular-nums">
+                      {nextStep.task.steps?.filter((s) => s.done).length || 0}/{stepCount}
+                    </span>
+                  </div>
+                )
+              })()}
             </div>
           </div>
         )}
@@ -252,35 +264,45 @@ export function HomeView({
           </div>
         )}
 
-        {/* All Tasks */}
-        {sortedTasks.length > 0 && (
-          <div>
-            <div className="flex items-center justify-between mb-3">
-              <div className="text-xs font-medium text-text-muted uppercase tracking-wide">All tasks</div>
-              {snoozedCount > 0 && (
-                <div className="text-xs text-text-muted flex items-center gap-1.5">
-                  <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="opacity-60">
-                    <circle cx="12" cy="12" r="10" />
-                    <path d="M12 6v6l4 2" strokeLinecap="round" />
-                  </svg>
-                  {snoozedCount} snoozed
-                </div>
-              )}
-            </div>
+        {/* All Tasks - exclude the "Up Next" task to avoid duplication */}
+        {(() => {
+          const tasksToShow = nextStep
+            ? sortedTasks.filter(t => t.id !== nextStep.task.id)
+            : sortedTasks
 
-            <div className="flex flex-col gap-2">
-              {sortedTasks.map((task, index) => (
-                <div key={task.id} className="animate-rise" style={{ animationDelay: `${index * 40}ms` }}>
-                  <TaskListItem
-                    task={task}
-                    onClick={() => onGoToTask(task.id)}
-                    onDelete={onDeleteTask ? () => onDeleteTask(task.id) : undefined}
-                  />
+          if (tasksToShow.length === 0) return null
+
+          return (
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <div className="text-xs font-medium text-text-muted uppercase tracking-wide">
+                  {nextStep ? 'Other tasks' : 'All tasks'}
                 </div>
-              ))}
+                {snoozedCount > 0 && (
+                  <div className="text-xs text-text-muted flex items-center gap-1.5">
+                    <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="opacity-60">
+                      <circle cx="12" cy="12" r="10" />
+                      <path d="M12 6v6l4 2" strokeLinecap="round" />
+                    </svg>
+                    {snoozedCount} snoozed
+                  </div>
+                )}
+              </div>
+
+              <div className="flex flex-col gap-2">
+                {tasksToShow.map((task, index) => (
+                  <div key={task.id} className="animate-rise" style={{ animationDelay: `${index * 40}ms` }}>
+                    <TaskListItem
+                      task={task}
+                      onClick={() => onGoToTask(task.id)}
+                      onDelete={onDeleteTask ? () => onDeleteTask(task.id) : undefined}
+                    />
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
-        )}
+          )
+        })()}
 
       </div>
     </div>

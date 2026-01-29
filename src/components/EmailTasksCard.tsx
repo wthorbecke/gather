@@ -246,74 +246,57 @@ export function EmailTasksCard({ onAddTask, onIgnoreSender }: EmailTasksCardProp
         </button>
       </div>
 
-      {/* Email list */}
+      {/* Email list - compact design */}
       <div className="divide-y divide-border-subtle">
         {visibleTasks.slice(0, 5).map((task) => (
-          <div key={task.id} className="p-4 hover:bg-subtle/50 transition-colors">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2 mb-0.5">
-                  <div className="text-sm font-medium text-text truncate">
-                    {task.subject}
-                  </div>
-                  {/* Category badge */}
-                  {task.aiAnalysis?.category && CATEGORY_INFO[task.aiAnalysis.category] && (
-                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full bg-surface font-medium ${CATEGORY_INFO[task.aiAnalysis.category].color}`}>
-                      {CATEGORY_INFO[task.aiAnalysis.category].label}
-                    </span>
-                  )}
-                </div>
-                <div className="text-xs text-text-muted mt-0.5 flex items-center gap-2">
-                  <span>{task.from} · {task.date}</span>
-                  {/* Confidence indicator */}
-                  {task.aiAnalysis?.confidence !== undefined && task.aiAnalysis.confidence > 0.7 && (
-                    <span className="flex items-center gap-0.5" title={`${Math.round(task.aiAnalysis.confidence * 100)}% confident`}>
-                      <svg width={10} height={10} viewBox="0 0 16 16" className="text-success">
-                        <path d="M8 1L10 6L15 6.5L11.5 10L12.5 15L8 12.5L3.5 15L4.5 10L1 6.5L6 6L8 1Z" fill="currentColor"/>
-                      </svg>
-                    </span>
-                  )}
-                </div>
-                {/* AI-suggested due date */}
-                {task.aiAnalysis?.suggestedTask?.dueDate && (
-                  <div className="text-xs text-accent mt-1">
-                    Due: {new Date(task.aiAnalysis.suggestedTask.dueDate).toLocaleDateString()}
-                  </div>
-                )}
+          <div
+            key={task.id}
+            className="px-4 py-3 hover:bg-subtle/50 transition-colors flex items-center gap-3 group cursor-pointer"
+            onClick={() => handleAddTask(task)}
+          >
+            {/* Content */}
+            <div className="min-w-0 flex-1">
+              <div className="text-sm font-medium text-text truncate">
+                {task.subject}
               </div>
-              <div className="flex items-center gap-2 flex-shrink-0">
-                <button
-                  onClick={() => handleAddTask(task)}
-                  className="px-3 py-1.5 bg-accent text-white rounded-md text-xs font-medium hover:bg-accent/90 transition-colors btn-press tap-target"
-                >
-                  Add as task
-                </button>
-                <div className="relative group">
-                  <button
-                    onClick={() => handleDismiss(task.id)}
-                    className="p-1.5 text-text-muted hover:text-text transition-colors btn-press tap-target"
-                  >
-                    <svg width={14} height={14} viewBox="0 0 16 16">
-                      <path d="M4 4L12 12M12 4L4 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-                    </svg>
-                  </button>
-                  {/* Dropdown for ignore options */}
-                  {onIgnoreSender && (
-                    <div className="absolute right-0 top-full mt-1 hidden group-hover:block z-10">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          handleIgnoreSender(task)
-                        }}
-                        className="whitespace-nowrap px-3 py-2 bg-card border border-border rounded-md shadow-sm text-xs text-text-muted hover:text-text hover:bg-surface transition-colors"
-                      >
-                        Always ignore {task.from}
-                      </button>
-                    </div>
-                  )}
-                </div>
+              <div className="text-xs text-text-muted mt-0.5 truncate">
+                {task.from} · {task.date}
               </div>
             </div>
+
+            {/* Actions - show on hover */}
+            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  handleAddTask(task)
+                }}
+                className="px-2 py-1 text-xs font-medium text-accent hover:bg-accent/10 rounded transition-colors"
+              >
+                Add
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  handleDismiss(task.id)
+                }}
+                className="p-1 text-text-muted hover:text-text transition-colors"
+              >
+                <svg width={14} height={14} viewBox="0 0 16 16">
+                  <path d="M4 4L12 12M12 4L4 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                </svg>
+              </button>
+            </div>
+
+            {/* Touch-friendly indicator for mobile */}
+            <svg
+              width={16}
+              height={16}
+              viewBox="0 0 16 16"
+              className="text-text-muted flex-shrink-0 group-hover:hidden"
+            >
+              <path d="M6 4L10 8L6 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" fill="none"/>
+            </svg>
           </div>
         ))}
       </div>

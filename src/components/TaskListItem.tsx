@@ -39,6 +39,10 @@ export function TaskListItem({ task, onClick, onDelete }: TaskListItemProps) {
   const done = steps.filter((s) => s.done).length
   const total = steps.length
 
+  // Determine if step count is meaningful
+  // Don't show "0/1 steps" when there's only one step that matches the task title
+  const hasMeaningfulSteps = total > 1 || (total === 1 && steps[0].text.toLowerCase().trim() !== task.title.toLowerCase().trim())
+
   // Context processing
   const contextText = task.context_text?.trim() || ''
   const normalizeText = (value: string) => value.replace(/\s+/g, ' ').trim().toLowerCase()
@@ -80,8 +84,8 @@ export function TaskListItem({ task, onClick, onDelete }: TaskListItemProps) {
             {task.due_date && <DeadlineBadge dueDate={task.due_date} compact />}
           </div>
           <div className="text-sm text-text-muted truncate">
-            {shouldShowContext ? condensedContext : total === 0 ? 'No steps yet' : null}
-            {total > 0 && (
+            {shouldShowContext ? condensedContext : !hasMeaningfulSteps ? 'Tap to add steps' : null}
+            {hasMeaningfulSteps && (
               <span className={shouldShowContext ? 'ml-2' : ''}>{done}/{total} steps</span>
             )}
           </div>
