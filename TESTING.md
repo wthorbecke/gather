@@ -190,6 +190,86 @@ This opens Playwright Inspector where you can step through tests.
 npx playwright test -g "test name"
 ```
 
+## Real AI Integration Tests
+
+**These tests make actual API calls to Anthropic, Tavily, and other services.**
+
+### Why Real Tests Matter
+
+Mock tests verify code paths but miss:
+- Actual AI response quality (is it ADHD-friendly?)
+- Real API latency and timeout handling
+- URL rendering in actual AI responses
+- Web search result quality
+
+### Running Real AI Tests
+
+```bash
+# Run with visible browser (recommended for debugging)
+npm run test:real
+
+# Run headless (for CI)
+npm run test:real:ci
+```
+
+### Required Environment Variables
+
+```bash
+# .env.local
+ANTHROPIC_API_KEY=sk-ant-...          # Required for AI
+TAVILY_API_KEY=tvly-...               # Required for web search
+TEST_USER_EMAIL=test@example.com       # Required for auth
+TEST_USER_PASSWORD=your-password       # Required for auth
+```
+
+### What Real Tests Verify
+
+| Test | What It Checks |
+|------|----------------|
+| Task Analysis | AI asks relevant questions (state for DMV, name for parties) |
+| Step Generation | Steps have real URLs from web search |
+| URL Rendering | URLs appear as buttons, not raw text |
+| Response Quality | Responses are concise, no apologies, minimal emojis |
+| Error Handling | Timeouts show graceful errors, not stack traces |
+
+### Test Costs
+
+Real tests consume API credits:
+- ~$0.01-0.05 per test run (Anthropic)
+- ~$0.001 per search (Tavily)
+
+Run sparingly. CI should run these on merge to main, not every PR.
+
+### Writing Real AI Tests
+
+```typescript
+import { test, expect } from '@playwright/test'
+import { loginAsTestUser, setupApiErrorMonitoring } from './helpers'
+
+// Longer timeout for real API calls
+test.setTimeout(60000)
+
+test('AI generates real steps', async ({ page }) => {
+  test.skip(!process.env.ANTHROPIC_API_KEY, 'Requires ANTHROPIC_API_KEY')
+
+  await loginAsTestUser(page)
+
+  // Submit task
+  const input = page.getByPlaceholder(/what do you need/i)
+  await input.fill('Renew my passport')
+  await input.press('Enter')
+
+  // Wait for REAL response (not mocked)
+  await page.waitForSelector('[data-testid="ai-card"]', { timeout: 30000 })
+
+  // Verify actual AI behavior
+  const content = await page.locator('[data-testid="ai-card"]').textContent()
+  expect(content).toMatch(/state|where|location/i) // Should ask about location
+})
+```
+
+---
+
 ## Authenticated Testing (Real API)
 
 For tests that hit real Supabase endpoints with actual user data:
