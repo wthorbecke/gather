@@ -1001,6 +1001,123 @@ test.describe('MINOR: Visual Polish', () => {
   })
 })
 
+test.describe('MAJOR: Layout Cohesion', () => {
+  test('no orphaned UI elements on desktop', async ({ page }) => {
+    const auditor = new UXAuditor(page)
+    await setViewport(page, 'desktop')
+    await enterDemoMode(page)
+    await page.waitForLoadState('networkidle')
+
+    // Add a task to get to the card view
+    const input = page.locator(selectors.mainInput).first()
+    await input.fill('layout test task')
+    await input.press('Enter')
+    await page.waitForTimeout(3000)
+
+    // Check for orphaned elements - UI elements that are too far from main content
+    const orphanedElements = await page.evaluate(() => {
+      const issues: string[] = []
+      const viewport = { width: window.innerWidth, height: window.innerHeight }
+
+      // Find all interactive elements (buttons, inputs, etc.)
+      const interactiveElements = document.querySelectorAll('button, input, a, [role="button"]')
+
+      // Find the main content area (usually the card or centered content)
+      const mainContent = document.querySelector('[class*="max-w"]') ||
+                          document.querySelector('main') ||
+                          document.querySelector('[class*="card"]')
+
+      if (!mainContent) return issues
+
+      const mainRect = mainContent.getBoundingClientRect()
+      const mainCenter = mainRect.left + mainRect.width / 2
+
+      for (const el of interactiveElements) {
+        const rect = el.getBoundingClientRect()
+        if (rect.width === 0 || rect.height === 0) continue
+
+        const elCenter = rect.left + rect.width / 2
+        const distanceFromMain = Math.abs(elCenter - mainCenter)
+
+        // Flag if element is more than 400px from main content center on wide screens
+        if (viewport.width > 1000 && distanceFromMain > 400) {
+          const text = (el as HTMLElement).innerText?.slice(0, 20) || el.getAttribute('aria-label') || 'unknown'
+          issues.push(`Isolated element: "${text}" is ${Math.round(distanceFromMain)}px from content`)
+        }
+      }
+
+      return issues
+    })
+
+    if (orphanedElements.length > 0) {
+      auditor.major('layout', 'UI elements isolated from main content', {
+        element: orphanedElements.join('\n'),
+        fix: 'Group toolbar/buttons closer to main content with max-width container',
+      })
+    }
+
+    await captureState(page, 'layout', 'cohesion-desktop')
+    await auditor.assertNoIssues()
+  })
+
+  test('no orphaned text elements (stray numbers, labels)', async ({ page }) => {
+    const auditor = new UXAuditor(page)
+    await enterDemoMode(page)
+    await page.waitForLoadState('networkidle')
+
+    // Add a task to trigger any counter/badge displays
+    const input = page.locator(selectors.mainInput).first()
+    await input.fill('test orphaned text')
+    await input.press('Enter')
+    await page.waitForTimeout(3000)
+
+    // Look for potentially orphaned single-character or number-only elements
+    const orphanedText = await page.evaluate(() => {
+      const issues: string[] = []
+      const textElements = document.querySelectorAll('div, span, p')
+
+      for (const el of textElements) {
+        // Only check leaf nodes (no children with text)
+        if (el.children.length > 0) continue
+
+        const text = el.textContent?.trim() || ''
+        const style = getComputedStyle(el)
+
+        // Skip invisible elements
+        if (style.display === 'none' || style.visibility === 'hidden') continue
+        if (parseFloat(style.opacity) < 0.1) continue
+
+        // Flag single numbers or very short text that might be orphaned
+        if (/^\d{1,2}$/.test(text)) {
+          const rect = el.getBoundingClientRect()
+          // Only flag if visible and not part of a larger component
+          if (rect.width > 0 && rect.height > 0) {
+            const parent = el.parentElement
+            const siblingCount = parent?.children.length || 0
+
+            // Orphaned if it's alone or nearly alone
+            if (siblingCount <= 2) {
+              issues.push(`Stray number "${text}" at (${Math.round(rect.left)}, ${Math.round(rect.top)})`)
+            }
+          }
+        }
+      }
+
+      return issues
+    })
+
+    if (orphanedText.length > 0) {
+      auditor.major('layout', 'Orphaned text elements found', {
+        element: orphanedText.join('\n'),
+        fix: 'Remove or provide context for isolated numbers/labels',
+      })
+    }
+
+    await captureState(page, 'layout', 'orphaned-text')
+    await auditor.assertNoIssues()
+  })
+})
+
 test.afterAll(async () => {
   const reportPath = generateReport('Gather UX Audit - Hypercritical')
   if (reportPath) {

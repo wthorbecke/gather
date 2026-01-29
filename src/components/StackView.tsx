@@ -118,6 +118,9 @@ aiCard,
   const holdTimer = useRef<NodeJS.Timeout | null>(null)
   const holdStartTime = useRef(0)
   const cardRef = useRef<HTMLDivElement>(null)
+  const stackCardsRef = useRef<HTMLDivElement[]>([])
+  const currentSwipeX = useRef(0)
+  const rafId = useRef<number | null>(null)
 
   // Detect dark mode
   useEffect(() => {
@@ -126,6 +129,13 @@ aiCard,
     const observer = new MutationObserver(checkDark)
     observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] })
     return () => observer.disconnect()
+  }, [])
+
+  // Cleanup animation frame on unmount
+  useEffect(() => {
+    return () => {
+      if (rafId.current) cancelAnimationFrame(rafId.current)
+    }
   }, [])
 
   // Build the card stack
@@ -174,6 +184,11 @@ aiCard,
 
     return cards
   }, [tasks, emails, calendarEvents, dismissedIds])
+
+  // Reset stack card refs when stack changes
+  useEffect(() => {
+    stackCardsRef.current = []
+  }, [stack.length])
 
   // Fetch emails
   useEffect(() => {
@@ -246,29 +261,64 @@ aiCard,
     return card.id
   }
 
-  // Drag handlers
+  // Drag handlers - use refs + rAF for smooth 60fps performance
   const handleDragStart = (clientX: number) => {
     if (stack.length === 0 || exitDirection) return
     dragStartX.current = clientX
+    currentSwipeX.current = 0
     setIsDragging(true)
     setIsTouching(true)
   }
 
-  const handleDragMove = (clientX: number) => {
+  const updateCardTransform = useCallback(() => {
+    if (!cardRef.current) return
+    const x = currentSwipeX.current
+    const baseRotation = 2.5
+    const touchRotation = isTouching ? 0 : baseRotation
+    const swipeRotation = x * 0.06
+    cardRef.current.style.transform = `translateX(${x}px) rotate(${touchRotation + swipeRotation}deg)`
+
+    // Update stack cards too for the parallax effect
+    const swipeInfluence = Math.min(Math.abs(x) / 80, 1)
+    stackCardsRef.current.forEach((el, i) => {
+      if (!el) return
+      const depth = stackCardsRef.current.length - i
+      const yOffset = depth * 24
+      const xOffset = depth * 4
+      const rotation = depth * 1.5
+      const scale = 1 - depth * 0.03
+      el.style.transform = `
+        translateY(${yOffset - swipeInfluence * yOffset * 0.7}px)
+        translateX(${xOffset}px)
+        rotate(${rotation}deg)
+        scale(${scale + swipeInfluence * 0.02})
+      `
+    })
+  }, [isTouching])
+
+  const handleDragMove = useCallback((clientX: number) => {
     if (!isDragging) return
-    setSwipeX(clientX - dragStartX.current)
-  }
+    currentSwipeX.current = clientX - dragStartX.current
+
+    // Use rAF for smooth updates without React re-renders
+    if (rafId.current) cancelAnimationFrame(rafId.current)
+    rafId.current = requestAnimationFrame(updateCardTransform)
+  }, [isDragging, updateCardTransform])
 
   const handleDragEnd = useCallback(() => {
     if (!isDragging) return
+    if (rafId.current) cancelAnimationFrame(rafId.current)
+
     setIsDragging(false)
     setIsTouching(false)
 
     const threshold = 100
     const topCard = stack[0]
+    const x = currentSwipeX.current
 
-    if (Math.abs(swipeX) > threshold && topCard) {
-      const direction = swipeX > 0 ? 'right' : 'left'
+    if (Math.abs(x) > threshold && topCard) {
+      const direction = x > 0 ? 'right' : 'left'
+      setSwipeX(x) // Set final position for exit animation
       setExitDirection(direction)
 
       setTimeout(() => {
@@ -276,12 +326,18 @@ aiCard,
         incrementDismissCount(cardId)
         setDismissedIds(prev => new Set(prev).add(cardId))
         setSwipeX(0)
+        currentSwipeX.current = 0
         setExitDirection(null)
       }, 300)
     } else {
+      // Snap back - reset via state to trigger transition
       setSwipeX(0)
+      currentSwipeX.current = 0
+      if (cardRef.current) {
+        cardRef.current.style.transform = ''
+      }
     }
-  }, [isDragging, swipeX, stack])
+  }, [isDragging, stack])
 
   // Hold to complete
   const startHold = useCallback(() => {
@@ -406,6 +462,8 @@ aiCard,
           backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
         }} />
 
+        {/* Centered content container for desktop */}
+        <div className="w-full max-w-lg mx-auto flex-1 flex flex-col">
         {/* Toolbar - same as main view for consistency */}
         <div className="sticky top-0 z-20 px-4 py-3 flex items-center justify-end">
           <div className="flex items-center gap-1">
@@ -489,6 +547,7 @@ aiCard,
             />
           </form>
         </div>
+        </div>{/* End centered container */}
       </div>
     )
   }
@@ -546,14 +605,11 @@ aiCard,
         backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
       }} />
 
-      {/* Minimal toolbar - clean, unobtrusive */}
-      <div className="sticky top-0 z-20 px-4 py-3 flex items-center justify-between">
-        {/* Left: Card count (subtle, only when there are cards) */}
-        <div className="text-xs text-[var(--text-muted)]/60 tabular-nums min-w-[20px]">
-          {stack.length > 0 && stack.length}
-        </div>
-
-        {/* Right: Essential actions */}
+      {/* Centered content container for desktop */}
+      <div className="w-full max-w-lg mx-auto">
+      {/* Minimal toolbar - clean */}
+      <div className="sticky top-0 z-20 px-4 py-3 flex items-center justify-end">
+        {/* Grouped actions - all together on the right */}
         <div className="flex items-center gap-1">
           {/* Add button - primary action, prominent when active */}
           <button
@@ -682,11 +738,12 @@ aiCard,
             const xOffset = depth * 4
             const rotation = depth * 1.5
             const scale = 1 - depth * 0.03
-            const swipeInfluence = Math.min(Math.abs(swipeX) / 80, 1)
+            const swipeInfluence = isDragging ? 0 : Math.min(Math.abs(swipeX) / 80, 1)
 
             return (
               <div
                 key={getCardId(card)}
+                ref={(el) => { if (el) stackCardsRef.current[reverseIndex] = el }}
                 className="absolute inset-0 rounded-[24px] overflow-hidden pointer-events-none"
                 style={{
                   background: isDark
@@ -722,12 +779,14 @@ aiCard,
           {/* Main card */}
           <div
             ref={cardRef}
-            className="absolute inset-0 cursor-grab active:cursor-grabbing select-none"
+            className="absolute inset-0 cursor-grab active:cursor-grabbing select-none touch-none"
             style={{
               zIndex: 10,
-              transform: exitTransform,
+              // Only apply state-based transform when not actively dragging (for exit animations and snap-back)
+              transform: isDragging ? undefined : exitTransform,
               opacity: exitDirection ? (exitDirection === 'up' ? 0 : 1) : 1,
               transition: isDragging ? 'none' : 'all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1)',
+              willChange: isDragging ? 'transform' : 'auto',
             }}
             onMouseDown={(e) => handleDragStart(e.clientX)}
             onMouseMove={(e) => handleDragMove(e.clientX)}
@@ -856,6 +915,7 @@ aiCard,
           </div>
         </div>
       </div>
+      </div>{/* End centered container */}
     </div>
   )
 }
