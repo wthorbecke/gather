@@ -1,6 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuthWithClient } from '@/lib/api-auth'
 
+// Type for task_insights table (not yet in generated types)
+interface TaskInsightRow {
+  id: string
+  user_id: string
+  task_id: string
+  insight_type: string
+  observation: string
+  suggestion: string
+  shown_at: string
+  outcome: string | null
+  outcome_at: string | null
+  action_delay_hours: number | null
+}
+
 /**
  * Record task insight shown to user and track outcomes
  *
@@ -25,13 +39,14 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if we recently showed an insight for this task (within 7 days)
-    const { data: recentInsight } = await supabase
+    // eslint-disable-next-line
+    const { data: recentInsight } = await (supabase as any)
       .from('task_insights')
       .select('id')
       .eq('user_id', user.id)
       .eq('task_id', taskId)
       .gte('shown_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
-      .maybeSingle()
+      .maybeSingle() as { data: Pick<TaskInsightRow, 'id'> | null }
 
     if (recentInsight) {
       // Don't record duplicate - already shown recently
@@ -39,7 +54,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Record the insight
-    const { data: insight, error } = await supabase
+    // eslint-disable-next-line
+    const { data: insight, error } = await (supabase as any)
       .from('task_insights')
       .insert({
         user_id: user.id,
@@ -49,9 +65,9 @@ export async function POST(request: NextRequest) {
         suggestion,
       })
       .select('id')
-      .single()
+      .single() as { data: Pick<TaskInsightRow, 'id'> | null; error: Error | null }
 
-    if (error) {
+    if (error || !insight) {
       return NextResponse.json({ error: 'Failed to record insight' }, { status: 500 })
     }
 
@@ -88,12 +104,13 @@ export async function PATCH(request: NextRequest) {
     }
 
     // Get the insight to calculate delay
-    const { data: insight } = await supabase
+    // eslint-disable-next-line
+    const { data: insight } = await (supabase as any)
       .from('task_insights')
       .select('shown_at')
       .eq('id', insightId)
       .eq('user_id', user.id)
-      .single()
+      .single() as { data: Pick<TaskInsightRow, 'shown_at'> | null }
 
     if (!insight) {
       return NextResponse.json({ error: 'Insight not found' }, { status: 404 })
@@ -103,7 +120,8 @@ export async function PATCH(request: NextRequest) {
       (Date.now() - new Date(insight.shown_at).getTime()) / (1000 * 60 * 60)
     )
 
-    const { error } = await supabase
+    // eslint-disable-next-line
+    const { error } = await (supabase as any)
       .from('task_insights')
       .update({
         outcome,
@@ -111,7 +129,7 @@ export async function PATCH(request: NextRequest) {
         action_delay_hours: actionDelayHours,
       })
       .eq('id', insightId)
-      .eq('user_id', user.id)
+      .eq('user_id', user.id) as { error: Error | null }
 
     if (error) {
       return NextResponse.json({ error: 'Failed to update insight' }, { status: 500 })

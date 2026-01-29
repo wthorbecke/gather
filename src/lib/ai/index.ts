@@ -117,3 +117,19 @@ export {
   type SSEEventType,
   type SSEEvent,
 } from './streaming'
+
+// Task intelligence utilities
+export {
+  calculateAvgCompletionDays,
+  analyzeUserPatterns,
+  analyzeInsightHistory,
+  transformTask,
+  INSIGHT_FREQUENCY_HOURS,
+  type TaskRow,
+  type TaskRowWithUser,
+  type CompletedTaskRow,
+  type CompletionRow,
+  type CompletionRowWithUser,
+  type InsightRow,
+  type InsightRowWithUser,
+} from './task-intelligence'

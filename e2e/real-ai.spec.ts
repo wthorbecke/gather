@@ -58,9 +58,30 @@ async function waitForAIResponse(page: Page, timeout = 30000) {
   throw new Error('AI response timeout')
 }
 
+// Helper to navigate to a clean state where we can add a task
+async function ensureHomeState(page: Page) {
+  // If we're in a task view, close it
+  const closeButton = page.locator('button[aria-label="Close"]').first()
+  if (await closeButton.isVisible({ timeout: 500 }).catch(() => false)) {
+    await closeButton.click()
+    await page.waitForTimeout(500)
+  }
+
+  // If there's an "Add task" button, click it to show the input
+  const addButton = page.locator('button:has-text("Add task")').first()
+  if (await addButton.isVisible({ timeout: 500 }).catch(() => false)) {
+    await addButton.click()
+    await page.waitForTimeout(500)
+  }
+}
+
 // Helper to submit input and wait for AI
 async function submitAndWaitForAI(page: Page, text: string) {
-  const input = page.locator('input[placeholder*="next"], input[placeholder*="Add something"]')
+  await ensureHomeState(page)
+
+  // Look for input - try multiple selectors
+  const input = page.locator('input[placeholder*="next"], input[placeholder*="Add something"], input[placeholder*="What"]')
+  await input.waitFor({ state: 'visible', timeout: 5000 })
   await input.fill(text)
   await input.press('Enter')
   await waitForAIResponse(page)

@@ -8,132 +8,21 @@ import {
   DEFAULT_TASK_INTELLIGENCE,
   parseAIResponse,
   extractJSON,
-  type TaskForIntelligence,
-  type UserPatterns,
+  analyzeUserPatterns,
+  analyzeInsightHistory,
+  transformTask,
+  INSIGHT_FREQUENCY_HOURS,
+  type TaskRowWithUser,
+  type CompletionRow,
+  type CompletionRowWithUser,
+  type InsightRow,
+  type InsightRowWithUser,
   type TaskIntelligenceResponse,
-  type InsightHistory,
 } from '@/lib/ai'
-
-interface TaskRow {
-  id: string
-  title: string
-  created_at: string
-  category: string
-  due_date: string | null
-  steps: Array<{ done?: boolean }> | null
-  updated_at: string | null
-  notes: string | null
-  user_id: string
-}
-
-interface CompletionRow {
-  completed_at: string
-  completion_day_of_week: number
-  completion_hour: number
-}
-
-interface InsightRow {
-  task_id: string
-  outcome: string | null
-  action_delay_hours: number | null
-  shown_at: string
-}
-
-/**
- * Analyze insight history for learning
- */
-function analyzeInsightHistory(insights: InsightRow[]): InsightHistory {
-  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
-
-  const recentTaskIds = insights
-    .filter(i => new Date(i.shown_at) > sevenDaysAgo)
-    .map(i => i.task_id)
-
-  const withOutcome = insights.filter(i => i.outcome)
-  const acted = withOutcome.filter(i => i.outcome === 'acted' || i.outcome === 'task_completed').length
-  const dismissed = withOutcome.filter(i => i.outcome === 'dismissed').length
-
-  const delayHours = withOutcome
-    .filter(i => i.action_delay_hours !== null)
-    .map(i => i.action_delay_hours!)
-
-  const avgDelay = delayHours.length > 0
-    ? delayHours.reduce((a, b) => a + b, 0) / delayHours.length
-    : 0
-
-  return {
-    totalShown: insights.length,
-    actedOn: acted,
-    dismissed,
-    avgActionDelayHours: avgDelay,
-    recentTaskIds,
-  }
-}
-
-/**
- * Analyze user patterns from completion history
- */
-function analyzeUserPatterns(completions: CompletionRow[]): UserPatterns {
-  if (completions.length === 0) {
-    return {
-      avgCompletionDays: 7,
-      preferredDays: [],
-      productiveHours: 'unknown',
-      recentCompletions: 0,
-    }
-  }
-
-  const dayCount: Record<number, number> = {}
-  const hourCount: Record<number, number> = {}
-
-  for (const c of completions) {
-    dayCount[c.completion_day_of_week] = (dayCount[c.completion_day_of_week] || 0) + 1
-    hourCount[c.completion_hour] = (hourCount[c.completion_hour] || 0) + 1
-  }
-
-  const sortedDays = Object.entries(dayCount)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 2)
-    .map(([day]) => ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][parseInt(day)])
-
-  let peakHour = 10
-  let maxCount = 0
-  for (let h = 6; h <= 20; h++) {
-    const cluster = (hourCount[h] || 0) + (hourCount[h + 1] || 0)
-    if (cluster > maxCount) {
-      maxCount = cluster
-      peakHour = h
-    }
-  }
-
-  const formatHour = (h: number) => (h > 12 ? `${h - 12}pm` : h === 12 ? '12pm' : `${h}am`)
-
-  return {
-    avgCompletionDays: 7,
-    preferredDays: sortedDays,
-    productiveHours: `${formatHour(peakHour)}-${formatHour(peakHour + 2)}`,
-    recentCompletions: completions.length,
-  }
-}
-
-function transformTask(task: TaskRow): TaskForIntelligence {
-  const steps = task.steps || []
-  return {
-    id: task.id,
-    title: task.title,
-    createdAt: task.created_at,
-    category: task.category as 'urgent' | 'soon' | 'waiting',
-    dueDate: task.due_date,
-    stepsTotal: steps.length,
-    stepsDone: steps.filter(s => s.done).length,
-    lastInteraction: task.updated_at,
-    notes: task.notes,
-  }
-}
 
 async function runIntelligenceForUser(
   apiKey: string,
-  tasks: TaskRow[],
+  tasks: TaskRowWithUser[],
   completions: CompletionRow[],
   insights: InsightRow[]
 ): Promise<TaskIntelligenceResponse> {
@@ -235,7 +124,7 @@ export async function GET(request: Request) {
       if (!acc[task.user_id]) acc[task.user_id] = []
       acc[task.user_id].push(task)
       return acc
-    }, {} as Record<string, TaskRow[]>)
+    }, {} as Record<string, TaskRowWithUser[]>)
 
     const userIds = Object.keys(tasksByUser)
     if (userIds.length === 0) {
@@ -262,11 +151,12 @@ export async function GET(request: Request) {
     const thirtyDaysAgo = new Date()
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
 
-    const { data: allCompletions } = await supabase
+    // Tables not yet in generated Supabase types - cast as needed
+    const { data: allCompletions } = await (supabase as any)
       .from('task_completions')
       .select('user_id, completed_at, completion_day_of_week, completion_hour')
       .in('user_id', userIds)
-      .gte('completed_at', thirtyDaysAgo.toISOString())
+      .gte('completed_at', thirtyDaysAgo.toISOString()) as { data: CompletionRowWithUser[] | null }
 
     const completionsByUser = (allCompletions || []).reduce((acc, c) => {
       if (!acc[c.user_id]) acc[c.user_id] = []
@@ -275,11 +165,12 @@ export async function GET(request: Request) {
     }, {} as Record<string, CompletionRow[]>)
 
     // Get insight history for all users
-    const { data: allInsights } = await supabase
+    // Tables not yet in generated Supabase types - cast as needed
+    const { data: allInsights } = await (supabase as any)
       .from('task_insights')
       .select('user_id, task_id, outcome, action_delay_hours, shown_at')
       .in('user_id', userIds)
-      .order('shown_at', { ascending: false })
+      .order('shown_at', { ascending: false }) as { data: InsightRowWithUser[] | null }
 
     const insightsByUser = (allInsights || []).reduce((acc, i) => {
       if (!acc[i.user_id]) acc[i.user_id] = []
@@ -299,12 +190,7 @@ export async function GET(request: Request) {
       // Check last insight time based on frequency
       if (user.last_insight_at) {
         const hoursSinceLastInsight = (Date.now() - new Date(user.last_insight_at).getTime()) / (1000 * 60 * 60)
-        const minHoursMap: Record<'minimal' | 'normal' | 'frequent', number> = {
-          minimal: 168, // 7 days
-          normal: 72,   // 3 days
-          frequent: 24, // 1 day
-        }
-        const minHours = minHoursMap[frequency as 'minimal' | 'normal' | 'frequent'] ?? 72
+        const minHours = INSIGHT_FREQUENCY_HOURS[frequency as 'minimal' | 'normal' | 'frequent'] ?? 72
 
         if (hoursSinceLastInsight < minHours) {
           skippedFrequency++
@@ -345,8 +231,9 @@ export async function GET(request: Request) {
         )
 
         // Record the insight and update last_insight_at
+        // Tables not yet in generated Supabase types - cast as needed
         await Promise.all([
-          supabase.from('task_insights').insert({
+          (supabase as any).from('task_insights').insert({
             user_id: user.id,
             task_id: top.taskId,
             insight_type: top.type,
