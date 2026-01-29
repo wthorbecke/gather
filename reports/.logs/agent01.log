@@ -1,0 +1,25 @@
+The information architecture audit is complete. The report has been saved to `/reports/01_information_architecture.md`.
+
+**Summary of findings:**
+
+The app has a 3-level data hierarchy (Task → Step → Checklist) that's too deep for ADHD users. Seven key mismatches exist between the data model and UI:
+
+1. **"Step" vs "subtask" terminology confusion** — legacy `subtasks` field still in schema
+2. **Non-interactive checklists** that look clickable but aren't
+3. **Invisible text parsing** that splits step text unpredictably
+4. **"Context" means three different things** in different places
+5. **Task categories exist in data but not in UI**
+6. **Two view modes (List vs Cards)** with incompatible mental models
+7. **Habits/Soul Activities are orphaned** — in database, not in UI
+
+Seven cognitive load violations identified:
+
+1. "Up next" creates false urgency without user agency
+2. Four different progress indicator styles
+3. Critical actions (links, time estimates) hidden behind expansion
+4. "I'm stuck" button buried 3 interactions deep
+5. Focus mode adds unnecessary cognitive layer
+6. Input purpose changes without visual indication
+7. Snooze requires 7 interactions via a modal
+
+**The brutal truth:** This architecture claims "zero friction" but delivers hidden affordances, split mental models, and ghost features. The most important ADHD escape hatch ("I'm stuck") is the hardest to reach.

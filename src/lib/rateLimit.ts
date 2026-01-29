@@ -254,10 +254,10 @@ export const RATE_LIMITS = {
     windowSeconds: 60, // 30 tasks per minute
     name: 'task-create',
   },
-  /** Email scanning - very expensive */
+  /** Email scanning - expensive but allow reasonable usage */
   emailScan: {
-    limit: 5,
-    windowSeconds: 300, // 5 scans per 5 minutes
+    limit: 10,
+    windowSeconds: 60, // 10 scans per minute
     name: 'email-scan',
   },
   /** Global catch-all for API abuse */

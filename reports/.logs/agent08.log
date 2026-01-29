@@ -1,0 +1,33 @@
+I've completed the competitive analysis report. Here's the summary:
+
+## Key Findings
+
+**True Differentiators Gather Has:**
+1. **AI Research + Task Breakdown** - Gather actually researches your specific situation (Googles state-specific forms, finds real phone numbers, deadlines)
+2. **Pre-filled Action URLs** - Steps include `tel:` links, payment URLs, case numbers - everything needed to execute
+3. **AI Clarifying Questions** - Asks context before generating steps, making output actually useful
+4. **"I'm Stuck" Chat** - Context-aware help when users hit walls mid-task
+5. **Rich Step Metadata** - Alternatives, examples, checklists, sources, time estimates in every step
+
+**Critical Gaps:**
+- No mobile native app (web-only is a dealbreaker for consumer apps)
+- No visual timeline/time blocking (Tiimo's core strength)
+- No Android support (40%+ of market)
+- Tiimo won App Store App of the Year 2025 - massive brand advantage
+
+**Competitive Position:**
+- Gather has *better* AI task breakdown than Tiimo/Llama Life (depth, research, action URLs)
+- But Tiimo has *better* distribution (App Store presence, brand, visual polish)
+- Motion/Reclaim are not real competitors - different use case (auto-scheduling vs. task help)
+
+**The Honest Answer:**
+Gather fills a real gap - the space between "I know what I should do" and "I'm actually doing it." The AI research + pre-filled actions is genuinely differentiated. But the moat is weak (Tiimo could copy these features), and distribution (web-only, no brand) is the critical weakness.
+
+**Strategic Recommendations:**
+1. Get on the App Store immediately
+2. Own "AI does the research" messaging
+3. Target the "ADHD tax" pain point (late fees, missed refunds)
+4. Create a free tier with viral potential
+5. Don't chase visual timelines - deepen the AI research advantage
+
+Report saved to `/reports/08_competitive_analysis.md`

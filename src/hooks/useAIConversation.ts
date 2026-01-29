@@ -16,6 +16,7 @@ import {
 } from '@/lib/taskHelpers'
 import { OTHER_SPECIFY_OPTION } from '@/config/content'
 import { splitStepText } from '@/lib/stepText'
+import { authFetch } from '@/lib/supabase'
 import type { ChatAction, SubtaskItem, AnalyzeIntentStep } from '@/lib/api-types'
 import type { ContextTag } from './useTaskNavigation'
 
@@ -263,7 +264,7 @@ export function useAIConversation(deps: AIConversationDeps): AIConversationState
               ]
             : []
 
-          const response = await fetch('/api/chat', {
+          const response = await authFetch('/api/chat', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
@@ -309,7 +310,7 @@ export function useAIConversation(deps: AIConversationDeps): AIConversationState
           }
         } else {
           const existingStepTexts = (currentTaskValue.steps || []).map(s => s.text)
-          const response = await fetch('/api/suggest-subtasks', {
+          const response = await authFetch('/api/suggest-subtasks', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -440,7 +441,7 @@ export function useAIConversation(deps: AIConversationDeps): AIConversationState
             ]
           : []
 
-        const response = await fetch('/api/chat', {
+        const response = await authFetch('/api/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -494,7 +495,7 @@ export function useAIConversation(deps: AIConversationDeps): AIConversationState
         // Pass existing steps to avoid duplicates
         const existingStepTexts = (targetTask.steps || []).map(s => s.text)
 
-        const response = await fetch('/api/suggest-subtasks', {
+        const response = await authFetch('/api/suggest-subtasks', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -567,7 +568,7 @@ export function useAIConversation(deps: AIConversationDeps): AIConversationState
 
     try {
       // Call general-purpose AI analysis endpoint
-      const response = await fetch('/api/analyze-intent', {
+      const response = await authFetch('/api/analyze-intent', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -627,7 +628,7 @@ export function useAIConversation(deps: AIConversationDeps): AIConversationState
         setAiCard({ thinking: true, message: "Researching the best steps for you..." })
 
         try {
-          const response = await fetch('/api/suggest-subtasks', {
+          const response = await authFetch('/api/suggest-subtasks', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -856,7 +857,7 @@ export function useAIConversation(deps: AIConversationDeps): AIConversationState
 
         try {
           addToConversation('user', `Context: ${contextDescription}`)
-          const response = await fetch('/api/suggest-subtasks', {
+          const response = await authFetch('/api/suggest-subtasks', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -1006,7 +1007,7 @@ export function useAIConversation(deps: AIConversationDeps): AIConversationState
         // Add the gathered context to conversation history
         addToConversation('user', `Context: ${contextDescription}`)
 
-        const response = await fetch('/api/suggest-subtasks', {
+        const response = await authFetch('/api/suggest-subtasks', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -1106,7 +1107,7 @@ export function useAIConversation(deps: AIConversationDeps): AIConversationState
     setAiCard({ thinking: true })
 
     try {
-      const response = await fetch('/api/suggest-subtasks', {
+      const response = await authFetch('/api/suggest-subtasks', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

@@ -1,0 +1,32 @@
+Code quality audit complete. Report saved to `reports/07_code_quality.md`.
+
+**Summary of findings:**
+
+**Critical Issues:**
+- `GatherApp.tsx` at 1541 lines with 155 functions is a god component
+- `StackView.tsx` (931 lines) and `useUserData.ts` (756 lines) are similarly bloated
+- 48-50 hooks in single components
+
+**Type Safety: C+**
+- 7 explicit `any` uses (all in AI response parsing)
+- No `@ts-ignore`, `@ts-expect-error`, or eslint disables
+
+**Code Smells Found:**
+- 167 console.log statements that shouldn't ship
+- 1 TODO comment
+- Prop drilling 3+ levels deep
+- Magic timeout numbers scattered throughout
+- Duplicate fetch patterns
+
+**Dead Code:**
+- 4 components with 0 imports (EmailModal, GameUI, ReflectionCard, StatsCard)
+- 3 empty API directories
+
+**Error Handling Gaps:**
+- No error boundaries
+- localStorage access without try-catch (8+ locations)
+- Inconsistent fetch error handling
+
+**If you have 4 hours:** Add error boundaries, wrap localStorage, remove console.logs, extract task creation logic.
+
+**If you have 4 days:** Split the god component, restructure data hooks, add proper typing, implement error handling throughout.

@@ -11,3 +11,35 @@ export function createServerClient() {
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
   return createClient(supabaseUrl, serviceRoleKey)
 }
+
+/**
+ * Get the current session's access token for API calls.
+ * Returns null if not authenticated.
+ */
+export async function getAccessToken(): Promise<string | null> {
+  const { data: { session } } = await supabase.auth.getSession()
+  return session?.access_token ?? null
+}
+
+/**
+ * Make an authenticated fetch request to an API route.
+ * Automatically adds the Authorization header with the user's access token.
+ */
+export async function authFetch(
+  url: string,
+  options: RequestInit = {}
+): Promise<Response> {
+  const token = await getAccessToken()
+
+  const headers = new Headers(options.headers)
+  headers.set('Content-Type', 'application/json')
+
+  if (token) {
+    headers.set('Authorization', `Bearer ${token}`)
+  }
+
+  return fetch(url, {
+    ...options,
+    headers,
+  })
+}

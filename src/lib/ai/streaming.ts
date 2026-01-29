@@ -7,6 +7,7 @@
  */
 
 import { AI_MODELS } from '@/config/ai'
+import { authFetch } from '@/lib/supabase'
 
 // ============================================================================
 // Types
@@ -354,7 +355,7 @@ export async function streamChat(
   history: Array<{ role: string; content: string }>,
   callbacks: StreamCallbacks
 ): Promise<{ response: string; sources: Array<{ title: string; url: string }>; actions: unknown[] }> {
-  const response = await fetch('/api/chat', {
+  const response = await authFetch('/api/chat', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -420,7 +421,7 @@ export async function streamSubtasks(
   existingSubtasks: string[],
   callbacks: StreamCallbacks
 ): Promise<{ subtasks: unknown[]; sources: Array<{ title: string; url: string }> }> {
-  const response = await fetch('/api/suggest-subtasks', {
+  const response = await authFetch('/api/suggest-subtasks', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
