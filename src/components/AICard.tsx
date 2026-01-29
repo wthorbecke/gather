@@ -112,8 +112,9 @@ export function AICard({
 
   return (
     <div
+      data-testid="ai-card"
       className={`
-        rounded-xl p-4
+        ai-card rounded-xl p-4
         mb-4
         ${isDismissing ? 'animate-fade-out' : 'animate-fade-in'}
       `}
@@ -179,7 +180,7 @@ export function AICard({
       )}
 
       {card.thinking ? (
-        <>
+        <div aria-busy="true" aria-live="polite" role="status">
           {/* Show previous message if this is a follow-up */}
           {card.message && (
             <div className="text-base leading-relaxed mb-4 opacity-60">
@@ -189,7 +190,7 @@ export function AICard({
           <div className="space-y-3">
             {/* Thinking indicator - three gentle dots with staggered pulse */}
             <div className="flex items-center gap-3">
-              <div className="flex gap-1.5">
+              <div className="flex gap-1.5 loading-indicator">
                 <span
                   className="w-2 h-2 rounded-full bg-accent/40"
                   style={{ animation: 'thinkingPulse 1.4s ease-in-out infinite' }}
@@ -212,7 +213,7 @@ export function AICard({
               50% { opacity: 1; transform: scale(1.2); }
             }
           `}</style>
-        </>
+        </div>
       ) : (
         <>
 
