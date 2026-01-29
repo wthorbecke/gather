@@ -69,10 +69,12 @@ const TASK_PATTERNS = [
   /your .* is ready/i,
   /pick up/i,
   /pickup/i,
-  // Reminders
-  /reminder/i,
-  /don't forget/i,
-  /friendly reminder/i,
+  // Reminders (specific to appointments/deadlines, not marketing)
+  /reminder.*(appointment|deadline|due|payment|renew|expir)/i,
+  /appointment reminder/i,
+  /payment reminder/i,
+  /friendly reminder.*(due|deadline|appointment)/i,
+  // Follow-ups (from people, not marketing)
   /follow up/i,
   /following up/i,
   /checking in/i,
@@ -87,19 +89,22 @@ const TASK_PATTERNS = [
   /payment due/i,
   /payment reminder/i,
   /bill is ready/i,
-  /invoice/i,
+  /invoice #?\d/i, // Only match invoices with numbers
   /statement ready/i,
   /amount due/i,
   /balance due/i,
   /pay by/i,
-  /autopay/i,
-  // Renewals & subscriptions
-  /renewal/i,
-  /renew your/i,
-  /subscription/i,
-  /membership/i,
+  // Note: removed generic /autopay/i - autopay confirmations are false positives
+  // Renewals (with clear urgency)
+  /renewal (notice|reminder|due|required)/i,
+  /renew your .*(by|before)/i,
+  /renew now/i,
+  // Subscription/membership with expiration (NOT confirmations)
+  /subscription (expir|renew|end)/i,
+  /membership (expir|renew|end)/i,
   /will expire/i,
   /about to expire/i,
+  /expires? (on|in|soon|today|tomorrow)/i,
   // Verification & confirmation
   /verify your/i,
   /confirm your/i,
@@ -110,19 +115,15 @@ const TASK_PATTERNS = [
   /schedule your/i,
   /book your/i,
   /rsvp/i,
-  // Urgency
+  // Urgency (only when combined with clear action requirements)
   /time.sensitive/i,
-  /urgent/i,
-  /important/i,
-  /asap/i,
-  /immediately/i,
+  /urgent.*(action|response|reply|review)/i,
+  /important.*(action|notice|deadline|update to your account)/i,
+  // Note: removed standalone /urgent/i, /important/i, /asap/i - too often abused by marketing
   /respond by/i,
-  // Shipping & orders
-  /shipped/i,
-  /delivered/i,
-  /out for delivery/i,
-  /track your/i,
-  /order confirmed/i,
+  // Shipping & orders - only pick up notifications are actionable
+  // Note: removed /shipped/i, /delivered/i, /out for delivery/i, /track your/i, /order confirmed/i
+  // These are informational, not actionable (already handled in false positives)
 ]
 
 interface GmailMessage {
@@ -233,6 +234,62 @@ const FALSE_POSITIVE_PATTERNS = [
   // Otter/transcription ready (informational)
   /ready to view in otter/i,
   /transcript is ready/i,
+
+  // Subscription confirmations (NOT renewals with deadlines)
+  /you('ve| have)? subscribed/i,
+  /thanks for subscribing/i,
+  /thank you for subscribing/i,
+  /welcome to .*(newsletter|list|community)/i,
+  /subscription confirmed/i,
+  /you're now subscribed/i,
+  /you are now subscribed/i,
+  /successfully subscribed/i,
+  /added to .*(list|newsletter)/i,
+
+  // Membership confirmations (NOT renewals)
+  /welcome to .*(membership|club|program)/i,
+  /membership confirmed/i,
+  /you('re| are) now a member/i,
+  /thanks for joining/i,
+  /thank you for joining/i,
+
+  // Generic welcome emails
+  /welcome to/i,
+  /getting started with/i,
+  /thanks for signing up/i,
+  /thank you for signing up/i,
+
+  // Status updates (informational)
+  /status update/i,
+  /here's what's new/i,
+  /what's new in/i,
+  /new features/i,
+  /product update/i,
+
+  // Security notifications (usually just FYI)
+  /new sign-?in/i,
+  /logged in from/i,
+  /new device/i,
+  /security alert.*successful/i,
+
+  // Social notifications
+  /liked your/i,
+  /commented on/i,
+  /mentioned you/i,
+  /shared with you/i,
+  /sent you a message/i,
+  /new follower/i,
+  /new connection/i,
+
+  // Marketing "limited time" urgency (fake urgency)
+  /limited time/i,
+  /flash sale/i,
+  /ending soon/i,
+  /don't miss out/i,
+  /exclusive offer/i,
+  /special offer/i,
+  /% off/i,
+  /sale ends/i,
 ]
 
 // Check if email is likely a false positive

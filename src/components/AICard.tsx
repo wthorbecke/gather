@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Task } from '@/hooks/useUserData'
 import { hasAuthoritativeSources } from '@/lib/sourceQuality'
+import { RichText } from './RichText'
 
 // Conversational, lowercase - like a friend thinking out loud
 const loadingMessages = [
@@ -214,14 +215,14 @@ export function AICard({
           {/* Show previous message if this is a follow-up */}
           {card.message && !card.streaming && (
             <div className="text-base leading-relaxed mb-4 opacity-60">
-              {cleanMessage(card.message)}
+              <RichText>{cleanMessage(card.message)}</RichText>
             </div>
           )}
 
           {/* Streaming text with cursor */}
           {card.streaming && card.streamingText && (
             <div className="text-base leading-relaxed mb-4">
-              {cleanMessage(card.streamingText)}
+              <RichText>{cleanMessage(card.streamingText)}</RichText>
               <span
                 className="inline-block w-2 h-4 ml-0.5 bg-accent/60 rounded-sm"
                 style={{ animation: 'cursorBlink 1s ease-in-out infinite' }}
@@ -272,7 +273,7 @@ export function AICard({
                 card.quickReplies || card.taskCreated ? 'mb-4' : ''
               }`}
             >
-              {cleanMessage(card.message)}
+              <RichText>{cleanMessage(card.message)}</RichText>
             </div>
           )}
 
