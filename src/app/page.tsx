@@ -6,6 +6,7 @@ import { LoginPage } from '@/components/LoginPage'
 import { GatherApp } from '@/components/GatherApp'
 import { User } from '@supabase/supabase-js'
 import { content } from '@/config/content'
+import { safeRemoveItem } from '@/lib/storage'
 
 export default function Home() {
   const { user, loading: authLoading, signOut } = useAuth()
@@ -48,12 +49,8 @@ export default function Home() {
     return (
       <LoginPage
         onTryDemo={() => {
-          try {
-            localStorage.removeItem('gather-demo-tasks-v1')
-            localStorage.removeItem(content.demo.tasksStorageKey)
-          } catch {
-            // Ignore storage errors
-          }
+          // Clear only legacy v1 storage format, preserve current demo data
+          safeRemoveItem('gather-demo-tasks-v1')
           setDemoMode(true)
         }}
       />

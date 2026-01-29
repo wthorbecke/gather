@@ -2,6 +2,14 @@ import { NextResponse } from 'next/server'
 import webpush, { PushSubscription as WebPushSubscription } from 'web-push'
 import { createClient } from '@supabase/supabase-js'
 import { AI_MODELS } from '@/config/ai'
+import {
+  buildNudgePrompt,
+  NudgeMessageSchema,
+  getDefaultNudge,
+  parseAIResponse,
+  extractJSON,
+  type NudgeMessage,
+} from '@/lib/ai'
 
 interface Task {
   id: string
@@ -37,29 +45,22 @@ async function generateNudgeMessage(
   task: Task,
   daysUntilDue: number,
   isOverdue: boolean
-): Promise<{ title: string; body: string }> {
+): Promise<NudgeMessage> {
   const urgency = isOverdue ? 'overdue' : daysUntilDue <= 1 ? 'urgent' : 'upcoming'
+  const daysInfo = isOverdue ? `${Math.abs(daysUntilDue)} days overdue` : `due in ${daysUntilDue} days`
   const progress = task.steps
     ? `${task.steps.filter(s => s.done).length}/${task.steps.length} steps done`
     : 'no steps tracked'
 
-  const prompt = `Generate a short, ADHD-friendly notification for a task deadline.
-
-Task: "${task.title}"
-Status: ${urgency} (${isOverdue ? `${Math.abs(daysUntilDue)} days overdue` : `due in ${daysUntilDue} days`})
-Progress: ${progress}
-Deadline type: ${task.deadline_type} (hard = real consequences, soft = preferred, flexible = nice-to-have)
-Times nudged before: ${task.nudge_count}
-
-Rules:
-- Be warm and supportive, never guilt-tripping
-- Keep title under 40 chars, body under 100 chars
-- If overdue with hard deadline, be direct but kind
-- If they've been nudged many times, acknowledge it gently
-- Suggest ONE small action they could take right now
-- No excessive emojis or corporate wellness speak
-
-Return JSON: { "title": "...", "body": "..." }`
+  // Use centralized prompt builder
+  const prompt = buildNudgePrompt(
+    task.title,
+    urgency,
+    daysInfo,
+    progress,
+    task.deadline_type,
+    task.nudge_count
+  )
 
   try {
     const response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -78,31 +79,25 @@ Return JSON: { "title": "...", "body": "..." }`
 
     const data = await response.json()
     const text = data.content?.[0]?.text || ''
-    const match = text.match(/\{[\s\S]*\}/)
-    if (match) {
-      return JSON.parse(match[0])
+
+    // Parse and validate with Zod schema
+    const extracted = extractJSON(text)
+    const { success, data: nudge } = parseAIResponse(
+      NudgeMessageSchema,
+      extracted,
+      getDefaultNudge(task.title, daysUntilDue, isOverdue),
+      'nudge-message'
+    )
+
+    if (success) {
+      return nudge
     }
-  } catch (error) {
-    console.error('Error generating nudge:', error)
+  } catch {
+    // Error handled silently
   }
 
-  // Fallback messages
-  if (isOverdue) {
-    return {
-      title: `${task.title} is overdue`,
-      body: "It's not too late. What's one small step you could take?",
-    }
-  } else if (daysUntilDue <= 1) {
-    return {
-      title: `${task.title} is due tomorrow`,
-      body: 'You\'ve got this. Start with the first step.',
-    }
-  } else {
-    return {
-      title: `${task.title} is coming up`,
-      body: `Due in ${daysUntilDue} days. Good time to make progress.`,
-    }
-  }
+  // Return fallback from centralized function
+  return getDefaultNudge(task.title, daysUntilDue, isOverdue)
 }
 
 /**
@@ -211,7 +206,7 @@ export async function GET(request: Request) {
       .or(`snoozed_until.is.null,snoozed_until.lte.${today}`)
 
     if (tasksError) {
-      console.error('Error fetching tasks:', tasksError)
+      // Error handled silently('Error fetching tasks:', tasksError)
       return NextResponse.json({ error: 'Failed to fetch tasks' }, { status: 500 })
     }
 
@@ -234,7 +229,7 @@ export async function GET(request: Request) {
       .in('id', userIds)
 
     if (usersError) {
-      console.error('Error fetching users:', usersError)
+      // Error handled silently('Error fetching users:', usersError)
       return NextResponse.json({ error: 'Failed to fetch users' }, { status: 500 })
     }
 
@@ -304,7 +299,7 @@ export async function GET(request: Request) {
                 .delete()
                 .eq('user_id', user.id)
             }
-            console.error('Push error:', err)
+            // Error handled silently('Push error:', err)
           }
         }
 
@@ -339,7 +334,7 @@ export async function GET(request: Request) {
       notifications: notifications.map(n => ({ taskId: n.taskId, title: n.message.title })),
     })
   } catch (err) {
-    console.error('Deadline check error:', err)
+    // Error handled silently('Deadline check error:', err)
     return NextResponse.json({ error: 'Internal error' }, { status: 500 })
   }
 }

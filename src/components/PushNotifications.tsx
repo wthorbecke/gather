@@ -44,7 +44,7 @@ export function PushNotifications() {
         const subscription = await registration.pushManager.getSubscription()
         setIsSubscribed(!!subscription)
       }).catch((err) => {
-        console.error('Service worker registration failed:', err)
+        // Error handled silently('Service worker registration failed:', err)
       })
     }
   }, [])
@@ -74,12 +74,12 @@ export function PushNotifications() {
       })
 
       if (error) {
-        console.error('Failed to save subscription:', error)
+        // Error handled silently('Failed to save subscription:', error)
       } else {
         setIsSubscribed(true)
       }
     } catch (err) {
-      console.error('Failed to subscribe:', err)
+      // Error handled silently('Failed to subscribe:', err)
     }
   }
 
@@ -104,13 +104,13 @@ export function PushNotifications() {
       <div className="flex gap-2">
         <button
           onClick={subscribe}
-          className="flex-1 py-2 bg-text text-white rounded-lg text-[0.85rem] hover:opacity-90 transition-opacity btn-press tap-target"
+          className="flex-1 py-2.5 min-h-[44px] bg-text text-white rounded-lg text-[0.85rem] font-medium hover:opacity-90 transition-opacity duration-150 ease-out btn-press"
         >
           Enable notifications
         </button>
         <button
           onClick={handleDismiss}
-          className="px-3 py-2 text-text-muted text-[0.85rem] hover:text-text transition-colors btn-press tap-target"
+          className="px-3 py-2 min-h-[44px] text-text-muted text-[0.85rem] hover:text-text transition-colors duration-150 ease-out btn-press"
         >
           Not now
         </button>

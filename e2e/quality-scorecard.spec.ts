@@ -220,7 +220,7 @@ test.describe('Features', () => {
     await page.waitForLoadState('networkidle')
 
     // Can add a task
-    const input = page.locator('input[placeholder*="next"], input[placeholder*="Add"]').first()
+    const input = page.locator('input[placeholder*="next" i], input[placeholder*="Add" i], input[placeholder*="done" i]').first()
     const canAddTask = await input.isVisible()
 
     addScore({
@@ -355,7 +355,7 @@ test.describe('UX', () => {
     await enterDemoMode(page)
     await page.waitForLoadState('networkidle')
 
-    const input = page.locator('input[placeholder*="next"], input[placeholder*="Add"]').first()
+    const input = page.locator('input[placeholder*="next" i], input[placeholder*="Add" i], input[placeholder*="done" i]').first()
     await input.fill('test loading feedback')
 
     await input.press('Enter')
@@ -392,7 +392,7 @@ test.describe('UX', () => {
     // Simulate offline
     await context.setOffline(true)
 
-    const input = page.locator('input[placeholder*="next"], input[placeholder*="Add"]').first()
+    const input = page.locator('input[placeholder*="next" i], input[placeholder*="Add" i], input[placeholder*="done" i]').first()
     await input.fill('offline test')
     await input.press('Enter')
     await page.waitForTimeout(2000)
@@ -557,7 +557,7 @@ test.describe('Performance', () => {
     await enterDemoMode(page)
     await page.waitForLoadState('networkidle')
 
-    const input = page.locator('input[placeholder*="next"], input[placeholder*="Add"]').first()
+    const input = page.locator('input[placeholder*="next" i], input[placeholder*="Add" i], input[placeholder*="done" i]').first()
 
     // Measure typing latency
     const start = Date.now()
@@ -647,7 +647,7 @@ test.describe('Polish', () => {
     await page.waitForLoadState('networkidle')
 
     // Check main input is usable
-    const input = page.locator('input[placeholder*="next"], input[placeholder*="Add"]').first()
+    const input = page.locator('input[placeholder*="next" i], input[placeholder*="Add" i], input[placeholder*="done" i]').first()
     const inputVisible = await input.isVisible()
 
     // Check no horizontal scroll

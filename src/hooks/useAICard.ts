@@ -8,6 +8,8 @@ import { Task, Step } from '@/hooks/useUserData'
  */
 export interface AICardState {
   thinking?: boolean
+  streaming?: boolean // True when streaming tokens (shows partial message with cursor)
+  streamingText?: string // Partial text being streamed
   message?: string
   introMessage?: string
   question?: {
@@ -51,6 +53,55 @@ export function useAICard(options: UseAICardOptions = {}) {
       thinking: true,
       message: preserveMessage,
     })
+  }, [])
+
+  /**
+   * Start streaming state - shows typing indicator initially
+   */
+  const startStreaming = useCallback(() => {
+    setCard({
+      streaming: true,
+      streamingText: '',
+    })
+  }, [])
+
+  /**
+   * Append token to streaming text
+   */
+  const appendStreamingToken = useCallback((token: string) => {
+    setCard(prev => prev ? {
+      ...prev,
+      streaming: true,
+      streamingText: (prev.streamingText || '') + token,
+    } : {
+      streaming: true,
+      streamingText: token,
+    })
+  }, [])
+
+  /**
+   * Complete streaming - transition to final message state
+   */
+  const completeStreaming = useCallback((
+    finalMessage?: string,
+    opts?: {
+      sources?: { title: string; url: string }[]
+      actions?: AICardState['actions']
+      quickReplies?: string[]
+      showSources?: boolean
+      pendingTaskName?: string
+    }
+  ) => {
+    setCard(prev => ({
+      streaming: false,
+      streamingText: undefined,
+      message: finalMessage || prev?.streamingText || '',
+      sources: opts?.sources,
+      actions: opts?.actions,
+      quickReplies: opts?.quickReplies,
+      showSources: opts?.showSources ?? true,
+      pendingTaskName: opts?.pendingTaskName,
+    }))
   }, [])
 
   /**
@@ -188,16 +239,25 @@ export function useAICard(options: UseAICardOptions = {}) {
    */
   const hasTaskCreated = card?.taskCreated !== undefined
 
+  /**
+   * Check if card is streaming
+   */
+  const isStreaming = card?.streaming ?? false
+
   return {
     // State
     card,
     pendingInput,
     isShowingQuestion,
     isThinking,
+    isStreaming,
     hasTaskCreated,
 
     // Actions
     showThinking,
+    startStreaming,
+    appendStreamingToken,
+    completeStreaming,
     showMessage,
     showQuestion,
     showTaskCreated,

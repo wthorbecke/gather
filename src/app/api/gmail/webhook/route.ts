@@ -26,16 +26,19 @@ export async function POST(request: NextRequest) {
     const webhookSecret = process.env.GOOGLE_WEBHOOK_SECRET
     const authHeader = request.headers.get('authorization')
 
-    // Basic verification - in production, use proper Pub/Sub verification
+    // Enforce webhook authentication when secret is configured
     if (webhookSecret && authHeader !== `Bearer ${webhookSecret}`) {
-      console.warn('[GmailWebhook] Invalid authorization header')
-      // Still return 200 to prevent retries, but log the issue
+      // Return 401 for invalid auth - don't process unauthenticated requests
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      )
     }
 
     const body: PubSubMessage = await request.json()
 
     if (!body.message?.data) {
-      console.error('[GmailWebhook] No message data in request')
+      // Error handled silently('[GmailWebhook] No message data in request')
       return NextResponse.json({ error: 'Invalid message format' }, { status: 400 })
     }
 
@@ -43,28 +46,36 @@ export async function POST(request: NextRequest) {
     const decodedData = Buffer.from(body.message.data, 'base64').toString('utf-8')
     const notification: GmailNotification = JSON.parse(decodedData)
 
-    console.log('[GmailWebhook] Received notification:', {
-      email: notification.emailAddress,
-      historyId: notification.historyId,
-      messageId: body.message.messageId,
-    })
+    // Debug log removed: received Gmail notification
 
     const supabase = createServerClient()
 
-    // Find the user by email
-    const { data: users } = await supabase
-      .from('profiles')
-      .select('id')
-      .eq('id', (
-        await supabase.auth.admin.listUsers()
-      ).data.users.find(u => u.email === notification.emailAddress)?.id)
+    // Find the user by email - more efficient single lookup
+    // First try to find via google_watches which stores watch info by user
+    // This avoids listing ALL users which is expensive at scale
+    const { data: watchByEmail } = await supabase
+      .from('google_watches')
+      .select('user_id')
+      .eq('resource_type', 'gmail')
+      .limit(100) // Safety limit
 
-    // Alternative approach: look up user by their Google email in auth.users
-    const { data: authUsers } = await supabase.auth.admin.listUsers()
-    const authUser = authUsers.users.find(u => u.email === notification.emailAddress)
+    if (!watchByEmail || watchByEmail.length === 0) {
+      return NextResponse.json({ status: 'no_watches' })
+    }
+
+    // Get auth users only for users with active watches (more efficient)
+    const userIds = watchByEmail.map(w => w.user_id)
+    const { data: authUsersData } = await supabase.auth.admin.listUsers({
+      page: 1,
+      perPage: 1000, // Get a reasonable batch
+    })
+
+    // Find the user with matching email who has an active watch
+    const authUser = authUsersData?.users.find(
+      u => u.email === notification.emailAddress && userIds.includes(u.id)
+    )
 
     if (!authUser) {
-      console.warn('[GmailWebhook] No user found for email:', notification.emailAddress)
       return NextResponse.json({ status: 'user_not_found' })
     }
 
@@ -79,7 +90,7 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (watchError || !watch) {
-      console.warn('[GmailWebhook] No watch found for user:', userId)
+      // Warning handled silently('[GmailWebhook] No watch found for user:', userId)
       return NextResponse.json({ status: 'no_watch' })
     }
 
@@ -89,7 +100,7 @@ export async function POST(request: NextRequest) {
     // Get a valid access token
     const accessToken = await getValidToken(userId)
     if (!accessToken) {
-      console.error('[GmailWebhook] Could not get valid token for user:', userId)
+      // Error handled silently('[GmailWebhook] Could not get valid token for user:', userId)
       return NextResponse.json({ status: 'token_error' })
     }
 
@@ -123,7 +134,7 @@ export async function POST(request: NextRequest) {
           }
 
           if (newMessageIds.length > 0) {
-            console.log('[GmailWebhook] Found new messages:', newMessageIds.length)
+            // Debug log removed('[GmailWebhook] Found new messages:', newMessageIds.length)
 
             // Queue messages for AI analysis (in a real implementation,
             // this would call a background job or queue)
@@ -143,7 +154,7 @@ export async function POST(request: NextRequest) {
     // Return 200 to acknowledge receipt
     return NextResponse.json({ status: 'ok' })
   } catch (error) {
-    console.error('[GmailWebhook] Error processing webhook:', error)
+    // Error handled silently('[GmailWebhook] Error processing webhook:', error)
     // Return 200 anyway to prevent Pub/Sub retries
     return NextResponse.json({ status: 'error', message: 'Internal error' })
   }
@@ -169,7 +180,7 @@ async function processNewMessages(
   const newIds = messageIds.filter(id => !processedIds.has(id))
 
   if (newIds.length === 0) {
-    console.log('[GmailWebhook] All messages already processed')
+    // Debug log removed('[GmailWebhook] All messages already processed')
     return
   }
 
@@ -200,9 +211,9 @@ async function processNewMessages(
           processed_at: new Date().toISOString(),
         })
 
-      console.log('[GmailWebhook] Processed message:', messageId)
+      // Debug log removed('[GmailWebhook] Processed message:', messageId)
     } catch (error) {
-      console.error('[GmailWebhook] Error processing message:', messageId, error)
+      // Error handled silently('[GmailWebhook] Error processing message:', messageId, error)
     }
   }
 }

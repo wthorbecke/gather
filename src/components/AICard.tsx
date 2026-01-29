@@ -21,6 +21,8 @@ function cleanMessage(message: string): string {
 
 export interface AICardState {
   thinking?: boolean
+  streaming?: boolean // True when streaming tokens (shows partial message with cursor)
+  streamingText?: string // Partial text being streamed
   message?: string
   introMessage?: string
   question?: {
@@ -81,14 +83,14 @@ export function AICard({
   const [loadingMessageIndex, setLoadingMessageIndex] = useState(0)
   const thinkingStartRef = useRef<number | null>(null)
 
-  // Cycle loading messages every 3 seconds
+  // Cycle loading messages every 1.5 seconds (faster to maintain ADHD attention)
   useEffect(() => {
     if (card.thinking) {
       thinkingStartRef.current = Date.now()
       setLoadingMessageIndex(0)
       const interval = setInterval(() => {
         setLoadingMessageIndex(prev => (prev + 1) % loadingMessages.length)
-      }, 3000)
+      }, 1500)
       return () => clearInterval(interval)
     } else {
       thinkingStartRef.current = null
@@ -128,21 +130,22 @@ export function AICard({
     >
       {/* Header row with dismiss button */}
       {pendingInput && (
-        <div className="flex items-start justify-between gap-3 mb-3 pb-3 border-b border-border-subtle">
+        <div className="flex items-start justify-between gap-3 mb-3 pb-3 border-b border-border-subtle overflow-hidden">
           <div className="text-sm text-text-muted flex-1 min-w-0 truncate">
             &ldquo;{pendingInput}&rdquo;
           </div>
           <button
             onClick={handleDismiss}
             className="
-              p-1 -m-1
+              min-w-[44px] min-h-[44px] -m-2
+              flex items-center justify-center
               text-text-muted hover:text-text
               transition-colors duration-150
               btn-press flex-shrink-0
             "
             aria-label="Dismiss"
           >
-            <svg width={14} height={14} viewBox="0 0 16 16">
+            <svg width={14} height={14} viewBox="0 0 16 16" aria-hidden="true">
               <path
                 d="M4 4L12 12M12 4L4 12"
                 stroke="currentColor"
@@ -160,14 +163,15 @@ export function AICard({
           <button
             onClick={handleDismiss}
             className="
-              p-1 -m-1
+              min-w-[44px] min-h-[44px] -m-2
+              flex items-center justify-center
               text-text-muted hover:text-text
               transition-colors duration-150
               btn-press
             "
             aria-label="Dismiss"
           >
-            <svg width={14} height={14} viewBox="0 0 16 16">
+            <svg width={14} height={14} viewBox="0 0 16 16" aria-hidden="true">
               <path
                 d="M4 4L12 12M12 4L4 12"
                 stroke="currentColor"
@@ -179,38 +183,56 @@ export function AICard({
         </div>
       )}
 
-      {card.thinking ? (
+      {card.thinking || card.streaming ? (
         <div aria-busy="true" aria-live="polite" role="status">
           {/* Show previous message if this is a follow-up */}
-          {card.message && (
+          {card.message && !card.streaming && (
             <div className="text-base leading-relaxed mb-4 opacity-60">
               {cleanMessage(card.message)}
             </div>
           )}
-          <div className="space-y-3">
-            {/* Thinking indicator - three gentle dots with staggered pulse */}
-            <div className="flex items-center gap-3">
-              <div className="flex gap-1.5 loading-indicator">
-                <span
-                  className="w-2 h-2 rounded-full bg-accent/40"
-                  style={{ animation: 'thinkingPulse 1.4s ease-in-out infinite' }}
-                />
-                <span
-                  className="w-2 h-2 rounded-full bg-accent/40"
-                  style={{ animation: 'thinkingPulse 1.4s ease-in-out infinite', animationDelay: '0.2s' }}
-                />
-                <span
-                  className="w-2 h-2 rounded-full bg-accent/40"
-                  style={{ animation: 'thinkingPulse 1.4s ease-in-out infinite', animationDelay: '0.4s' }}
-                />
-              </div>
-              <span className="text-sm text-text-soft italic">{loadingMessages[loadingMessageIndex]}</span>
+
+          {/* Streaming text with cursor */}
+          {card.streaming && card.streamingText && (
+            <div className="text-base leading-relaxed mb-4">
+              {cleanMessage(card.streamingText)}
+              <span
+                className="inline-block w-2 h-4 ml-0.5 bg-accent/60 rounded-sm"
+                style={{ animation: 'cursorBlink 1s ease-in-out infinite' }}
+              />
             </div>
-          </div>
+          )}
+
+          {/* Thinking indicator - only show when not streaming text yet */}
+          {!card.streamingText && (
+            <div className="space-y-3">
+              <div className="flex items-center gap-3">
+                <div className="flex gap-1.5 loading-indicator">
+                  <span
+                    className="w-2 h-2 rounded-full bg-accent/40"
+                    style={{ animation: 'thinkingPulse 1.4s ease-in-out infinite' }}
+                  />
+                  <span
+                    className="w-2 h-2 rounded-full bg-accent/40"
+                    style={{ animation: 'thinkingPulse 1.4s ease-in-out infinite', animationDelay: '0.2s' }}
+                  />
+                  <span
+                    className="w-2 h-2 rounded-full bg-accent/40"
+                    style={{ animation: 'thinkingPulse 1.4s ease-in-out infinite', animationDelay: '0.4s' }}
+                  />
+                </div>
+                <span className="text-sm text-text-soft italic">{loadingMessages[loadingMessageIndex]}</span>
+              </div>
+            </div>
+          )}
           <style jsx>{`
             @keyframes thinkingPulse {
               0%, 100% { opacity: 0.3; transform: scale(1); }
               50% { opacity: 1; transform: scale(1.2); }
+            }
+            @keyframes cursorBlink {
+              0%, 50% { opacity: 1; }
+              51%, 100% { opacity: 0; }
             }
           `}</style>
         </div>

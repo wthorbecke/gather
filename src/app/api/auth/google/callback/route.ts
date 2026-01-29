@@ -14,12 +14,12 @@ export async function GET(request: NextRequest) {
   const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://gather-lilac.vercel.app').replace(/\/$/, '')
 
   if (error) {
-    console.error('[GoogleCallback] OAuth error:', error)
+    // Error handled silently('[GoogleCallback] OAuth error:', error)
     return NextResponse.redirect(`${baseUrl}?integration_error=${error}`)
   }
 
   if (!code || !state) {
-    console.error('[GoogleCallback] Missing code or state')
+    // Error handled silently('[GoogleCallback] Missing code or state')
     return NextResponse.redirect(`${baseUrl}?integration_error=missing_params`)
   }
 
@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
     const clientSecret = process.env.GOOGLE_CLIENT_SECRET
 
     if (!clientId || !clientSecret) {
-      console.error('[GoogleCallback] Missing Google credentials')
+      // Error handled silently('[GoogleCallback] Missing Google credentials')
       return NextResponse.redirect(`${baseUrl}?integration_error=config_error`)
     }
 
@@ -51,18 +51,13 @@ export async function GET(request: NextRequest) {
 
     if (!tokenResponse.ok) {
       const errorText = await tokenResponse.text()
-      console.error('[GoogleCallback] Token exchange failed:', errorText)
+      // Error handled silently('[GoogleCallback] Token exchange failed:', errorText)
       return NextResponse.redirect(`${baseUrl}?integration_error=token_exchange_failed`)
     }
 
     const tokens = await tokenResponse.json()
 
-    console.log('[GoogleCallback] Got tokens:', {
-      hasAccessToken: !!tokens.access_token,
-      hasRefreshToken: !!tokens.refresh_token,
-      expiresIn: tokens.expires_in,
-      scope: tokens.scope,
-    })
+    // Debug log removed: tokens received
 
     // Store tokens in database
     const supabase = createClient(
@@ -73,7 +68,7 @@ export async function GET(request: NextRequest) {
     const tokenExpiry = new Date(Date.now() + tokens.expires_in * 1000).toISOString()
     const scopes = tokens.scope?.split(' ') || []
 
-    console.log('[GoogleCallback] Attempting to store tokens for user:', state)
+    // Debug log removed('[GoogleCallback] Attempting to store tokens for user:', state)
 
     const { data: upsertData, error: upsertError } = await supabase
       .from('google_tokens')
@@ -87,17 +82,10 @@ export async function GET(request: NextRequest) {
       })
       .select()
 
-    console.log('[GoogleCallback] Upsert result:', {
-      success: !upsertError,
-      error: upsertError?.message,
-      code: upsertError?.code,
-      details: upsertError?.details,
-      hasData: !!upsertData,
-      dataLength: upsertData?.length
-    })
+    // Debug log removed: upsert result
 
     if (upsertError) {
-      console.error('[GoogleCallback] Failed to store tokens:', upsertError)
+      // Error handled silently('[GoogleCallback] Failed to store tokens:', upsertError)
       return NextResponse.redirect(`${baseUrl}?integration_error=storage_failed&code=${upsertError.code}`)
     }
 
@@ -113,12 +101,12 @@ export async function GET(request: NextRequest) {
         ignoreDuplicates: true,
       })
 
-    console.log('[GoogleCallback] Successfully stored tokens for user:', state)
+    // Debug log removed('[GoogleCallback] Successfully stored tokens for user:', state)
 
     // Redirect back to app with success
     return NextResponse.redirect(`${baseUrl}?integration_connected=true`)
   } catch (err) {
-    console.error('[GoogleCallback] Error:', err)
+    // Error handled silently('[GoogleCallback] Error:', err)
     return NextResponse.redirect(`${baseUrl}?integration_error=unknown`)
   }
 }

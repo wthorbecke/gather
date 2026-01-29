@@ -103,7 +103,7 @@ export function FocusMode({
       <div className="p-4 flex items-center justify-between border-b border-border">
         <button
           onClick={onExit}
-          className="text-sm text-text-muted hover:text-text transition-colors flex items-center gap-1.5 btn-press tap-target"
+          className="text-sm text-text-muted hover:text-text transition-colors duration-150 ease-out flex items-center gap-1.5 btn-press tap-target"
         >
           <svg width={16} height={16} viewBox="0 0 16 16">
             <path d="M10 12L6 8L10 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" fill="none" />
@@ -116,15 +116,16 @@ export function FocusMode({
         </div>
 
         {/* Timer and keyboard hint */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-1">
           <button
             onClick={() => setIsTimerRunning(prev => !prev)}
-            className={`font-mono text-sm tabular-nums ${isTimerRunning ? 'text-accent' : 'text-text-muted'}`}
+            className={`font-mono text-sm tabular-nums min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg hover:bg-surface transition-all duration-150 ease-out ${isTimerRunning ? 'text-accent' : 'text-text-muted'}`}
+            aria-label={isTimerRunning ? 'Pause timer' : 'Resume timer'}
           >
             {formatTime(elapsedTime)}
           </button>
           <div className="group relative">
-            <button className="text-text-muted hover:text-text transition-colors p-1">
+            <button className="text-text-muted hover:text-text transition-colors duration-150 ease-out min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg hover:bg-surface" aria-label="Keyboard shortcuts">
               <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                 <rect x="2" y="6" width="20" height="12" rx="2" />
                 <path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M8 14h8" strokeLinecap="round" />
@@ -235,7 +236,7 @@ export function FocusMode({
         {onStuck && !step.done && (
           <button
             onClick={onStuck}
-            className="text-sm text-text-muted hover:text-accent transition-colors mb-4 btn-press tap-target"
+            className="text-sm text-text-muted hover:text-accent transition-colors duration-150 ease-out mb-4 btn-press tap-target"
           >
             I&apos;m stuck on this step
           </button>
@@ -247,7 +248,7 @@ export function FocusMode({
         <button
           onClick={onPrevious}
           disabled={currentStepIndex === 0}
-          className="p-2 text-text-soft hover:text-text transition-colors disabled:opacity-30 disabled:cursor-not-allowed btn-press tap-target"
+          className="p-2 min-w-[44px] min-h-[44px] text-text-soft hover:text-text transition-colors duration-150 ease-out disabled:opacity-30 disabled:cursor-not-allowed btn-press"
           aria-label="Previous step"
         >
           <svg width={20} height={20} viewBox="0 0 16 16">
@@ -259,7 +260,7 @@ export function FocusMode({
           {Array.from({ length: totalSteps }).map((_, i) => (
             <div
               key={i}
-              className={`w-2 h-2 rounded-full transition-colors ${
+              className={`w-2 h-2 rounded-full transition-colors duration-150 ease-out ${
                 i === currentStepIndex
                   ? 'bg-accent'
                   : i < currentStepIndex
@@ -273,7 +274,7 @@ export function FocusMode({
         <button
           onClick={onNext}
           disabled={currentStepIndex === totalSteps - 1}
-          className="p-2 text-text-soft hover:text-text transition-colors disabled:opacity-30 disabled:cursor-not-allowed btn-press tap-target"
+          className="p-2 min-w-[44px] min-h-[44px] text-text-soft hover:text-text transition-colors duration-150 ease-out disabled:opacity-30 disabled:cursor-not-allowed btn-press"
           aria-label="Next step"
         >
           <svg width={20} height={20} viewBox="0 0 16 16">

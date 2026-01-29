@@ -102,7 +102,7 @@ export function SnoozeMenu({ onSnooze, onCancel }: SnoozeMenuProps) {
 
             <button
               onClick={onCancel}
-              className="w-full mt-4 p-3 text-text-muted hover:text-text transition-colors"
+              className="w-full mt-4 p-3 min-h-[44px] text-text-muted hover:text-text transition-colors duration-150 ease-out"
             >
               Cancel
             </button>

@@ -2,18 +2,14 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { getValidToken } from '@/lib/google-auth'
 import { AI_MODEL_FAST } from '@/config/ai'
-
-interface EmailAnalysisResult {
-  actionable: boolean
-  category: 'BILL_DUE' | 'APPOINTMENT' | 'DEADLINE' | 'REQUEST' | 'NOT_ACTIONABLE'
-  confidence: number  // 0-1
-  suggestedTask: {
-    title: string
-    dueDate: string | null
-    urgency: 'high' | 'medium' | 'low'
-  } | null
-  reason: string
-}
+import {
+  EMAIL_ANALYSIS_PROMPT,
+  EmailAnalysisResponseSchema,
+  DEFAULT_EMAIL_ANALYSIS,
+  parseAIResponse,
+  extractJSON,
+  type EmailAnalysisResponse,
+} from '@/lib/ai'
 
 interface GmailMessageFull {
   id: string
@@ -28,32 +24,6 @@ interface GmailMessageFull {
   }
   internalDate: string
 }
-
-const EMAIL_ANALYSIS_PROMPT = `You're helping someone with ADHD identify actionable emails. They get overwhelmed by their inbox, so only flag emails that truly require action.
-
-Analyze this email and determine if it requires action.
-
-Categories of actionable emails:
-- BILL_DUE: Payment required (bills, invoices with due dates)
-- APPOINTMENT: Scheduled meeting/appointment that needs confirmation or preparation
-- DEADLINE: Something expires or is due by a specific date
-- REQUEST: Someone specifically asking for a response or action from the user
-- NOT_ACTIONABLE: Marketing, newsletters, receipts (no action needed), informational updates, automated notifications
-
-Be conservative - only mark as actionable if the user genuinely needs to do something.
-
-Respond with JSON only (no markdown):
-{
-  "actionable": boolean,
-  "category": "BILL_DUE" | "APPOINTMENT" | "DEADLINE" | "REQUEST" | "NOT_ACTIONABLE",
-  "confidence": number between 0 and 1,
-  "suggestedTask": {
-    "title": "Short, actionable task title",
-    "dueDate": "YYYY-MM-DD or null",
-    "urgency": "high" | "medium" | "low"
-  } or null if not actionable,
-  "reason": "Brief explanation of your classification"
-}`
 
 function getHeader(headers: Array<{ name: string; value: string }>, name: string): string {
   const header = headers.find(h => h.name.toLowerCase() === name.toLowerCase())
@@ -147,7 +117,7 @@ export async function POST(request: NextRequest) {
     )
 
     if (!emailResponse.ok) {
-      console.error('[EmailAnalyze] Failed to fetch email:', emailResponse.status)
+      // Error handled silently('[EmailAnalyze] Failed to fetch email:', emailResponse.status)
       return NextResponse.json({ error: 'Failed to fetch email' }, { status: 500 })
     }
 
@@ -197,15 +167,23 @@ ${truncatedBody}`,
     })
 
     if (!response.ok) {
-      console.error('[EmailAnalyze] AI request failed:', response.status)
+      // Error handled silently('[EmailAnalyze] AI request failed:', response.status)
       return NextResponse.json(fallbackAnalysis(subject, from, truncatedBody))
     }
 
     const data = await response.json()
     const responseText = data.content?.[0]?.text || ''
 
-    try {
-      const analysis: EmailAnalysisResult = JSON.parse(responseText)
+    // Parse and validate with Zod schema
+    const extracted = extractJSON(responseText)
+    const { success, data: analysis } = parseAIResponse<EmailAnalysisResponse>(
+      EmailAnalysisResponseSchema,
+      extracted,
+      DEFAULT_EMAIL_ANALYSIS,
+      'email-analysis'
+    )
+
+    if (success) {
 
       return NextResponse.json({
         messageId,
@@ -214,12 +192,12 @@ ${truncatedBody}`,
         date,
         analysis,
       })
-    } catch (parseError) {
-      console.error('[EmailAnalyze] Failed to parse AI response:', responseText)
-      return NextResponse.json(fallbackAnalysis(subject, from, truncatedBody))
     }
-  } catch (error) {
-    console.error('[EmailAnalyze] Error:', error)
+
+    // Fallback if validation failed
+    return NextResponse.json(fallbackAnalysis(subject, from, truncatedBody))
+  } catch {
+    // Error handled silently
     return NextResponse.json({ error: 'Analysis failed' }, { status: 500 })
   }
 }
@@ -231,7 +209,7 @@ function fallbackAnalysis(subject: string, from: string, body: string): {
   messageId?: string
   subject: string
   from: string
-  analysis: EmailAnalysisResult
+  analysis: EmailAnalysisResponse
 } {
   const combinedText = `${subject} ${body}`.toLowerCase()
 
@@ -273,7 +251,7 @@ function fallbackAnalysis(subject: string, from: string, body: string): {
     /needs your/i,
   ]
 
-  let category: EmailAnalysisResult['category'] = 'NOT_ACTIONABLE'
+  let category: EmailAnalysisResponse['category'] = 'NOT_ACTIONABLE'
   let confidence = 0.3
   let suggestedTitle = ''
 
@@ -404,8 +382,8 @@ export async function GET(request: NextRequest) {
             ...analysis,
           })
         }
-      } catch (error) {
-        console.error('[EmailAnalyze] Error analyzing message:', msg.id, error)
+      } catch {
+        // Error handled silently
       }
     }
 
@@ -414,8 +392,8 @@ export async function GET(request: NextRequest) {
       scannedCount: messages.length,
       useAI,
     })
-  } catch (error) {
-    console.error('[EmailAnalyze] Batch error:', error)
+  } catch {
+    // Error handled silently
     return NextResponse.json({ error: 'Analysis failed' }, { status: 500 })
   }
 }

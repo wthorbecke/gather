@@ -56,6 +56,7 @@ export function LoginPage({ onTryDemo }: LoginPageProps) {
           {onTryDemo && (
             <button
               onClick={onTryDemo}
+              aria-label="Try the demo"
               className="
                 w-full px-5 py-3
                 text-text-soft hover:text-text

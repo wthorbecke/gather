@@ -233,7 +233,7 @@ function loadStats(): GameStats {
       return { ...defaultStats, ...JSON.parse(stored) }
     }
   } catch (e) {
-    console.warn('Failed to load game stats:', e)
+    // Warning handled silently('Failed to load game stats:', e)
   }
   return defaultStats
 }
@@ -243,7 +243,7 @@ function saveStats(stats: GameStats) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(stats))
   } catch (e) {
-    console.warn('Failed to save game stats:', e)
+    // Warning handled silently('Failed to save game stats:', e)
   }
 }
 

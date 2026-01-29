@@ -1,4 +1,5 @@
 import { createServerClient } from './supabase'
+import { encryptToken, decryptToken, isEncryptionConfigured } from './encryption'
 
 const GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token'
 
@@ -31,9 +32,11 @@ export async function getValidToken(userId: string): Promise<string | null> {
     .single()
 
   if (error || !tokens) {
-    console.error('[GoogleAuth] No tokens found for user:', userId, error?.message)
     return null
   }
+
+  // Decrypt stored access token
+  const accessToken = decryptToken(tokens.access_token)
 
   // Check if token is still valid (with 5 minute buffer)
   const expiryTime = new Date(tokens.token_expiry).getTime()
@@ -42,19 +45,20 @@ export async function getValidToken(userId: string): Promise<string | null> {
 
   if (expiryTime - bufferMs > now) {
     // Token is still valid
-    return tokens.access_token
+    return accessToken
   }
 
   // Token expired or expiring soon - refresh it
-  console.log('[GoogleAuth] Token expired, refreshing for user:', userId)
-  const newToken = await refreshToken(userId, tokens.refresh_token)
+  const refreshToken = decryptToken(tokens.refresh_token)
+  const newToken = await refreshToken_internal(userId, refreshToken)
   return newToken
 }
 
 /**
  * Refresh an access token using the refresh token.
+ * Internal function - handles the actual refresh logic.
  */
-export async function refreshToken(
+async function refreshToken_internal(
   userId: string,
   refreshTokenValue: string
 ): Promise<string | null> {
@@ -62,7 +66,6 @@ export async function refreshToken(
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET
 
   if (!clientId || !clientSecret) {
-    console.error('[GoogleAuth] Missing GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET')
     return null
   }
 
@@ -81,8 +84,6 @@ export async function refreshToken(
     })
 
     if (!response.ok) {
-      const errorText = await response.text()
-      console.error('[GoogleAuth] Token refresh failed:', response.status, errorText)
       return null
     }
 
@@ -91,27 +92,39 @@ export async function refreshToken(
     // Calculate new expiry time
     const newExpiry = new Date(Date.now() + data.expires_in * 1000).toISOString()
 
+    // Encrypt the new access token before storing
+    const encryptedAccessToken = encryptToken(data.access_token)
+
     // Update stored tokens
     const supabase = createServerClient()
     const { error: updateError } = await supabase
       .from('google_tokens')
       .update({
-        access_token: data.access_token,
+        access_token: encryptedAccessToken,
         token_expiry: newExpiry,
         updated_at: new Date().toISOString(),
       })
       .eq('user_id', userId)
 
     if (updateError) {
-      console.error('[GoogleAuth] Failed to update stored token:', updateError)
       // Still return the token even if we couldn't store it
     }
 
     return data.access_token
   } catch (error) {
-    console.error('[GoogleAuth] Token refresh error:', error)
     return null
   }
+}
+
+/**
+ * Refresh an access token using the refresh token.
+ * Public API - fetches the refresh token from storage.
+ */
+export async function refreshToken(
+  userId: string,
+  refreshTokenValue: string
+): Promise<string | null> {
+  return refreshToken_internal(userId, refreshTokenValue)
 }
 
 /**
@@ -129,23 +142,25 @@ export async function storeTokens(
 
   const tokenExpiry = new Date(Date.now() + expiresIn * 1000).toISOString()
 
+  // Encrypt tokens before storing
+  const encryptedAccessToken = encryptToken(accessToken)
+  const encryptedRefreshToken = encryptToken(refreshToken)
+
   const { error } = await supabase
     .from('google_tokens')
     .upsert({
       user_id: userId,
-      access_token: accessToken,
-      refresh_token: refreshToken,
+      access_token: encryptedAccessToken,
+      refresh_token: encryptedRefreshToken,
       token_expiry: tokenExpiry,
       scopes,
       updated_at: new Date().toISOString(),
     })
 
   if (error) {
-    console.error('[GoogleAuth] Failed to store tokens:', error, { userId, hasAccessToken: !!accessToken, hasRefreshToken: !!refreshToken })
     return false
   }
 
-  console.log('[GoogleAuth] Successfully stored tokens for user:', userId)
   return true
 }
 
@@ -163,13 +178,15 @@ export async function revokeAccess(userId: string): Promise<boolean> {
     .single()
 
   if (tokens?.access_token) {
+    // Decrypt token before revoking
+    const accessToken = decryptToken(tokens.access_token)
+
     // Revoke with Google
     try {
-      await fetch(`https://oauth2.googleapis.com/revoke?token=${tokens.access_token}`, {
+      await fetch(`https://oauth2.googleapis.com/revoke?token=${accessToken}`, {
         method: 'POST',
       })
     } catch (error) {
-      console.error('[GoogleAuth] Token revocation failed:', error)
       // Continue to delete local tokens anyway
     }
   }
@@ -195,11 +212,6 @@ export async function revokeAccess(userId: string): Promise<boolean> {
     .eq('user_id', userId)
 
   if (deleteTokensError || deleteWatchesError || deleteSettingsError) {
-    console.error('[GoogleAuth] Error cleaning up integration data:', {
-      tokens: deleteTokensError,
-      watches: deleteWatchesError,
-      settings: deleteSettingsError,
-    })
     return false
   }
 
@@ -243,4 +255,11 @@ export async function getGrantedScopes(userId: string): Promise<string[]> {
   }
 
   return data.scopes || []
+}
+
+/**
+ * Check if token encryption is enabled
+ */
+export function isTokenEncryptionEnabled(): boolean {
+  return isEncryptionConfigured()
 }

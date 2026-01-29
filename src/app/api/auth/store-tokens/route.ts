@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
     const { data: { user }, error: userError } = await supabase.auth.getUser(token)
 
     if (userError || !user) {
-      console.error('[StoreTokens] Invalid user token:', userError)
+      // Error handled silently('[StoreTokens] Invalid user token:', userError)
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
     }
 
@@ -32,10 +32,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No provider token' }, { status: 400 })
     }
 
-    console.log('[StoreTokens] Storing tokens for user:', user.id, {
-      hasProviderToken: !!provider_token,
-      hasRefreshToken: !!provider_refresh_token,
-    })
+    // Debug log removed: storing tokens for user
 
     // Use service role to store tokens
     const supabaseAdmin = createClient(
@@ -63,7 +60,7 @@ export async function POST(request: NextRequest) {
       })
 
     if (upsertError) {
-      console.error('[StoreTokens] Failed to store tokens:', upsertError)
+      // Error handled silently('[StoreTokens] Failed to store tokens:', upsertError)
       return NextResponse.json({ error: 'Failed to store tokens' }, { status: 500 })
     }
 
@@ -79,10 +76,10 @@ export async function POST(request: NextRequest) {
         ignoreDuplicates: true,
       })
 
-    console.log('[StoreTokens] Successfully stored tokens for user:', user.id)
+    // Debug log removed('[StoreTokens] Successfully stored tokens for user:', user.id)
     return NextResponse.json({ success: true })
-  } catch (err) {
-    console.error('[StoreTokens] Unexpected error:', err)
+  } catch {
+    // Error handled silently
     return NextResponse.json({ error: 'Internal error' }, { status: 500 })
   }
 }

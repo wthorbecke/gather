@@ -1,7 +1,8 @@
 'use client'
 
-import { useMemo, useEffect, useState } from 'react'
+import { useMemo, useEffect } from 'react'
 import { Task } from '@/hooks/useUserData'
+import { useDarkMode } from '@/hooks/useDarkMode'
 import { splitStepText } from '@/lib/stepText'
 import { getNextStep } from '@/hooks/useTaskSearch'
 import { UnifiedInput } from './UnifiedInput'
@@ -54,6 +55,7 @@ interface HomeViewProps {
   onAICardAction?: (action: { type: string; stepId?: string | number; title?: string; context?: string }) => void
   onBackQuestion?: () => void
   canGoBack?: boolean
+  isDemoUser?: boolean
 }
 
 export function HomeView({
@@ -71,6 +73,7 @@ export function HomeView({
   onAICardAction,
   onBackQuestion,
   canGoBack = false,
+  isDemoUser = false,
 }: HomeViewProps) {
   // Filter out snoozed tasks
   const activeTasks = useMemo(() => {
@@ -102,15 +105,11 @@ export function HomeView({
   )
   const getDerivedStepTitle = (text: string) => splitStepText(text).title
 
-  // Detect dark mode
-  const [isDark, setIsDark] = useState(false)
-  useEffect(() => {
-    const checkDark = () => setIsDark(document.documentElement.classList.contains('dark'))
-    checkDark()
-    const observer = new MutationObserver(checkDark)
-    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] })
-    return () => observer.disconnect()
-  }, [])
+  // Use centralized dark mode hook (single MutationObserver shared across components)
+  const isDark = useDarkMode()
+
+  // Memoize ambient style to prevent new object creation on every render
+  const ambientStyle = useMemo(() => getAmbientStyle(activeTasks.length, isDark), [activeTasks.length, isDark])
 
   // Global Enter key handler for question flow with saved answer
   useEffect(() => {
@@ -134,7 +133,7 @@ export function HomeView({
   return (
     <div
       className="min-h-screen px-5 pt-6 pb-8 transition-all duration-700"
-      style={getAmbientStyle(activeTasks.length, isDark)}
+      style={ambientStyle}
     >
       {/* Subtle paper texture - matches StackView */}
       <div className="fixed inset-0 opacity-[0.02] pointer-events-none" style={{
@@ -217,7 +216,7 @@ export function HomeView({
         })()}
 
         {/* Calendar Widget */}
-        <CalendarWidget />
+        <CalendarWidget isDemoUser={isDemoUser} />
 
         {/* Email Tasks */}
         <EmailTasksCard
@@ -225,6 +224,7 @@ export function HomeView({
             // Use the quick add with the title, ignoring context/dueDate for now
             onQuickAdd(title)
           }}
+          isDemoUser={isDemoUser}
         />
 
         {/* Next Step highlight */}

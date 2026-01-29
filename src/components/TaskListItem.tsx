@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, memo } from 'react'
 import { Task } from '@/hooks/useUserData'
 import { DeadlineBadge } from './DeadlineBadge'
 
@@ -11,7 +11,7 @@ interface TaskListItemProps {
 }
 
 // Source icons for tasks created from integrations
-const SourceIcon = ({ source }: { source: string }) => {
+const SourceIcon = memo(function SourceIcon({ source }: { source: string }) {
   if (source === 'email' || source === 'gmail') {
     return (
       <svg width={12} height={12} viewBox="0 0 24 24" className="text-text-muted" aria-label="From email">
@@ -31,9 +31,9 @@ const SourceIcon = ({ source }: { source: string }) => {
     )
   }
   return null
-}
+})
 
-export function TaskListItem({ task, onClick, onDelete }: TaskListItemProps) {
+export const TaskListItem = memo(function TaskListItem({ task, onClick, onDelete }: TaskListItemProps) {
   const [showMenu, setShowMenu] = useState(false)
   const steps = task.steps || []
   const done = steps.filter((s) => s.done).length
@@ -68,8 +68,9 @@ export function TaskListItem({ task, onClick, onDelete }: TaskListItemProps) {
         bg-card rounded-md
         border border-border
         cursor-pointer
-        hover:bg-card-hover
-        active:scale-[0.995]
+        hover:bg-card-hover hover:shadow-sm hover:-translate-y-[1px]
+        active:scale-[0.995] active:shadow-none active:translate-y-0
+        transition-all duration-150 ease-out
         overflow-hidden
       "
     >
@@ -99,14 +100,15 @@ export function TaskListItem({ task, onClick, onDelete }: TaskListItemProps) {
               setShowMenu(!showMenu)
             }}
             className="
-              p-1.5 rounded-md
+              min-w-[44px] min-h-[44px] p-2 -mr-2 rounded-md
+              flex items-center justify-center
               text-text-muted hover:text-text hover:bg-surface
-              opacity-0 group-hover:opacity-100
+              opacity-0 group-hover:opacity-100 focus:opacity-100
               transition-opacity
             "
-            aria-label="Menu"
+            aria-label="Task menu"
           >
-            <svg width={16} height={16} viewBox="0 0 16 16">
+            <svg width={16} height={16} viewBox="0 0 16 16" aria-hidden="true">
               <circle cx="8" cy="3" r="1.25" fill="currentColor" />
               <circle cx="8" cy="8" r="1.25" fill="currentColor" />
               <circle cx="8" cy="13" r="1.25" fill="currentColor" />
@@ -124,7 +126,7 @@ export function TaskListItem({ task, onClick, onDelete }: TaskListItemProps) {
                       setShowMenu(false)
                       onDelete()
                     }}
-                    className="w-full px-3 py-2 text-left text-sm text-danger hover:bg-danger-soft flex items-center gap-2"
+                    className="w-full px-3 py-3 min-h-[44px] text-left text-sm text-danger hover:bg-danger-soft flex items-center gap-2 transition-colors duration-150 ease-out"
                   >
                     <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-danger">
                       <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6" />
@@ -151,4 +153,4 @@ export function TaskListItem({ task, onClick, onDelete }: TaskListItemProps) {
 
     </div>
   )
-}
+})

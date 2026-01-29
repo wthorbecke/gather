@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from './AuthProvider'
+import { getDemoCalendarEvents } from '@/lib/demo-data'
 
 interface CalendarEvent {
   id: string
@@ -18,9 +19,10 @@ interface CalendarEvent {
 interface CalendarSidebarProps {
   onLinkToTask?: (eventId: string, eventTitle: string) => void
   className?: string
+  isDemoUser?: boolean
 }
 
-export function CalendarSidebar({ onLinkToTask, className = '' }: CalendarSidebarProps) {
+export function CalendarSidebar({ onLinkToTask, className = '', isDemoUser }: CalendarSidebarProps) {
   const { session } = useAuth()
   const [events, setEvents] = useState<CalendarEvent[]>([])
   const [loading, setLoading] = useState(true)
@@ -28,6 +30,26 @@ export function CalendarSidebar({ onLinkToTask, className = '' }: CalendarSideba
   const [collapsed, setCollapsed] = useState(false)
 
   const fetchEvents = useCallback(async () => {
+    // Load demo data in demo mode
+    if (isDemoUser) {
+      const demoEvents = getDemoCalendarEvents()
+      const calendarEvents: CalendarEvent[] = demoEvents.map((e) => ({
+        id: e.id,
+        google_event_id: e.id,
+        title: e.title,
+        description: null,
+        start_time: e.start_time,
+        end_time: new Date(new Date(e.start_time).getTime() + 60 * 60 * 1000).toISOString(),
+        all_day: false,
+        location: e.location || null,
+        linked_task_id: null,
+      }))
+      setEvents(calendarEvents)
+      setEnabled(true)
+      setLoading(false)
+      return
+    }
+
     if (!session?.access_token) return
 
     try {
@@ -44,11 +66,11 @@ export function CalendarSidebar({ onLinkToTask, className = '' }: CalendarSideba
       setEnabled(data.enabled)
       setEvents(data.events || [])
     } catch (err) {
-      console.error('Error fetching calendar events:', err)
+      // Error handled silently('Error fetching calendar events:', err)
     } finally {
       setLoading(false)
     }
-  }, [session?.access_token])
+  }, [session?.access_token, isDemoUser])
 
   useEffect(() => {
     fetchEvents()
@@ -123,7 +145,7 @@ export function CalendarSidebar({ onLinkToTask, className = '' }: CalendarSideba
       {/* Header */}
       <button
         onClick={() => setCollapsed(!collapsed)}
-        className="w-full flex items-center justify-between px-4 py-3 hover:bg-surface/50 transition-colors"
+        className="w-full flex items-center justify-between px-4 py-3 min-h-[44px] hover:bg-surface/50 transition-colors duration-150 ease-out"
       >
         <div className="flex items-center gap-2 text-sm font-medium text-text">
           <svg width={16} height={16} viewBox="0 0 24 24" className="text-accent">
@@ -164,7 +186,7 @@ export function CalendarSidebar({ onLinkToTask, className = '' }: CalendarSideba
                   {dateEvents.map((event) => (
                     <div
                       key={event.id}
-                      className="group p-3 bg-surface rounded-lg border border-border hover:border-border-strong transition-colors"
+                      className="group p-3 bg-surface rounded-lg border border-border hover:border-border-strong transition-colors duration-150 ease-out"
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0 flex-1">
@@ -184,11 +206,15 @@ export function CalendarSidebar({ onLinkToTask, className = '' }: CalendarSideba
                           <button
                             onClick={() => onLinkToTask(event.id, event.title)}
                             className="
-                              opacity-0 group-hover:opacity-100
-                              p-1.5 rounded text-text-muted hover:text-accent hover:bg-accent/10
-                              transition-all
+                              opacity-0 group-hover:opacity-100 focus:opacity-100
+                              min-w-[44px] min-h-[44px] -m-2.5 rounded-lg
+                              flex items-center justify-center
+                              text-text-muted hover:text-accent hover:bg-accent/10
+                              transition-all duration-150 ease-out
+                              btn-press
                             "
                             title="Create task from event"
+                            aria-label="Create task from event"
                           >
                             <svg width={14} height={14} viewBox="0 0 16 16">
                               <path
@@ -229,7 +255,7 @@ export function CalendarSidebar({ onLinkToTask, className = '' }: CalendarSideba
 /**
  * Compact calendar widget for the home view.
  */
-export function CalendarWidget({ className = '' }: { className?: string }) {
+export function CalendarWidget({ className = '', isDemoUser }: { className?: string; isDemoUser?: boolean }) {
   const { session } = useAuth()
   const [events, setEvents] = useState<CalendarEvent[]>([])
   const [loading, setLoading] = useState(true)
@@ -237,6 +263,26 @@ export function CalendarWidget({ className = '' }: { className?: string }) {
 
   useEffect(() => {
     async function fetchEvents() {
+      // Load demo data in demo mode
+      if (isDemoUser) {
+        const demoEvents = getDemoCalendarEvents()
+        const calendarEvents: CalendarEvent[] = demoEvents.map((e) => ({
+          id: e.id,
+          google_event_id: e.id,
+          title: e.title,
+          description: null,
+          start_time: e.start_time,
+          end_time: new Date(new Date(e.start_time).getTime() + 60 * 60 * 1000).toISOString(),
+          all_day: false,
+          location: e.location || null,
+          linked_task_id: null,
+        }))
+        setEvents(calendarEvents)
+        setEnabled(true)
+        setLoading(false)
+        return
+      }
+
       if (!session?.access_token) return
 
       try {
@@ -253,14 +299,14 @@ export function CalendarWidget({ className = '' }: { className?: string }) {
         setEnabled(data.enabled)
         setEvents(data.events || [])
       } catch (err) {
-        console.error('Error fetching calendar events:', err)
+        // Error handled silently('Error fetching calendar events:', err)
       } finally {
         setLoading(false)
       }
     }
 
     fetchEvents()
-  }, [session?.access_token])
+  }, [session?.access_token, isDemoUser])
 
   if (!enabled || loading || events.length === 0) {
     return null

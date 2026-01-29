@@ -80,7 +80,7 @@ export async function POST(request: NextRequest) {
 
     if (!watchResponse.ok) {
       const errorText = await watchResponse.text()
-      console.error('[CalendarWatch] Failed to create watch:', watchResponse.status, errorText)
+      // Error handled silently('[CalendarWatch] Failed to create watch:', watchResponse.status, errorText)
       return NextResponse.json({
         error: 'Failed to set up Calendar notifications',
         details: errorText,
@@ -104,7 +104,7 @@ export async function POST(request: NextRequest) {
       })
 
     if (upsertError) {
-      console.error('[CalendarWatch] Failed to store watch:', upsertError)
+      // Error handled silently('[CalendarWatch] Failed to store watch:', upsertError)
       return NextResponse.json({
         error: 'Failed to store watch configuration',
       }, { status: 500 })
@@ -131,8 +131,8 @@ export async function POST(request: NextRequest) {
       expiration: expirationDate.toISOString(),
       channelId: watchData.id,
     })
-  } catch (error) {
-    console.error('[CalendarWatch] Error:', error)
+  } catch {
+    // Error handled silently
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
@@ -166,7 +166,7 @@ async function initialCalendarSync(
   )
 
   if (!eventsResponse.ok) {
-    console.error('[CalendarWatch] Initial sync failed:', eventsResponse.status)
+    // Error handled silently('[CalendarWatch] Initial sync failed:', eventsResponse.status)
     return
   }
 
@@ -209,7 +209,7 @@ async function initialCalendarSync(
       .eq('resource_type', 'calendar')
   }
 
-  console.log('[CalendarWatch] Initial sync complete:', events.length, 'events')
+  // Debug log removed('[CalendarWatch] Initial sync complete:', events.length, 'events')
 }
 
 /**
@@ -289,8 +289,8 @@ export async function DELETE(request: NextRequest) {
       .eq('user_id', user.id)
 
     return NextResponse.json({ success: true })
-  } catch (error) {
-    console.error('[CalendarWatch] Error stopping watch:', error)
+  } catch {
+    // Error handled silently
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
@@ -336,8 +336,8 @@ export async function GET(request: NextRequest) {
       active: !isExpired,
       expiration: watch.expiration,
     })
-  } catch (error) {
-    console.error('[CalendarWatch] Error getting status:', error)
+  } catch {
+    // Error handled silently
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

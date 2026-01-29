@@ -2,6 +2,14 @@ import { NextResponse } from 'next/server'
 import webpush, { PushSubscription as WebPushSubscription } from 'web-push'
 import { createClient } from '@supabase/supabase-js'
 import { AI_MODELS } from '@/config/ai'
+import {
+  buildWeeklyReflectionPrompt,
+  WeeklyReflectionSchema,
+  getDefaultReflection,
+  parseAIResponse,
+  extractJSON,
+  type WeeklyReflection,
+} from '@/lib/ai'
 
 interface TaskCompletion {
   task_title: string
@@ -96,36 +104,15 @@ async function generateReflection(
   const taskTitles = completions.map(c => c.task_title).slice(0, 15) // Limit for prompt
   const tasksCompleted = completions.length
 
-  const prompt = `Generate a warm, ADHD-friendly weekly reflection for someone who completed ${tasksCompleted} tasks this week.
-
-Tasks completed: ${taskTitles.join(', ')}
-
-Patterns observed:
-- Busiest day: ${patterns.busiestDay}
-- Most productive hours: ${patterns.productiveHours}
-- On-time completion rate: ${Math.round(patterns.onTimeRate * 100)}%
-
-${previousReflection ? `Last week's patterns: ${previousReflection.patterns.join(', ')}` : ''}
-
-Generate a reflection with:
-1. "wins" - 2-3 specific accomplishments to celebrate (reference actual task titles)
-2. "patterns" - 1-2 patterns you notice (productive times, task types, etc)
-3. "suggestions" - 1-2 gentle suggestions for next week (based on patterns)
-4. "encouragement" - One sentence of genuine encouragement (not corporate wellness speak)
-
-Rules:
-- Be specific, reference actual tasks
-- If few tasks completed, focus on quality over quantity
-- Never guilt trip about what wasn't done
-- Notice if they tackled hard tasks or broke patterns
-- Keep each item under 50 words
-
-Return JSON: {
-  "wins": ["...", "..."],
-  "patterns": ["...", "..."],
-  "suggestions": ["...", "..."],
-  "encouragement": "..."
-}`
+  // Use centralized prompt builder
+  const prompt = buildWeeklyReflectionPrompt(
+    tasksCompleted,
+    taskTitles,
+    patterns.busiestDay,
+    patterns.productiveHours,
+    patterns.onTimeRate,
+    previousReflection?.patterns
+  )
 
   try {
     const response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -144,14 +131,19 @@ Return JSON: {
 
     const data = await response.json()
     const text = data.content?.[0]?.text || ''
-    const match = text.match(/\{[\s\S]*\}/)
-    if (match) {
-      const parsed = JSON.parse(match[0])
+
+    // Parse and validate with Zod schema
+    const extracted = extractJSON(text)
+    const { success, data: reflection } = parseAIResponse<WeeklyReflection>(
+      WeeklyReflectionSchema,
+      extracted,
+      getDefaultReflection(tasksCompleted, patterns.busiestDay),
+      'weekly-reflection'
+    )
+
+    if (success) {
       return {
-        wins: parsed.wins || [],
-        patterns: parsed.patterns || [],
-        suggestions: parsed.suggestions || [],
-        encouragement: parsed.encouragement || "You showed up this week. That matters.",
+        ...reflection,
         stats: {
           tasksCompleted,
           onTimeCompletions: Math.round(patterns.onTimeRate * tasksCompleted),
@@ -161,20 +153,14 @@ Return JSON: {
         },
       }
     }
-  } catch (error) {
-    console.error('Error generating reflection:', error)
+  } catch {
+    // Error handled silently
   }
 
-  // Fallback reflection
+  // Return fallback from centralized function with stats
+  const fallback = getDefaultReflection(tasksCompleted, patterns.busiestDay)
   return {
-    wins: tasksCompleted > 0
-      ? [`You completed ${tasksCompleted} task${tasksCompleted > 1 ? 's' : ''} this week`]
-      : ['You made it through another week'],
-    patterns: patterns.busiestDay
-      ? [`${patterns.busiestDay} seems to be your productive day`]
-      : [],
-    suggestions: ['Try tackling one small task early in the day'],
-    encouragement: "Progress isn't always visible, but you're moving forward.",
+    ...fallback,
     stats: {
       tasksCompleted,
       onTimeCompletions: Math.round(patterns.onTimeRate * tasksCompleted),
@@ -225,7 +211,7 @@ export async function GET(request: Request) {
       .select('id, phone, timezone, notification_preferences')
 
     if (usersError) {
-      console.error('Error fetching users:', usersError)
+      // Error handled silently('Error fetching users:', usersError)
       return NextResponse.json({ error: 'Failed to fetch users' }, { status: 500 })
     }
 
@@ -269,7 +255,7 @@ export async function GET(request: Request) {
         .lt('completed_at', weekEndStr)
 
       if (completionsError) {
-        console.error('Error fetching completions:', completionsError)
+        // Error handled silently('Error fetching completions:', completionsError)
         continue
       }
 
@@ -302,7 +288,7 @@ export async function GET(request: Request) {
         })
 
       if (saveError) {
-        console.error('Error saving reflection:', saveError)
+        // Error handled silently('Error saving reflection:', saveError)
         continue
       }
 
@@ -339,7 +325,7 @@ export async function GET(request: Request) {
               .delete()
               .eq('user_id', user.id)
           }
-          console.error('Push error:', err)
+          // Error handled silently('Push error:', err)
         }
       }
     }
@@ -351,7 +337,7 @@ export async function GET(request: Request) {
       weekStart: weekStartDate,
     })
   } catch (err) {
-    console.error('Weekly reflection error:', err)
+    // Error handled silently('Weekly reflection error:', err)
     return NextResponse.json({ error: 'Internal error' }, { status: 500 })
   }
 }

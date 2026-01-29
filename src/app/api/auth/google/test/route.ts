@@ -107,8 +107,8 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json(results)
-  } catch (err) {
-    console.error('[GoogleTest] Error:', err)
+  } catch {
+    // Error handled silently
     return NextResponse.json({ error: 'Internal error' }, { status: 500 })
   }
 }

@@ -1,8 +1,14 @@
 import type { Metadata, Viewport } from 'next'
+import dynamic from 'next/dynamic'
 import { AuthProvider } from '@/components/AuthProvider'
 import { ThemeProvider } from '@/components/ThemeProvider'
-import { PushNotifications } from '@/components/PushNotifications'
 import './globals.css'
+
+// Lazy load PushNotifications - not critical for first paint
+const PushNotifications = dynamic(
+  () => import('@/components/PushNotifications').then(mod => ({ default: mod.PushNotifications })),
+  { ssr: false }
+)
 
 export const metadata: Metadata = {
   title: 'Gather',
@@ -23,7 +29,11 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
-  themeColor: '#f6f2ec',
+  userScalable: false,
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#FAFAFA' },
+    { media: '(prefers-color-scheme: dark)', color: '#0a0a0a' },
+  ],
 }
 
 export default function RootLayout({

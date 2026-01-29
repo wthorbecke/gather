@@ -54,7 +54,7 @@ export function useContextGathering() {
     const checkInactivity = () => {
       const elapsed = Date.now() - lastActivityRef.current
       if (elapsed >= INACTIVITY_TIMEOUT_MS) {
-        console.log('[ContextGathering] Auto-clearing due to inactivity')
+        // Debug log removed('[ContextGathering] Auto-clearing due to inactivity')
         setState(null)
       } else {
         // Check again after remaining time

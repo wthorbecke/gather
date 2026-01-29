@@ -76,7 +76,7 @@ export async function GET(request: NextRequest) {
       .order('start_time', { ascending: true })
 
     if (eventsError) {
-      console.error('[CalendarEvents] Error fetching events:', eventsError)
+      // Error handled silently('[CalendarEvents] Error fetching events:', eventsError)
       return NextResponse.json({ error: 'Failed to fetch events' }, { status: 500 })
     }
 
@@ -90,14 +90,18 @@ export async function GET(request: NextRequest) {
       eventsByDate[date].push(event)
     }
 
-    return NextResponse.json({
+    // Use stale-while-revalidate for calendar data
+    // Cache for 60s, serve stale for up to 5 minutes while revalidating
+    const response = NextResponse.json({
       events: events || [],
       eventsByDate,
       enabled: true,
       count: events?.length || 0,
     })
+    response.headers.set('Cache-Control', 'private, max-age=60, stale-while-revalidate=300')
+    return response
   } catch (error) {
-    console.error('[CalendarEvents] Error:', error)
+    // Error handled silently('[CalendarEvents] Error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
@@ -112,7 +116,7 @@ async function refreshCalendarEvents(
 ) {
   const accessToken = await getValidToken(userId)
   if (!accessToken) {
-    console.error('[CalendarEvents] Could not get valid token for refresh')
+    // Error handled silently('[CalendarEvents] Could not get valid token for refresh')
     return
   }
 
@@ -136,7 +140,7 @@ async function refreshCalendarEvents(
   )
 
   if (!eventsResponse.ok) {
-    console.error('[CalendarEvents] Refresh failed:', eventsResponse.status)
+    // Error handled silently('[CalendarEvents] Refresh failed:', eventsResponse.status)
     return
   }
 
@@ -178,7 +182,7 @@ async function refreshCalendarEvents(
       })
   }
 
-  console.log('[CalendarEvents] Refreshed', events.length, 'events')
+  // Debug log removed('[CalendarEvents] Refreshed', events.length, 'events')
 }
 
 /**
@@ -235,7 +239,7 @@ export async function POST(request: NextRequest) {
       message: 'Calendar sync enabled',
     })
   } catch (error) {
-    console.error('[CalendarEvents] Error enabling:', error)
+    // Error handled silently('[CalendarEvents] Error enabling:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
@@ -281,13 +285,13 @@ export async function PATCH(request: NextRequest) {
       .eq('id', eventId)
 
     if (updateError) {
-      console.error('[CalendarEvents] Error linking event:', updateError)
+      // Error handled silently('[CalendarEvents] Error linking event:', updateError)
       return NextResponse.json({ error: 'Failed to link event' }, { status: 500 })
     }
 
     return NextResponse.json({ success: true })
   } catch (error) {
-    console.error('[CalendarEvents] Error:', error)
+    // Error handled silently('[CalendarEvents] Error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

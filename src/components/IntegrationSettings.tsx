@@ -43,7 +43,7 @@ export function IntegrationSettings({ isOpen, onClose }: IntegrationSettingsProp
       })
       const data = await res.json()
 
-      console.log('[IntegrationSettings] Google status:', data)
+      // Debug log removed('[IntegrationSettings] Google status:', data)
 
       return data.connected === true
     } catch {
@@ -93,7 +93,7 @@ export function IntegrationSettings({ isOpen, onClose }: IntegrationSettingsProp
         },
       })
     } catch (err) {
-      console.error('Error fetching integration status:', err)
+      // Error handled silently('Error fetching integration status:', err)
     }
   }, [session?.access_token, checkGoogleConnection])
 
@@ -253,8 +253,17 @@ export function IntegrationSettings({ isOpen, onClose }: IntegrationSettingsProp
     <Modal isOpen={isOpen} onClose={onClose} title="Integrations" maxWidth="420px">
       <div className="px-5 py-4 space-y-4">
         {error && (
-          <div className="p-3 bg-danger-soft rounded-lg text-sm text-danger">
-            {error}
+          <div className="p-3 bg-danger-soft rounded-lg text-sm text-danger flex items-center justify-between gap-3">
+            <span>{error}</span>
+            <button
+              onClick={() => setError(null)}
+              className="text-danger hover:text-danger/80 transition-colors duration-150 ease-out flex-shrink-0 p-1"
+              aria-label="Dismiss error"
+            >
+              <svg width={14} height={14} viewBox="0 0 16 16">
+                <path d="M4 4L12 12M12 4L4 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              </svg>
+            </button>
           </div>
         )}
 
@@ -325,16 +334,20 @@ export function IntegrationSettings({ isOpen, onClose }: IntegrationSettingsProp
                       onClick={handleToggleGmail}
                       disabled={loading === 'gmail'}
                       className={`
-                        relative w-11 h-6 rounded-full transition-colors
+                        relative w-11 h-7 min-h-[44px] rounded-full transition-colors duration-150 ease-out
                         ${status.gmail.enabled ? 'bg-accent' : 'bg-border'}
                         ${loading === 'gmail' ? 'opacity-50' : ''}
+                        flex items-center
                       `}
+                      aria-label={status.gmail.enabled ? 'Disable Gmail notifications' : 'Enable Gmail notifications'}
+                      role="switch"
+                      aria-checked={status.gmail.enabled}
                     >
                       <span
                         className={`
-                          absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white
-                          transition-transform shadow-sm
-                          ${status.gmail.enabled ? 'translate-x-5' : ''}
+                          absolute top-1 left-1 w-5 h-5 rounded-full bg-white
+                          transition-transform duration-200 ease-out shadow-sm
+                          ${status.gmail.enabled ? 'translate-x-4' : ''}
                         `}
                       />
                     </button>
@@ -378,16 +391,20 @@ export function IntegrationSettings({ isOpen, onClose }: IntegrationSettingsProp
                       onClick={handleToggleCalendar}
                       disabled={loading === 'calendar'}
                       className={`
-                        relative w-11 h-6 rounded-full transition-colors
+                        relative w-11 h-7 min-h-[44px] rounded-full transition-colors duration-150 ease-out
                         ${status.calendar.enabled ? 'bg-accent' : 'bg-border'}
                         ${loading === 'calendar' ? 'opacity-50' : ''}
+                        flex items-center
                       `}
+                      aria-label={status.calendar.enabled ? 'Disable Calendar sync' : 'Enable Calendar sync'}
+                      role="switch"
+                      aria-checked={status.calendar.enabled}
                     >
                       <span
                         className={`
-                          absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white
-                          transition-transform shadow-sm
-                          ${status.calendar.enabled ? 'translate-x-5' : ''}
+                          absolute top-1 left-1 w-5 h-5 rounded-full bg-white
+                          transition-transform duration-200 ease-out shadow-sm
+                          ${status.calendar.enabled ? 'translate-x-4' : ''}
                         `}
                       />
                     </button>
@@ -411,7 +428,7 @@ export function IntegrationSettings({ isOpen, onClose }: IntegrationSettingsProp
           <button
             onClick={handleDisconnectGoogle}
             disabled={loading === 'connect'}
-            className="w-full text-center text-sm text-text-muted hover:text-danger transition-colors py-2"
+            className="w-full text-center text-sm text-text-muted hover:text-danger transition-colors duration-150 ease-out py-2 min-h-[44px]"
           >
             {loading === 'connect' ? 'Disconnecting...' : 'Disconnect Google Account'}
           </button>

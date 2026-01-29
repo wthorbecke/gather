@@ -3,9 +3,12 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react'
 import { Task, Step } from '@/hooks/useUserData'
 import { useAuth } from './AuthProvider'
+import { useDarkMode } from '@/hooks/useDarkMode'
 import { splitStepText } from '@/lib/stepText'
 import { getDeadlineUrgency } from './DeadlineBadge'
 import { AICard, AICardState } from './AICard'
+import { safeGetJSON, safeSetJSON } from '@/lib/storage'
+import { DEMO_EMAILS, getDemoCalendarEvents } from '@/lib/demo-data'
 
 // Card types
 type EmailCard = { type: 'email'; id: string; subject: string; from: string; snippet: string }
@@ -60,27 +63,25 @@ function getEmptyStateMessage(celebrating: boolean): { symbol: string; title: st
   return { symbol: '○', title: 'still', subtitle: 'here when you need' }
 }
 
-// Persist dismiss counts
+// Persist dismiss counts using safe storage utilities
+const DISMISS_COUNTS_KEY = 'gather-dismiss-counts'
+
 function getDismissCounts(): Record<string, number> {
   if (typeof window === 'undefined') return {}
-  try {
-    return JSON.parse(localStorage.getItem('gather-dismiss-counts') || '{}')
-  } catch {
-    return {}
-  }
+  return safeGetJSON<Record<string, number>>(DISMISS_COUNTS_KEY, {})
 }
 
 function incrementDismissCount(id: string): number {
   const counts = getDismissCounts()
   counts[id] = (counts[id] || 0) + 1
-  localStorage.setItem('gather-dismiss-counts', JSON.stringify(counts))
+  safeSetJSON(DISMISS_COUNTS_KEY, counts)
   return counts[id]
 }
 
 function clearDismissCount(id: string): void {
   const counts = getDismissCounts()
   delete counts[id]
-  localStorage.setItem('gather-dismiss-counts', JSON.stringify(counts))
+  safeSetJSON(DISMISS_COUNTS_KEY, counts)
 }
 
 export function StackView({
@@ -109,10 +110,12 @@ aiCard,
   const [calendarEvents, setCalendarEvents] = useState<CalendarCard[]>([])
   const [inputValue, setInputValue] = useState('')
   const [showInput, setShowInput] = useState(false)
-  const [holdProgress, setHoldProgress] = useState(0)
   const [isHolding, setIsHolding] = useState(false)
+  const [holdComplete, setHoldComplete] = useState(false) // Only set once at end
   const [celebrateEmpty, setCelebrateEmpty] = useState(false)
-  const [isDark, setIsDark] = useState(false)
+
+  // Use centralized dark mode hook (single MutationObserver shared across components)
+  const isDark = useDarkMode()
 
   const dragStartX = useRef(0)
   const holdTimer = useRef<NodeJS.Timeout | null>(null)
@@ -121,21 +124,31 @@ aiCard,
   const stackCardsRef = useRef<HTMLDivElement[]>([])
   const currentSwipeX = useRef(0)
   const rafId = useRef<number | null>(null)
-
-  // Detect dark mode
-  useEffect(() => {
-    const checkDark = () => setIsDark(document.documentElement.classList.contains('dark'))
-    checkDark()
-    const observer = new MutationObserver(checkDark)
-    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] })
-    return () => observer.disconnect()
-  }, [])
+  const isTouchingRef = useRef(false) // Use ref to avoid callback recreation
+  const inputRef = useRef<HTMLInputElement>(null)
 
   // Cleanup animation frame on unmount
   useEffect(() => {
     return () => {
       if (rafId.current) cancelAnimationFrame(rafId.current)
     }
+  }, [])
+
+  // Global keyboard shortcut: Cmd/Ctrl + K to focus input
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault()
+        setShowInput(true)
+        // Focus input after state update
+        setTimeout(() => {
+          inputRef.current?.focus()
+        }, 0)
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
   }, [])
 
   // Build the card stack
@@ -190,8 +203,20 @@ aiCard,
     stackCardsRef.current = []
   }, [stack.length])
 
-  // Fetch emails
+  // Fetch emails (or use demo data)
   useEffect(() => {
+    // In demo mode, use mock email data
+    if (isDemoUser) {
+      setEmails(DEMO_EMAILS.slice(0, 3).map((e) => ({
+        type: 'email' as const,
+        id: `email-${e.id}`,
+        subject: e.subject,
+        from: e.from,
+        snippet: e.snippet,
+      })))
+      return
+    }
+
     async function fetchEmails() {
       if (!session?.access_token) return
       try {
@@ -208,15 +233,28 @@ aiCard,
             snippet: e.snippet,
           })))
         }
-      } catch (err) {
-        console.error('Error fetching emails:', err)
+      } catch {
+        // Error handled silently
       }
     }
     fetchEmails()
-  }, [session?.access_token])
+  }, [session?.access_token, isDemoUser])
 
-  // Fetch calendar
+  // Fetch calendar (or use demo data)
   useEffect(() => {
+    // In demo mode, use mock calendar data
+    if (isDemoUser) {
+      const demoEvents = getDemoCalendarEvents()
+      setCalendarEvents(demoEvents.slice(0, 2).map((e) => ({
+        type: 'calendar' as const,
+        id: `cal-${e.id}`,
+        title: e.title,
+        time: formatTime(e.start_time),
+        location: e.location,
+      })))
+      return
+    }
+
     async function fetchCalendar() {
       if (!session?.access_token) return
       try {
@@ -235,12 +273,12 @@ aiCard,
             })))
           }
         }
-      } catch (err) {
-        console.error('Error fetching calendar:', err)
+      } catch {
+        // Error handled silently
       }
     }
     fetchCalendar()
-  }, [session?.access_token])
+  }, [session?.access_token, isDemoUser])
 
   function formatTime(dateStr: string): string {
     const date = new Date(dateStr)
@@ -266,15 +304,17 @@ aiCard,
     if (stack.length === 0 || exitDirection) return
     dragStartX.current = clientX
     currentSwipeX.current = 0
+    isTouchingRef.current = true
     setIsDragging(true)
     setIsTouching(true)
   }
 
+  // Use ref for isTouching to avoid callback recreation during drags
   const updateCardTransform = useCallback(() => {
     if (!cardRef.current) return
     const x = currentSwipeX.current
     const baseRotation = 2.5
-    const touchRotation = isTouching ? 0 : baseRotation
+    const touchRotation = isTouchingRef.current ? 0 : baseRotation
     const swipeRotation = x * 0.06
     cardRef.current.style.transform = `translateX(${x}px) rotate(${touchRotation + swipeRotation}deg)`
 
@@ -294,7 +334,7 @@ aiCard,
         scale(${scale + swipeInfluence * 0.02})
       `
     })
-  }, [isTouching])
+  }, []) // No dependencies - uses refs for all mutable values
 
   const handleDragMove = useCallback((clientX: number) => {
     if (!isDragging) return
@@ -309,6 +349,7 @@ aiCard,
     if (!isDragging) return
     if (rafId.current) cancelAnimationFrame(rafId.current)
 
+    isTouchingRef.current = false
     setIsDragging(false)
     setIsTouching(false)
 
@@ -339,43 +380,11 @@ aiCard,
     }
   }, [isDragging, stack])
 
-  // Hold to complete
-  const startHold = useCallback(() => {
-    if (stack.length === 0 || exitDirection) return
-
-    setIsHolding(true)
-    holdStartTime.current = Date.now()
-
-    const animate = () => {
-      const elapsed = Date.now() - holdStartTime.current
-      const progress = Math.min(elapsed / 500, 1) // 500ms to complete
-      setHoldProgress(progress)
-
-      if (progress < 1) {
-        holdTimer.current = setTimeout(animate, 16)
-      } else {
-        handleComplete(stack[0])
-      }
-    }
-    animate()
-  }, [stack, exitDirection])
-
-  const endHold = useCallback(() => {
-    setIsHolding(false)
-    if (holdTimer.current) {
-      clearTimeout(holdTimer.current)
-      holdTimer.current = null
-    }
-    if (holdProgress < 1) {
-      setHoldProgress(0)
-    }
-  }, [holdProgress])
-
-  // Complete action
+  // Complete action - defined first so startHold can reference it
   const handleComplete = useCallback((card: StackCard) => {
     const cardId = getCardId(card)
-    setHoldProgress(0)
     setIsHolding(false)
+    setHoldComplete(false)
 
     // Show affirmation
     setAffirmation(AFFIRMATIONS[Math.floor(Math.random() * AFFIRMATIONS.length)])
@@ -407,6 +416,30 @@ aiCard,
     }, 400)
   }, [onToggleStep, onGoToTask, onAddEmailAsTask, stack])
 
+  // Hold to complete - uses CSS animation instead of setState loop
+  const startHold = useCallback(() => {
+    if (stack.length === 0 || exitDirection) return
+
+    setIsHolding(true)
+    setHoldComplete(false)
+    holdStartTime.current = Date.now()
+
+    // Single timeout at the end of animation (500ms) - no polling
+    holdTimer.current = setTimeout(() => {
+      setHoldComplete(true)
+      handleComplete(stack[0])
+    }, 500)
+  }, [stack, exitDirection, handleComplete])
+
+  const endHold = useCallback(() => {
+    setIsHolding(false)
+    setHoldComplete(false)
+    if (holdTimer.current) {
+      clearTimeout(holdTimer.current)
+      holdTimer.current = null
+    }
+  }, [])
+
   // Submit new task
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -417,8 +450,8 @@ aiCard,
     }
   }
 
-  // Time-based ambient color - more pronounced for atmosphere
-  const getAmbientStyle = () => {
+  // Time-based ambient color - memoized to prevent new object on every render
+  const ambientStyle = useMemo(() => {
     const hour = new Date().getHours()
     const stackRatio = Math.max(0, 1 - stack.length / 6) // Fewer items = calmer gradient
 
@@ -451,14 +484,83 @@ aiCard,
       // Day - clean with subtle warmth
       return { background: `linear-gradient(170deg, hsl(50, ${15 + stackRatio * 15}%, ${97 - stackRatio * 2}%) 0%, hsl(50, 10%, 99%) 100%)` }
     }
-  }
+  }, [stack.length, isDark])
+
+  // Get the top card for memoized computations (may be undefined if stack is empty)
+  const topCard = stack[0]
+
+  // Card content - memoized and called unconditionally to satisfy Rules of Hooks
+  const cardContent = useMemo(() => {
+    if (!topCard) {
+      return { contextLabel: '', mainText: '', buttonText: '', progress: null, isSecondary: false, phoneNumber: null }
+    }
+
+    let contextLabel = ''
+    let mainText = ''
+    let buttonText = 'Done'
+    let progress: { current: number; total: number } | null = null
+    let isSecondary = false
+    let phoneNumber: string | null = null
+
+    if (topCard.type === 'step') {
+      const { title } = splitStepText(topCard.step.text)
+      mainText = title
+      progress = { current: topCard.stepIndex, total: topCard.totalSteps }
+      const stepMatchesTask = title.toLowerCase().trim() === topCard.task.title.toLowerCase().trim()
+      contextLabel = stepMatchesTask ? 'next step' : topCard.task.title
+      const phoneMatch = title.match(/(\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4})/)
+      if (phoneMatch) phoneNumber = phoneMatch[1]
+    } else if (topCard.type === 'task') {
+      contextLabel = ''
+      mainText = topCard.task.title
+      buttonText = 'Break it down'
+    } else if (topCard.type === 'email') {
+      contextLabel = topCard.from
+      mainText = topCard.subject
+      buttonText = 'Add as task'
+    } else if (topCard.type === 'calendar') {
+      contextLabel = topCard.time
+      mainText = topCard.title
+      buttonText = 'Noted'
+      isSecondary = true
+    }
+
+    return { contextLabel, mainText, buttonText, progress, isSecondary, phoneNumber }
+  }, [topCard])
+
+  // Card surface styles - memoized unconditionally
+  // Using CSS variables for design system consistency
+  const cardSurfaceStyle = useMemo(() => ({
+    background: isDark
+      ? 'linear-gradient(180deg, var(--elevated) 0%, var(--card) 100%)'
+      : 'linear-gradient(180deg, var(--card) 0%, var(--subtle) 100%)',
+    boxShadow: isDark
+      ? '0 2px 4px rgba(0,0,0,0.2), 0 8px 24px rgba(0,0,0,0.4)'
+      : '0 2px 4px rgba(0,0,0,0.04), 0 8px 24px rgba(0,0,0,0.1)',
+    border: isDark ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.06)',
+  }), [isDark])
+
+  const stackCardStyle = useMemo(() => ({
+    background: isDark
+      ? 'linear-gradient(180deg, var(--elevated) 0%, var(--card) 100%)'
+      : 'linear-gradient(180deg, var(--card) 0%, var(--subtle) 100%)',
+    boxShadow: isDark
+      ? '0 4px 20px rgba(0,0,0,0.5)'
+      : '0 4px 20px rgba(0,0,0,0.1)',
+    border: isDark ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.06)',
+  }), [isDark])
+
+  const accentButtonStyle = useMemo(() => ({
+    background: 'var(--accent)',
+    boxShadow: '0 2px 8px rgba(217, 117, 86, 0.25), 0 1px 2px rgba(217, 117, 86, 0.15)',
+  }), [])
 
   // Empty state (but show AI card if processing)
   if (stack.length === 0) {
     return (
-      <div className="min-h-screen flex flex-col transition-all duration-700" style={getAmbientStyle()}>
-        {/* Subtle texture */}
-        <div className="absolute inset-0 opacity-[0.03]" style={{
+      <div className="min-h-screen flex flex-col transition-all duration-700" style={ambientStyle}>
+        {/* Subtle texture - pointer-events-none so it doesn't block input clicks */}
+        <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{
           backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
         }} />
 
@@ -552,8 +654,8 @@ aiCard,
     )
   }
 
-  const topCard = stack[0]
-  const cardId = getCardId(topCard)
+  // Card ID for the top card (used for tracking)
+  const cardId = topCard ? getCardId(topCard) : ''
 
   // Card transforms
   const baseRotation = 2.5 // Resting tilt
@@ -564,42 +666,11 @@ aiCard,
     : exitDirection === 'up' ? 'translateY(-120%) scale(0.8)'
     : `translateX(${swipeX}px) rotate(${touchRotation + swipeRotation}deg)`
 
-  // Card content
-  let contextLabel = '' // Small context above the main text
-  let mainText = ''
-  let buttonText = 'Done'
-  let progress: { current: number; total: number } | null = null
-  let isSecondary = false
-  let phoneNumber: string | null = null
-
-  if (topCard.type === 'step') {
-    const { title } = splitStepText(topCard.step.text)
-    mainText = title
-    progress = { current: topCard.stepIndex, total: topCard.totalSteps }
-    // Only show task title as context if it's different from the step text
-    const stepMatchesTask = title.toLowerCase().trim() === topCard.task.title.toLowerCase().trim()
-    contextLabel = stepMatchesTask ? 'next step' : topCard.task.title
-    // Extract phone numbers
-    const phoneMatch = title.match(/(\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4})/)
-    if (phoneMatch) phoneNumber = phoneMatch[1]
-  } else if (topCard.type === 'task') {
-    // For tasks without steps, don't show redundant "Task" label
-    contextLabel = ''
-    mainText = topCard.task.title
-    buttonText = 'Break it down'
-  } else if (topCard.type === 'email') {
-    contextLabel = topCard.from
-    mainText = topCard.subject
-    buttonText = 'Add as task'
-  } else if (topCard.type === 'calendar') {
-    contextLabel = topCard.time
-    mainText = topCard.title
-    buttonText = 'Noted'
-    isSecondary = true
-  }
+  // Destructure card content from the memoized value
+  const { contextLabel, mainText, buttonText, progress, isSecondary, phoneNumber } = cardContent
 
   return (
-    <div className="min-h-screen flex flex-col transition-all duration-500" style={getAmbientStyle()}>
+    <div className="min-h-screen flex flex-col transition-all duration-500" style={ambientStyle}>
       {/* Subtle paper texture */}
       <div className="absolute inset-0 opacity-[0.025] pointer-events-none" style={{
         backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
@@ -666,6 +737,7 @@ aiCard,
         <div className="relative z-20 px-5 pt-3 pb-2">
           <form onSubmit={handleSubmit}>
             <input
+              ref={inputRef}
               type="text"
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
@@ -746,13 +818,7 @@ aiCard,
                 ref={(el) => { if (el) stackCardsRef.current[reverseIndex] = el }}
                 className="absolute inset-0 rounded-[24px] overflow-hidden pointer-events-none"
                 style={{
-                  background: isDark
-                    ? 'linear-gradient(180deg, #1c1c1c 0%, #161616 100%)'
-                    : 'linear-gradient(180deg, #ffffff 0%, #f8f8f8 100%)',
-                  boxShadow: isDark
-                    ? '0 4px 20px rgba(0,0,0,0.5)'
-                    : '0 4px 20px rgba(0,0,0,0.1)',
-                  border: isDark ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.06)',
+                  ...stackCardStyle,
                   transform: `
                     translateY(${yOffset - swipeInfluence * yOffset * 0.7}px)
                     translateX(${xOffset}px)
@@ -799,15 +865,7 @@ aiCard,
             {/* Card surface */}
             <div
               className="relative h-full rounded-[24px] overflow-hidden"
-              style={{
-                background: isDark
-                  ? 'linear-gradient(180deg, #1c1c1c 0%, #161616 100%)'
-                  : 'linear-gradient(180deg, #ffffff 0%, #f8f8f8 100%)',
-                boxShadow: isDark
-                  ? '0 2px 4px rgba(0,0,0,0.2), 0 8px 24px rgba(0,0,0,0.4)'
-                  : '0 2px 4px rgba(0,0,0,0.04), 0 8px 24px rgba(0,0,0,0.1)',
-                border: isDark ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.06)',
-              }}
+              style={cardSurfaceStyle}
             >
               {/* Affirmation overlay */}
               {affirmation && exitDirection === 'up' && (
@@ -869,8 +927,9 @@ aiCard,
                     </div>
                   )}
 
-                  {/* Action button */}
+                  {/* Action button - click OR hold to complete */}
                   <button
+                    onClick={() => topCard && handleComplete(topCard)}
                     onMouseDown={startHold}
                     onMouseUp={endHold}
                     onMouseLeave={endHold}
@@ -885,23 +944,20 @@ aiCard,
                       }
                       ${isHolding ? 'scale-[0.97]' : 'active:scale-[0.98]'}
                     `}
-                    style={isSecondary ? {} : {
-                      background: 'var(--accent)',
-                      boxShadow: '0 2px 8px rgba(217, 117, 86, 0.25), 0 1px 2px rgba(217, 117, 86, 0.15)',
-                    }}
+                    style={isSecondary ? undefined : accentButtonStyle}
                   >
-                    {/* Hold progress fill */}
+                    {/* Hold progress fill - CSS animation, no React state updates */}
                     {!isSecondary && (
                       <div
-                        className="absolute inset-0 bg-white/25 origin-left"
+                        className={`absolute inset-0 bg-white/25 origin-left ${isHolding ? 'hold-progress-fill' : ''}`}
                         style={{
-                          transform: `scaleX(${holdProgress})`,
-                          transition: isHolding ? 'none' : 'transform 0.2s ease-out',
+                          transform: isHolding ? undefined : 'scaleX(0)',
+                          transition: isHolding ? 'none' : 'transform 0.15s ease-out',
                         }}
                       />
                     )}
                     <span className="relative z-10">
-                      {isHolding && holdProgress > 0.5 ? '...' : buttonText}
+                      {holdComplete ? '...' : buttonText}
                     </span>
                   </button>
 

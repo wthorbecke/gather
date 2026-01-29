@@ -115,7 +115,7 @@ export async function POST(request: NextRequest) {
 
     if (!createResponse.ok) {
       const errorText = await createResponse.text()
-      console.error('[CalendarCreate] Failed to create event:', createResponse.status, errorText)
+      // Error handled silently('[CalendarCreate] Failed to create event:', createResponse.status, errorText)
       return NextResponse.json({
         error: 'Failed to create calendar event',
         details: errorText,
@@ -149,7 +149,7 @@ export async function POST(request: NextRequest) {
       })
 
     if (cacheError) {
-      console.error('[CalendarCreate] Failed to cache event:', cacheError)
+      // Error handled silently('[CalendarCreate] Failed to cache event:', cacheError)
       // Don't fail the request, the event was created in Google
     }
 
@@ -163,8 +163,8 @@ export async function POST(request: NextRequest) {
         end: event.end,
       },
     })
-  } catch (error) {
-    console.error('[CalendarCreate] Error:', error)
+  } catch {
+    // Error handled silently
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
@@ -240,8 +240,8 @@ export async function DELETE(request: NextRequest) {
     }
 
     return NextResponse.json({ success: true })
-  } catch (error) {
-    console.error('[CalendarCreate] Delete error:', error)
+  } catch {
+    // Error handled silently
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

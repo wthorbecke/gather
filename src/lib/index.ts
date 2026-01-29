@@ -40,3 +40,20 @@ export { splitStepText } from './stepText'
 
 // Auth utilities
 export { signInWithGoogle, signOut, getSession, getUser } from './auth'
+
+// Rate limiting
+export {
+  checkRateLimit,
+  getRequestIdentifier,
+  rateLimitResponse,
+  RATE_LIMITS,
+} from './rateLimit'
+
+// Input validation
+export {
+  validateString,
+  validateChatInput,
+  validateTaskInput,
+  validationErrorResponse,
+  MAX_LENGTHS,
+} from './validation'

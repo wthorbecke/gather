@@ -31,8 +31,8 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({ success: true })
-  } catch (err) {
-    console.error('[GoogleDisconnect] Error:', err)
+  } catch {
+    // Error handled silently
     return NextResponse.json({ error: 'Internal error' }, { status: 500 })
   }
 }

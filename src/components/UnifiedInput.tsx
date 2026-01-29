@@ -1,8 +1,20 @@
 'use client'
 
-import { useState, useRef, useEffect, useMemo } from 'react'
+import { useState, useRef, useEffect, useMemo, useCallback } from 'react'
 import { Task, Step } from '@/hooks/useUserData'
 import { content } from '@/config/content'
+
+// Custom hook for debouncing values
+function useDebouncedValue<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = useState(value)
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedValue(value), delay)
+    return () => clearTimeout(timer)
+  }, [value, delay])
+
+  return debouncedValue
+}
 
 interface SearchResult {
   type: 'task' | 'step'
@@ -61,13 +73,18 @@ export function UnifiedInput({
 
   const [value, setValue] = useState(defaultValue || '')
   const [focused, setFocused] = useState(false)
-  const [animatedText, setAnimatedText] = useState('')
-  const [animatedIndex, setAnimatedIndex] = useState(0)
-  const [isDeleting, setIsDeleting] = useState(false)
-  const [isPaused, setIsPaused] = useState(false)
-  const [focusPlaceholderText, setFocusPlaceholderText] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
+
+  // Typewriter animation state - stored in refs to avoid React re-renders
+  const animationRef = useRef({
+    text: '',
+    phraseIndex: 0,
+    isDeleting: false,
+    isPaused: false,
+    focusText: '',
+    timerId: null as NodeJS.Timeout | null,
+  })
 
   // Update value when defaultValue changes (e.g., new question with saved preference)
   // Clear to empty string when defaultValue becomes undefined (e.g., moving to next question)
@@ -104,9 +121,12 @@ export function UnifiedInput({
     }
   }, [autoFocus])
 
-  // Search results
+  // Debounce search query to avoid expensive search on every keystroke
+  const debouncedSearchQuery = useDebouncedValue(value, 150)
+
+  // Search results - uses debounced value to reduce computation
   const searchResults = useMemo<SearchResult[]>(() => {
-    const q = value.toLowerCase().trim()
+    const q = debouncedSearchQuery.toLowerCase().trim()
     if (!q) return []
 
     const results: SearchResult[] = []
@@ -122,7 +142,7 @@ export function UnifiedInput({
       }
     }
     return results.slice(0, 4)
-  }, [value, tasks])
+  }, [debouncedSearchQuery, tasks])
 
   // Filter suggestions that match what user is typing
   const matchingSuggestions = useMemo(() => {
@@ -175,66 +195,108 @@ export function UnifiedInput({
   const shouldAnimatePlaceholder =
     animatedPlaceholders.length > 0 && !focused && !value && !hasContext
 
-  useEffect(() => {
-    if (!shouldAnimatePlaceholder) {
-      setAnimatedText('')
-      setIsDeleting(false)
-      setIsPaused(false)
-      return
-    }
-
-    const phrases = animatedPlaceholders
-    const current = phrases[animatedIndex % phrases.length]
-    // Slower, more relaxed typing: 80ms type, 40ms delete, 3s pause
-    const timeout = isPaused ? 3000 : isDeleting ? 40 : 80
-
-    const timer = setTimeout(() => {
-      if (isPaused) {
-        setIsPaused(false)
-        setIsDeleting(true)
-        return
-      }
-
-      if (!isDeleting) {
-        const nextText = current.slice(0, animatedText.length + 1)
-        setAnimatedText(nextText)
-        if (nextText === current) {
-          setIsPaused(true)
-        }
-        return
-      }
-
-      const nextText = current.slice(0, Math.max(0, animatedText.length - 1))
-      setAnimatedText(nextText)
-      if (nextText.length === 0) {
-        setIsDeleting(false)
-        setAnimatedIndex((prev) => (prev + 1) % phrases.length)
-      }
-    }, timeout)
-
-    return () => clearTimeout(timer)
-  }, [animatedText, animatedIndex, animatedPlaceholders, isDeleting, isPaused, shouldAnimatePlaceholder])
-
   // Typewriter effect for placeholder when focused
   const shouldAnimateFocusPlaceholder = focused && !value && !hasContext
 
+  // Unified typewriter effect - uses refs + direct DOM updates to avoid React re-renders
+  // This replaces two separate effects that were calling setState every 40-80ms
   useEffect(() => {
-    if (!shouldAnimateFocusPlaceholder) {
-      setFocusPlaceholderText('')
+    const anim = animationRef.current
+
+    // Clear any existing timer
+    if (anim.timerId) {
+      clearTimeout(anim.timerId)
+      anim.timerId = null
+    }
+
+    // Reset animation state when conditions change
+    if (!shouldAnimatePlaceholder && !shouldAnimateFocusPlaceholder) {
+      anim.text = ''
+      anim.focusText = ''
+      anim.isDeleting = false
+      anim.isPaused = false
+      // Reset placeholder to default
+      if (inputRef.current) {
+        inputRef.current.placeholder = hasContext ? content.placeholders.taskStepContext : placeholder
+      }
       return
     }
 
-    const targetText = placeholder
-    if (focusPlaceholderText.length >= targetText.length) {
-      return // Done typing
+    // Focus placeholder typewriter (simpler - just types once)
+    if (shouldAnimateFocusPlaceholder) {
+      const targetText = placeholder
+
+      const typeFocusChar = () => {
+        if (!inputRef.current) return
+        if (anim.focusText.length >= targetText.length) return // Done
+
+        anim.focusText = targetText.slice(0, anim.focusText.length + 1)
+        inputRef.current.placeholder = anim.focusText
+
+        anim.timerId = setTimeout(typeFocusChar, 80)
+      }
+
+      // Start from current position
+      anim.timerId = setTimeout(typeFocusChar, 80)
+      return () => {
+        if (anim.timerId) clearTimeout(anim.timerId)
+      }
     }
 
-    const timer = setTimeout(() => {
-      setFocusPlaceholderText(targetText.slice(0, focusPlaceholderText.length + 1))
-    }, 80) // Same speed as cycling typewriter
+    // Cycling placeholder typewriter (types, pauses, deletes, moves to next phrase)
+    if (shouldAnimatePlaceholder) {
+      const phrases = animatedPlaceholders
 
-    return () => clearTimeout(timer)
-  }, [focusPlaceholderText, shouldAnimateFocusPlaceholder, placeholder])
+      const animate = () => {
+        if (!inputRef.current) return
+
+        const current = phrases[anim.phraseIndex % phrases.length]
+
+        if (anim.isPaused) {
+          // After pause, start deleting
+          anim.isPaused = false
+          anim.isDeleting = true
+          anim.timerId = setTimeout(animate, 40)
+          return
+        }
+
+        if (!anim.isDeleting) {
+          // Typing forward
+          const nextText = current.slice(0, anim.text.length + 1)
+          anim.text = nextText
+          inputRef.current.placeholder = nextText
+
+          if (nextText === current) {
+            // Finished typing, pause before deleting
+            anim.isPaused = true
+            anim.timerId = setTimeout(animate, 3000)
+          } else {
+            anim.timerId = setTimeout(animate, 80)
+          }
+          return
+        }
+
+        // Deleting backward
+        const nextText = current.slice(0, Math.max(0, anim.text.length - 1))
+        anim.text = nextText
+        inputRef.current.placeholder = nextText || phrases[(anim.phraseIndex + 1) % phrases.length].charAt(0)
+
+        if (nextText.length === 0) {
+          // Finished deleting, move to next phrase
+          anim.isDeleting = false
+          anim.phraseIndex = (anim.phraseIndex + 1) % phrases.length
+        }
+
+        anim.timerId = setTimeout(animate, 40)
+      }
+
+      // Start animation
+      anim.timerId = setTimeout(animate, 80)
+      return () => {
+        if (anim.timerId) clearTimeout(anim.timerId)
+      }
+    }
+  }, [shouldAnimatePlaceholder, shouldAnimateFocusPlaceholder, animatedPlaceholders, placeholder, hasContext])
 
   // Keyboard navigation
   const [selectedIndex, setSelectedIndex] = useState<number>(-1)
@@ -294,10 +356,10 @@ export function UnifiedInput({
     }
   }
 
+  // Placeholder is now updated directly via inputRef in the animation effect
+  // Initial placeholder is shown before animation starts, then DOM updates take over
   const effectivePlaceholder = shouldAnimatePlaceholder
-    ? (animatedText || animatedPlaceholders[animatedIndex % animatedPlaceholders.length] || placeholder)
-    : shouldAnimateFocusPlaceholder
-    ? (focusPlaceholderText || '')
+    ? (animatedPlaceholders[0] || placeholder)
     : placeholder
 
   // Show keyboard shortcut hint when input is not focused

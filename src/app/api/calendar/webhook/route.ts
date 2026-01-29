@@ -30,8 +30,12 @@ export async function POST(request: NextRequest) {
     const webhookSecret = process.env.GOOGLE_WEBHOOK_SECRET
     const authHeader = request.headers.get('authorization')
 
+    // Enforce webhook authentication when secret is configured
     if (webhookSecret && authHeader !== `Bearer ${webhookSecret}`) {
-      console.warn('[CalendarWebhook] Invalid authorization header')
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      )
     }
 
     // Check for channel headers (Calendar uses HTTP headers instead of Pub/Sub body)
@@ -41,16 +45,12 @@ export async function POST(request: NextRequest) {
 
     if (channelId && resourceId) {
       // This is a direct Calendar push notification
-      console.log('[CalendarWebhook] Received Calendar notification:', {
-        channelId,
-        resourceId,
-        resourceState,
-      })
+      // Debug log removed: received Calendar notification
 
       // Parse channelId to extract userId (format: calendar-{userId})
       const userIdMatch = channelId.match(/^calendar-(.+)$/)
       if (!userIdMatch) {
-        console.warn('[CalendarWebhook] Could not extract userId from channelId:', channelId)
+        // Warning handled silently('[CalendarWebhook] Could not extract userId from channelId:', channelId)
         return NextResponse.json({ status: 'invalid_channel' })
       }
 
@@ -68,14 +68,14 @@ export async function POST(request: NextRequest) {
     const body: PubSubMessage = await request.json()
 
     if (!body.message?.data) {
-      console.error('[CalendarWebhook] No message data in request')
+      // Error handled silently('[CalendarWebhook] No message data in request')
       return NextResponse.json({ error: 'Invalid message format' }, { status: 400 })
     }
 
     const decodedData = Buffer.from(body.message.data, 'base64').toString('utf-8')
     const notification: CalendarNotification = JSON.parse(decodedData)
 
-    console.log('[CalendarWebhook] Received Pub/Sub notification:', notification)
+    // Debug log removed('[CalendarWebhook] Received Pub/Sub notification:', notification)
 
     // Extract userId from channel ID
     const userIdMatch = notification.channelId?.match(/^calendar-(.+)$/)
@@ -84,8 +84,8 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({ status: 'ok' })
-  } catch (error) {
-    console.error('[CalendarWebhook] Error processing webhook:', error)
+  } catch {
+    // Error handled silently
     return NextResponse.json({ status: 'error' })
   }
 }
@@ -105,14 +105,14 @@ async function syncCalendarChanges(userId: string) {
     .single()
 
   if (watchError || !watch) {
-    console.warn('[CalendarWebhook] No watch found for user:', userId)
+    // Warning handled silently('[CalendarWebhook] No watch found for user:', userId)
     return
   }
 
   // Get a valid access token
   const accessToken = await getValidToken(userId)
   if (!accessToken) {
-    console.error('[CalendarWebhook] Could not get valid token for user:', userId)
+    // Error handled silently('[CalendarWebhook] Could not get valid token for user:', userId)
     return
   }
 
@@ -146,7 +146,7 @@ async function syncCalendarChanges(userId: string) {
   if (!eventsResponse.ok) {
     // If sync token is invalid, do a full sync
     if (eventsResponse.status === 410) {
-      console.log('[CalendarWebhook] Sync token expired, doing full sync')
+      // Debug log removed('[CalendarWebhook] Sync token expired, doing full sync')
       delete params.syncToken
       const now = new Date()
       const future = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
@@ -164,7 +164,7 @@ async function syncCalendarChanges(userId: string) {
       )
 
       if (!retryResponse.ok) {
-        console.error('[CalendarWebhook] Failed to fetch events:', retryResponse.status)
+        // Error handled silently('[CalendarWebhook] Failed to fetch events:', retryResponse.status)
         return
       }
 
@@ -173,7 +173,7 @@ async function syncCalendarChanges(userId: string) {
       return
     }
 
-    console.error('[CalendarWebhook] Failed to fetch events:', eventsResponse.status)
+    // Error handled silently('[CalendarWebhook] Failed to fetch events:', eventsResponse.status)
     return
   }
 
@@ -251,7 +251,7 @@ async function processCalendarEvents(
       .eq('resource_type', 'calendar')
   }
 
-  console.log('[CalendarWebhook] Synced', events.length, 'events for user:', userId)
+  // Debug log removed('[CalendarWebhook] Synced', events.length, 'events for user:', userId)
 }
 
 // Verify GET requests

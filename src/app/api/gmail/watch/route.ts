@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
 
     if (!watchResponse.ok) {
       const errorText = await watchResponse.text()
-      console.error('[GmailWatch] Failed to create watch:', watchResponse.status, errorText)
+      // Error handled silently('[GmailWatch] Failed to create watch:', watchResponse.status, errorText)
       return NextResponse.json({
         error: 'Failed to set up Gmail notifications',
         details: errorText,
@@ -95,7 +95,7 @@ export async function POST(request: NextRequest) {
       })
 
     if (upsertError) {
-      console.error('[GmailWatch] Failed to store watch:', upsertError)
+      // Error handled silently('[GmailWatch] Failed to store watch:', upsertError)
       return NextResponse.json({
         error: 'Failed to store watch configuration',
       }, { status: 500 })
@@ -119,8 +119,8 @@ export async function POST(request: NextRequest) {
       expiration: expirationDate.toISOString(),
       historyId: watchData.historyId,
     })
-  } catch (error) {
-    console.error('[GmailWatch] Error:', error)
+  } catch {
+    // Error handled silently
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
@@ -181,8 +181,8 @@ export async function DELETE(request: NextRequest) {
       .eq('user_id', user.id)
 
     return NextResponse.json({ success: true })
-  } catch (error) {
-    console.error('[GmailWatch] Error stopping watch:', error)
+  } catch {
+    // Error handled silently
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
@@ -229,8 +229,8 @@ export async function GET(request: NextRequest) {
       expiration: watch.expiration,
       historyId: watch.history_id,
     })
-  } catch (error) {
-    console.error('[GmailWatch] Error getting status:', error)
+  } catch {
+    // Error handled silently
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

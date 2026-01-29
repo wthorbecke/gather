@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
     const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://gather-lilac.vercel.app').replace(/\/$/, '')
     const redirectUri = `${baseUrl}/api/auth/google/callback`
 
-    console.log('[GoogleConnect] Using redirect URI:', redirectUri)
+    // Debug log removed('[GoogleConnect] Using redirect URI:', redirectUri)
 
     const scopes = [
       'https://www.googleapis.com/auth/gmail.readonly',
@@ -53,8 +53,8 @@ export async function GET(request: NextRequest) {
     const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`
 
     return NextResponse.json({ url: authUrl })
-  } catch (err) {
-    console.error('[GoogleConnect] Error:', err)
+  } catch {
+    // Error handled silently
     return NextResponse.json({ error: 'Internal error' }, { status: 500 })
   }
 }

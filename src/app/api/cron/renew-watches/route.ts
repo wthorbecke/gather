@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
     const authHeader = request.headers.get('authorization')
 
     if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
-      console.warn('[RenewWatches] Unauthorized cron request')
+      // Warning handled silently('[RenewWatches] Unauthorized cron request')
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -29,12 +29,12 @@ export async function GET(request: NextRequest) {
       .lt('expiration', twoDaysFromNow.toISOString())
 
     if (queryError) {
-      console.error('[RenewWatches] Error querying watches:', queryError)
+      // Error handled silently('[RenewWatches] Error querying watches:', queryError)
       return NextResponse.json({ error: 'Query failed' }, { status: 500 })
     }
 
     if (!expiringWatches || expiringWatches.length === 0) {
-      console.log('[RenewWatches] No watches need renewal')
+      // Debug log removed('[RenewWatches] No watches need renewal')
       return NextResponse.json({
         success: true,
         renewed: 0,
@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    console.log(`[RenewWatches] Found ${expiringWatches.length} watches to renew`)
+    // Debug log removed(`[RenewWatches] Found ${expiringWatches.length} watches to renew`)
 
     const results = {
       renewed: 0,
@@ -69,18 +69,18 @@ export async function GET(request: NextRequest) {
       } catch (error) {
         results.failed++
         results.errors.push(`Error renewing watch for ${watch.user_id}: ${error}`)
-        console.error('[RenewWatches] Error:', error)
+        // Error handled silently('[RenewWatches] Error:', error)
       }
     }
 
-    console.log('[RenewWatches] Results:', results)
+    // Debug log removed('[RenewWatches] Results:', results)
 
     return NextResponse.json({
       success: true,
       ...results,
     })
   } catch (error) {
-    console.error('[RenewWatches] Cron error:', error)
+    // Error handled silently('[RenewWatches] Cron error:', error)
     return NextResponse.json({ error: 'Cron job failed' }, { status: 500 })
   }
 }
@@ -138,7 +138,7 @@ async function renewGmailWatch(
     .eq('user_id', userId)
     .eq('resource_type', 'gmail')
 
-  console.log(`[RenewWatches] Renewed Gmail watch for user ${userId}`)
+  // Debug log removed(`[RenewWatches] Renewed Gmail watch for user ${userId}`)
 }
 
 /**
@@ -222,7 +222,7 @@ async function renewCalendarWatch(
     .eq('user_id', userId)
     .eq('resource_type', 'calendar')
 
-  console.log(`[RenewWatches] Renewed Calendar watch for user ${userId}`)
+  // Debug log removed(`[RenewWatches] Renewed Calendar watch for user ${userId}`)
 }
 
 // Also support POST for Vercel cron

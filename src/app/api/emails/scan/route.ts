@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { getValidToken } from '@/lib/google-auth'
+import {
+  checkRateLimit,
+  getRequestIdentifier,
+  rateLimitResponse,
+  RATE_LIMITS,
+} from '@/lib/rateLimit'
 
 // In-memory cache for scan results (5 minute TTL)
 // This avoids repeated expensive Gmail API calls within a session
@@ -285,6 +291,13 @@ function matchesTaskPattern(subject: string, snippet: string = ''): string | nul
 }
 
 export async function GET(request: NextRequest) {
+  // Rate limiting - email scanning is expensive
+  const identifier = getRequestIdentifier(request)
+  const rateCheck = checkRateLimit(identifier, RATE_LIMITS.emailScan)
+  if (!rateCheck.allowed) {
+    return rateLimitResponse(rateCheck)
+  }
+
   try {
     // Get auth header
     const authHeader = request.headers.get('authorization')
@@ -318,7 +331,7 @@ export async function GET(request: NextRequest) {
     const forceRefresh = request.nextUrl.searchParams.get('refresh') === 'true'
 
     if (cached && !forceRefresh && Date.now() - cached.timestamp < CACHE_TTL_MS) {
-      console.log(`[EmailScan] Cache hit for user ${user.id.slice(0, 8)}...`)
+      // Debug log removed(`[EmailScan] Cache hit for user ${user.id.slice(0, 8)}...`)
       return NextResponse.json({ ...cached.data, cached: true })
     }
 
@@ -355,7 +368,7 @@ export async function GET(request: NextRequest) {
 
     if (!listResponse.ok) {
       const errorText = await listResponse.text()
-      console.error('Gmail API error:', listResponse.status, errorText)
+      // Error handled silently('Gmail API error:', listResponse.status, errorText)
 
       if (listResponse.status === 401) {
         return NextResponse.json({
@@ -411,7 +424,7 @@ export async function GET(request: NextRequest) {
           }
         }
       } catch (err) {
-        console.error('Error fetching message detail:', err)
+        // Error handled silently('Error fetching message detail:', err)
       }
     }
 
@@ -432,12 +445,12 @@ export async function GET(request: NextRequest) {
       data: responseData,
       timestamp: Date.now()
     })
-    console.log(`[EmailScan] Cached results for user ${user.id.slice(0, 8)}... (${dedupedTasks.length} tasks)`)
+    // Debug log removed(`[EmailScan] Cached results for user ${user.id.slice(0, 8)}... (${dedupedTasks.length} tasks)`)
 
     return NextResponse.json(responseData)
 
   } catch (error) {
-    console.error('Error scanning emails:', error)
+    // Error handled silently('Error scanning emails:', error)
     return NextResponse.json({ error: 'Failed to scan emails' }, { status: 500 })
   }
 }

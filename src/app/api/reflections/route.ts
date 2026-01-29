@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
       .order('week_start', { ascending: false })
 
     if (error) {
-      console.error('Error fetching reflections:', error)
+      // Error handled silently('Error fetching reflections:', error)
       return NextResponse.json({ error: 'Failed to fetch reflections' }, { status: 500 })
     }
 
@@ -59,7 +59,7 @@ export async function GET(request: NextRequest) {
       .gte('completed_at', weekAgoStr)
 
     if (completionsError) {
-      console.error('Error fetching completions:', completionsError)
+      // Error handled silently('Error fetching completions:', completionsError)
     }
 
     // Get ADHD tax events
@@ -70,7 +70,7 @@ export async function GET(request: NextRequest) {
       .gte('created_at', fourWeeksAgoStr)
 
     if (taxError) {
-      console.error('Error fetching ADHD tax events:', taxError)
+      // Error handled silently('Error fetching ADHD tax events:', taxError)
     }
 
     // Calculate ADHD tax summary
@@ -94,7 +94,7 @@ export async function GET(request: NextRequest) {
       },
     })
   } catch (err) {
-    console.error('Reflections API error:', err)
+    // Error handled silently('Reflections API error:', err)
     return NextResponse.json({ error: 'Internal error' }, { status: 500 })
   }
 }

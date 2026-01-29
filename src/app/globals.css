@@ -33,10 +33,10 @@
   --elevated: #FFFFFF;
   --subtle: #F5F5F5;
 
-  /* Text hierarchy */
+  /* Text hierarchy - WCAG AA compliant (4.5:1 for small text) */
   --text: #1a1a1a;
-  --text-soft: #5c5c5c;
-  --text-muted: #9a9a9a;
+  --text-soft: #525252; /* 7.0:1 contrast on #FAFAFA */
+  --text-muted: #737373; /* 4.6:1 contrast on #FAFAFA - meets AA for body text */
 
   /* Accent - Coral (primary actions) */
   --accent: #D97556;
@@ -92,6 +92,16 @@
 }
 
 /* =============================================
+   THEME TRANSITION - Smooth toggle between light/dark
+   ============================================= */
+html {
+  transition: background-color 200ms ease-out;
+}
+html.transitioning * {
+  transition: background-color 200ms ease-out, color 200ms ease-out, border-color 200ms ease-out !important;
+}
+
+/* =============================================
    DARK MODE - Same unified approach
    ============================================= */
 .dark {
@@ -103,10 +113,10 @@
   --elevated: #1a1816;
   --subtle: #141210;
 
-  /* Text hierarchy */
+  /* Text hierarchy - WCAG AA compliant (4.5:1 for small text) */
   --text: #F5F5F5;
-  --text-soft: #a0a0a0;
-  --text-muted: #666666;
+  --text-soft: #a3a3a3; /* 5.7:1 contrast on #0c0a09 */
+  --text-muted: #8a8a8a; /* 4.9:1 contrast on #0c0a09 - meets AA for body text */
 
   /* Accent - Lighter coral for dark mode */
   --accent: #E8A990;
@@ -612,6 +622,19 @@ textarea:focus-visible {
   100% {
     background-position: 200% 0;
   }
+}
+
+/* Hold progress fill - CSS-only animation, no React state updates */
+@keyframes holdProgressFill {
+  0% {
+    transform: scaleX(0);
+  }
+  100% {
+    transform: scaleX(1);
+  }
+}
+.hold-progress-fill {
+  animation: holdProgressFill 500ms linear forwards;
 }
 
 /* Legacy flash animation */

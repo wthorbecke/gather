@@ -123,7 +123,7 @@ const FORBIDDEN_PATTERNS = {
 
 // ============ SELECTORS ============
 const selectors = {
-  mainInput: 'input[placeholder*="next"], input[placeholder*="Add something"]',
+  mainInput: 'input[placeholder*="next" i], input[placeholder*="Add" i], input[placeholder*="done" i]',
   taskCard: '[class*="TaskCard"], [class*="task-card"], [data-testid*="task"]',
   aiCard: '[class*="AICard"], [class*="ai-card"]',
   button: 'button',

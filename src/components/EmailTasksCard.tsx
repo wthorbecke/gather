@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useAuth } from './AuthProvider'
+import { DEMO_EMAILS } from '@/lib/demo-data'
 
 interface AIAnalysis {
   category: string
@@ -26,6 +27,7 @@ interface PotentialTask {
 interface EmailTasksCardProps {
   onAddTask: (title: string, context: string, dueDate?: string) => void
   onIgnoreSender?: (sender: string) => void
+  isDemoUser?: boolean
 }
 
 // Retry configuration
@@ -40,7 +42,7 @@ const CATEGORY_INFO: Record<string, { label: string; color: string }> = {
   REQUEST: { label: 'Request', color: 'text-text-soft' },
 }
 
-export function EmailTasksCard({ onAddTask, onIgnoreSender }: EmailTasksCardProps) {
+export function EmailTasksCard({ onAddTask, onIgnoreSender, isDemoUser }: EmailTasksCardProps) {
   const { session } = useAuth()
   const [potentialTasks, setPotentialTasks] = useState<PotentialTask[]>([])
   const [loading, setLoading] = useState(false)
@@ -50,6 +52,31 @@ export function EmailTasksCard({ onAddTask, onIgnoreSender }: EmailTasksCardProp
   const [needsReauth, setNeedsReauth] = useState(false)
   const retryCountRef = useRef(0)
   const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+
+  // Load demo data when in demo mode
+  useEffect(() => {
+    if (isDemoUser) {
+      const demoTasks: PotentialTask[] = DEMO_EMAILS.map((email) => ({
+        id: email.id,
+        subject: email.subject,
+        from: email.from,
+        snippet: email.snippet,
+        date: new Date().toISOString(),
+        matchedPattern: 'demo',
+        aiAnalysis: {
+          category: 'ACTION',
+          confidence: 0.9,
+          suggestedTask: {
+            title: email.subject,
+            dueDate: null,
+            urgency: 'medium',
+          },
+        },
+      }))
+      setPotentialTasks(demoTasks)
+      setHasScanned(true)
+    }
+  }, [isDemoUser])
 
   // Cleanup retry timeout on unmount
   useEffect(() => {
@@ -90,7 +117,7 @@ export function EmailTasksCard({ onAddTask, onIgnoreSender }: EmailTasksCardProp
           if (retryCountRef.current < MAX_RETRIES) {
             const delay = BASE_DELAY_MS * Math.pow(2, retryCountRef.current)
             retryCountRef.current++
-            console.log(`[EmailScan] Retrying in ${delay}ms (attempt ${retryCountRef.current}/${MAX_RETRIES})`)
+            // Debug log removed(`[EmailScan] Retrying in ${delay}ms (attempt ${retryCountRef.current}/${MAX_RETRIES})`)
             retryTimeoutRef.current = setTimeout(() => scanEmails(true), delay)
             setError(`Retrying... (${retryCountRef.current}/${MAX_RETRIES})`)
           } else {
@@ -107,13 +134,13 @@ export function EmailTasksCard({ onAddTask, onIgnoreSender }: EmailTasksCardProp
       setPotentialTasks(data.potentialTasks || [])
       setHasScanned(true)
     } catch (err) {
-      console.error('Error scanning emails:', err)
+      // Error handled silently('Error scanning emails:', err)
 
       // Network error - retry with backoff
       if (retryCountRef.current < MAX_RETRIES) {
         const delay = BASE_DELAY_MS * Math.pow(2, retryCountRef.current)
         retryCountRef.current++
-        console.log(`[EmailScan] Network error, retrying in ${delay}ms (attempt ${retryCountRef.current}/${MAX_RETRIES})`)
+        // Debug log removed(`[EmailScan] Network error, retrying in ${delay}ms (attempt ${retryCountRef.current}/${MAX_RETRIES})`)
         retryTimeoutRef.current = setTimeout(() => scanEmails(true), delay)
         setError(`Connection issue, retrying...`)
       } else {
@@ -193,12 +220,22 @@ export function EmailTasksCard({ onAddTask, onIgnoreSender }: EmailTasksCardProp
 
   if (loading) {
     return (
-      <div className="mb-6 p-4 bg-subtle rounded-lg border border-border-subtle animate-pulse">
-        <div className="flex items-center gap-2 text-sm text-text-soft">
-          <svg width={16} height={16} viewBox="0 0 24 24" className="text-text-muted animate-spin">
-            <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" fill="none" strokeDasharray="32" strokeDashoffset="32"/>
-          </svg>
-          Scanning your inbox...
+      <div className="mb-6 bg-card rounded-lg border border-border-subtle overflow-hidden">
+        {/* Skeleton header */}
+        <div className="px-4 py-3 bg-subtle border-b border-border-subtle flex items-center gap-2">
+          <div className="w-4 h-4 rounded bg-surface skeleton" />
+          <div className="h-4 w-40 rounded bg-surface skeleton" />
+        </div>
+        {/* Skeleton items */}
+        <div className="divide-y divide-border-subtle">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="px-4 py-3 flex items-center gap-3" style={{ opacity: 1 - i * 0.2 }}>
+              <div className="flex-1 min-w-0 space-y-2">
+                <div className="h-4 w-3/4 rounded bg-surface skeleton" />
+                <div className="h-3 w-1/2 rounded bg-surface skeleton" />
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     )
@@ -208,15 +245,25 @@ export function EmailTasksCard({ onAddTask, onIgnoreSender }: EmailTasksCardProp
   if (error && !needsReauth && retryCountRef.current >= MAX_RETRIES) {
     return (
       <div className="mb-6 p-4 bg-subtle rounded-lg border border-border-subtle">
-        <div className="flex items-center justify-between gap-2">
-          <span className="text-sm text-text-soft">{error}</span>
-          <button
-            onClick={() => scanEmails(false)}
-            disabled={loading}
-            className="text-xs text-accent hover:text-accent/80 transition-colors btn-press tap-target"
-          >
-            Try again
-          </button>
+        <div className="flex items-start gap-3">
+          <div className="w-8 h-8 rounded-full bg-danger-soft flex items-center justify-center flex-shrink-0">
+            <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-danger">
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="8" x2="12" y2="12" />
+              <line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm text-text mb-1">Couldn&apos;t check your inbox</p>
+            <p className="text-xs text-text-muted mb-3">This might be a temporary issue. Your data is safe.</p>
+            <button
+              onClick={() => scanEmails(false)}
+              disabled={loading}
+              className="px-4 py-2 min-h-[44px] text-sm font-medium text-accent bg-accent-soft rounded-md hover:bg-accent/15 transition-colors duration-150 ease-out btn-press"
+            >
+              Try again
+            </button>
+          </div>
         </div>
       </div>
     )
@@ -240,7 +287,7 @@ export function EmailTasksCard({ onAddTask, onIgnoreSender }: EmailTasksCardProp
         </div>
         <button
           onClick={handleDismissAll}
-          className="text-xs text-text-muted hover:text-text transition-colors btn-press tap-target"
+          className="text-xs text-text-muted hover:text-text transition-colors duration-150 ease-out btn-press tap-target"
         >
           Dismiss all
         </button>
@@ -251,7 +298,7 @@ export function EmailTasksCard({ onAddTask, onIgnoreSender }: EmailTasksCardProp
         {visibleTasks.slice(0, 5).map((task) => (
           <div
             key={task.id}
-            className="px-4 py-3 hover:bg-subtle/50 transition-colors flex items-center gap-3 group cursor-pointer"
+            className="px-4 py-3 min-h-[44px] hover:bg-subtle/50 transition-colors duration-150 ease-out flex items-center gap-3 group cursor-pointer"
             onClick={() => handleAddTask(task)}
           >
             {/* Content */}
@@ -271,7 +318,7 @@ export function EmailTasksCard({ onAddTask, onIgnoreSender }: EmailTasksCardProp
                   e.stopPropagation()
                   handleAddTask(task)
                 }}
-                className="px-2 py-1 text-xs font-medium text-accent hover:bg-accent/10 rounded transition-colors"
+                className="px-3 py-2 min-h-[44px] text-xs font-medium text-accent hover:bg-accent/10 rounded transition-colors duration-150 ease-out"
               >
                 Add
               </button>
@@ -280,7 +327,7 @@ export function EmailTasksCard({ onAddTask, onIgnoreSender }: EmailTasksCardProp
                   e.stopPropagation()
                   handleDismiss(task.id)
                 }}
-                className="p-1 text-text-muted hover:text-text transition-colors"
+                className="p-2 min-w-[44px] min-h-[44px] flex items-center justify-center text-text-muted hover:text-text transition-colors duration-150 ease-out"
               >
                 <svg width={14} height={14} viewBox="0 0 16 16">
                   <path d="M4 4L12 12M12 4L4 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>

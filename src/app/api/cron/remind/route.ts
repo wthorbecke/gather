@@ -37,7 +37,7 @@ export async function GET(request: Request) {
       .select('subscription, user_id')
 
     if (error) {
-      console.error('Error fetching subscriptions:', error)
+      // Error handled silently('Error fetching subscriptions:', error)
       return NextResponse.json({ error: 'Failed to fetch subscriptions' }, { status: 500 })
     }
 
@@ -85,7 +85,7 @@ export async function GET(request: Request) {
       total: subscriptions.length,
     })
   } catch (err) {
-    console.error('Cron error:', err)
+    // Error handled silently('Cron error:', err)
     return NextResponse.json({ error: 'Internal error' }, { status: 500 })
   }
 }

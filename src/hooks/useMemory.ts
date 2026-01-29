@@ -49,7 +49,7 @@ export function useMemory() {
         })
       }
     } catch (e) {
-      console.warn('Failed to load memory:', e)
+      // Warning handled silently('Failed to load memory:', e)
     }
     setLoaded(true)
   }, [])
@@ -60,7 +60,7 @@ export function useMemory() {
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(memory))
       } catch (e) {
-        console.warn('Failed to save memory:', e)
+        // Warning handled silently('Failed to save memory:', e)
       }
     }
   }, [memory, loaded])

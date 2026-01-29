@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, memo } from 'react'
 import { Step } from '@/hooks/useUserData'
 import { splitStepText } from '@/lib/stepText'
 import { isAuthoritativeSource, isLowQualitySource, isNewsSource } from '@/lib/sourceQuality'
@@ -15,14 +15,18 @@ interface StepItemProps {
   onExpand: () => void
   onStuck?: (step: Step) => void
   onFocus?: (step: Step) => void
+  onEdit?: (step: Step, newText: string) => void
 }
 
-export function StepItem({ step, isNext, isExpanded, onToggle, onExpand, onStuck, onFocus }: StepItemProps) {
+export const StepItem = memo(function StepItem({ step, isNext, isExpanded, onToggle, onExpand, onStuck, onFocus, onEdit }: StepItemProps) {
   const hasExpandableContent = step.detail || step.alternatives || step.examples || step.checklist || step.action || step.source
   const normalizedActionUrl = normalizeActionUrl(step.action?.url)
   const { title: derivedTitle, remainder: derivedRemainder } = splitStepText(step.text)
   const derivedSummary = step.summary || (derivedRemainder ? derivedRemainder : undefined)
   const [justCompleted, setJustCompleted] = useState(false)
+  const [isEditing, setIsEditing] = useState(false)
+  const [editText, setEditText] = useState(step.text)
+  const editInputRef = useRef<HTMLInputElement>(null)
   const prevDoneRef = useRef(step.done)
 
   useEffect(() => {
@@ -34,6 +38,48 @@ export function StepItem({ step, isNext, isExpanded, onToggle, onExpand, onStuck
       return () => clearTimeout(timeout)
     }
   }, [step.done])
+
+  // Focus the edit input when entering edit mode
+  useEffect(() => {
+    if (isEditing && editInputRef.current) {
+      editInputRef.current.focus()
+      editInputRef.current.select()
+    }
+  }, [isEditing])
+
+  // Reset edit text when step changes
+  useEffect(() => {
+    setEditText(step.text)
+  }, [step.text])
+
+  const handleStartEdit = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    setIsEditing(true)
+    setEditText(step.text)
+  }
+
+  const handleSaveEdit = () => {
+    const trimmedText = editText.trim()
+    if (trimmedText && trimmedText !== step.text && onEdit) {
+      onEdit(step, trimmedText)
+    }
+    setIsEditing(false)
+  }
+
+  const handleCancelEdit = () => {
+    setEditText(step.text)
+    setIsEditing(false)
+  }
+
+  const handleEditKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      handleSaveEdit()
+    } else if (e.key === 'Escape') {
+      e.preventDefault()
+      handleCancelEdit()
+    }
+  }
 
   const hasOfficialSource = step.source ? isAuthoritativeSource(step.source.url) : true
   const hasAllowedSource = step.source
@@ -74,11 +120,11 @@ export function StepItem({ step, isNext, isExpanded, onToggle, onExpand, onStuck
   }
 
   return (
-    <div data-step-id={step.id} className={getContainerClasses()}>
+    <div data-step-id={step.id} className={`group ${getContainerClasses()}`}>
       {/* Main row */}
       <div
-        onClick={() => !step.done && hasExpandableContent && onExpand()}
-        className={`flex gap-3 p-3 ${!step.done && hasExpandableContent ? 'cursor-pointer' : ''}`}
+        onClick={() => !step.done && !isEditing && hasExpandableContent && onExpand()}
+        className={`flex gap-3 p-3 ${!step.done && hasExpandableContent && !isEditing ? 'cursor-pointer' : ''}`}
       >
         {/* Checkbox */}
         <div className="flex-shrink-0 pt-0.5">
@@ -87,18 +133,56 @@ export function StepItem({ step, isNext, isExpanded, onToggle, onExpand, onStuck
 
         {/* Content */}
         <div className="flex-1 min-w-0">
-          <div
-            className={`text-sm leading-snug ${step.done ? 'line-through text-text-muted' : 'text-text'}`}
-          >
-            {derivedTitle}
-          </div>
-          {!isExpanded && !step.done && derivedSummary && (
+          {isEditing ? (
+            <input
+              ref={editInputRef}
+              type="text"
+              value={editText}
+              onChange={(e) => setEditText(e.target.value)}
+              onBlur={handleSaveEdit}
+              onKeyDown={handleEditKeyDown}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full text-sm leading-snug text-text bg-subtle border border-border rounded-md px-2 py-1 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/30"
+            />
+          ) : (
+            <div
+              className={`text-sm leading-snug ${step.done ? 'line-through text-text-muted' : 'text-text'}`}
+            >
+              {derivedTitle}
+            </div>
+          )}
+          {!isEditing && !isExpanded && !step.done && derivedSummary && (
             <div className="text-xs text-text-muted mt-0.5 leading-relaxed">
               {derivedSummary}
               {inlineSource}
             </div>
           )}
+          {/* Quick "I'm stuck" - always visible for incomplete steps */}
+          {!isEditing && !isExpanded && !step.done && onStuck && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                onStuck(step)
+              }}
+              className="mt-1 -ml-2 px-2 py-1.5 min-h-[44px] text-xs text-text-muted hover:text-accent transition-colors duration-[80ms]"
+            >
+              stuck?
+            </button>
+          )}
         </div>
+
+        {/* Edit button - shows on hover or in expanded view for incomplete steps */}
+        {!step.done && onEdit && !isEditing && (
+          <button
+            onClick={handleStartEdit}
+            className="flex-shrink-0 min-w-[44px] min-h-[44px] -m-2 flex items-center justify-center text-text-muted hover:text-text opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity duration-150"
+            aria-label="Edit step"
+          >
+            <svg width={14} height={14} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+              <path d="M11.5 2.5l2 2M2 14l1-4 9-9 2 2-9 9-3 1z" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+        )}
 
         {/* Expand arrow */}
         {!step.done && hasExpandableContent && (
@@ -141,17 +225,17 @@ export function StepItem({ step, isNext, isExpanded, onToggle, onExpand, onStuck
             </div>
           )}
 
-          {/* Checklist */}
+          {/* Checklist - visual bullets, not interactive (use dashes to avoid checkbox confusion) */}
           {step.checklist && (
             <div className="p-2.5 bg-subtle rounded-md mb-3">
               <div className="text-xs text-text-muted font-medium mb-1.5">Checklist</div>
               {step.checklist.map((item, i) => (
                 <div
                   key={i}
-                  className="flex items-center gap-2 text-xs text-text-soft mb-1 last:mb-0"
+                  className="flex items-start gap-2 text-xs text-text-soft mb-1 last:mb-0"
                 >
-                  <span className="text-text-muted">○</span>
-                  {item}
+                  <span className="text-text-muted select-none">–</span>
+                  <span>{item}</span>
                 </div>
               ))}
             </div>
@@ -168,10 +252,11 @@ export function StepItem({ step, isNext, isExpanded, onToggle, onExpand, onStuck
                   onClick={(e) => e.stopPropagation()}
                   className="
                     inline-flex items-center gap-1.5
-                    px-2.5 py-1.5 rounded-md
-                    text-link text-sm
+                    px-3 py-2.5 min-h-[44px] rounded-md
+                    text-link text-sm font-medium
                     hover:bg-link-soft
-                    transition-colors duration-[80ms]
+                    transition-colors duration-150 ease-out
+                    btn-press
                   "
                 >
                   {step.action.text}
@@ -239,6 +324,25 @@ export function StepItem({ step, isNext, isExpanded, onToggle, onExpand, onStuck
                 Focus
               </button>
             )}
+            {onEdit && (
+              <button
+                onClick={handleStartEdit}
+                className="
+                  py-2 px-3
+                  bg-transparent border border-border
+                  rounded-md text-sm text-text-soft
+                  hover:bg-card-hover
+                  transition-all duration-[80ms] ease-out
+                  btn-press
+                  flex items-center justify-center gap-2
+                "
+              >
+                <svg width={14} height={14} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <path d="M11.5 2.5l2 2M2 14l1-4 9-9 2 2-9 9-3 1z" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                Edit
+              </button>
+            )}
             {onStuck && (
               <button
                 onClick={(e) => {
@@ -263,4 +367,4 @@ export function StepItem({ step, isNext, isExpanded, onToggle, onExpand, onStuck
       )}
     </div>
   )
-}
+})

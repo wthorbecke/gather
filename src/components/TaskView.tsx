@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import dynamic from 'next/dynamic'
 import { Task, Step } from '@/hooks/useUserData'
 import { UnifiedInput } from './UnifiedInput'
 import { useTheme } from './ThemeProvider'
@@ -9,7 +10,16 @@ import { StepItem } from './StepItem'
 import { SegmentedProgress } from './SegmentedProgress'
 import { content } from '@/config/content'
 import { SnoozeMenu } from './SnoozeMenu'
-import { FocusMode } from './FocusMode'
+
+// Lazy load FocusMode - only needed when user enters focus mode
+const FocusMode = dynamic(() => import('./FocusMode').then(mod => ({ default: mod.FocusMode })), {
+  ssr: false,
+  loading: () => (
+    <div className="fixed inset-0 z-50 bg-canvas flex items-center justify-center">
+      <div className="animate-pulse text-text-muted">Loading focus mode...</div>
+    </div>
+  ),
+})
 
 interface ContextTag {
   type: 'task' | 'step'
@@ -29,6 +39,7 @@ interface TaskViewProps {
   onQuickReply?: (reply: string) => void
   onAICardAction?: (action: { type: string; stepId?: string | number; title?: string; context?: string }) => void
   onToggleStep: (stepId: string | number) => void
+  onEditStep?: (stepId: string | number, newText: string) => void
   onSetStepContext: (step: Step | null) => void
   onRemoveTag: (index: number) => void
   onDeleteTask: () => void
@@ -48,6 +59,7 @@ export function TaskView({
   onQuickReply,
   onAICardAction,
   onToggleStep,
+  onEditStep,
   onSetStepContext,
   onRemoveTag,
   onDeleteTask,
@@ -217,7 +229,7 @@ export function TaskView({
                       toggleTheme()
                       setShowMenu(false)
                     }}
-                    className="w-full px-3 py-2.5 text-left text-sm text-text hover:bg-subtle flex items-center gap-2.5"
+                    className="w-full px-3 py-3 min-h-[44px] text-left text-sm text-text hover:bg-subtle flex items-center gap-2.5 transition-colors duration-150 ease-out"
                   >
                     {theme === 'light' ? (
                       <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-text-muted">
@@ -244,7 +256,7 @@ export function TaskView({
                         setShowMenu(false)
                         setShowSnoozeMenu(true)
                       }}
-                      className="w-full px-3 py-2.5 text-left text-sm text-text hover:bg-subtle flex items-center gap-2.5"
+                      className="w-full px-3 py-3 min-h-[44px] text-left text-sm text-text hover:bg-subtle flex items-center gap-2.5 transition-colors duration-150 ease-out"
                     >
                       <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-text-muted">
                         <circle cx="12" cy="12" r="10" />
@@ -259,7 +271,7 @@ export function TaskView({
                       setShowMenu(false)
                       setShowDeleteConfirm(true)
                     }}
-                    className="w-full px-3 py-2.5 text-left text-sm text-danger hover:bg-danger-soft flex items-center gap-2.5"
+                    className="w-full px-3 py-3 min-h-[44px] text-left text-sm text-danger hover:bg-danger-soft flex items-center gap-2.5 transition-colors duration-150 ease-out"
                   >
                     <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-danger">
                       <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6" />
@@ -364,6 +376,7 @@ export function TaskView({
                   onExpand={() => handleStepExpand(step)}
                   onStuck={handleStuckOnStep}
                   onFocus={() => setFocusStepIndex(index)}
+                  onEdit={onEditStep ? (step, newText) => onEditStep(step.id, newText) : undefined}
                 />
               </div>
             )

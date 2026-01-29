@@ -26,10 +26,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Timeout to prevent infinite loading
+    // Timeout to prevent infinite loading - silent in production
     const timeout = setTimeout(() => {
       if (loading) {
-        console.warn('Auth loading timed out')
         setLoading(false)
       }
     }, 5000)
@@ -42,7 +41,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setLoading(false)
       })
       .catch((error) => {
-        console.error('Error getting session:', error)
+        // Error handled silently('Error getting session:', error)
         setLoading(false)
       })
 

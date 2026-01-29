@@ -15,24 +15,20 @@ export default function AuthCallback() {
         const { data: { session }, error } = await supabase.auth.getSession()
 
         if (error) {
-          console.error('[AuthCallback] Error getting session:', error)
+          // Error handled silently('[AuthCallback] Error getting session:', error)
           setStatus('Error signing in')
           setTimeout(() => router.push('/'), 2000)
           return
         }
 
         if (!session) {
-          console.log('[AuthCallback] No session found')
+          // Debug log removed('[AuthCallback] No session found')
           setStatus('No session found')
           setTimeout(() => router.push('/'), 1000)
           return
         }
 
-        console.log('[AuthCallback] Session found:', {
-          userId: session.user.id,
-          hasProviderToken: !!session.provider_token,
-          hasProviderRefreshToken: !!session.provider_refresh_token,
-        })
+        // Debug log removed: session found
 
         // If we have provider tokens, store them
         if (session.provider_token) {
@@ -51,17 +47,17 @@ export default function AuthCallback() {
           })
 
           if (res.ok) {
-            console.log('[AuthCallback] Tokens stored successfully')
+            // Debug log removed('[AuthCallback] Tokens stored successfully')
           } else {
             const data = await res.json()
-            console.error('[AuthCallback] Failed to store tokens:', data)
+            // Error handled silently('[AuthCallback] Failed to store tokens:', data)
           }
         }
 
         // Redirect home
         router.push('/')
       } catch (err) {
-        console.error('[AuthCallback] Unexpected error:', err)
+        // Error handled silently('[AuthCallback] Unexpected error:', err)
         setStatus('Something went wrong')
         setTimeout(() => router.push('/'), 2000)
       }

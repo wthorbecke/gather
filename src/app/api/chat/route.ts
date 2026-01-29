@@ -1,6 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prioritizeSources } from '@/lib/sourceQuality'
-import { AI_MODELS, AI_MAX_TOKENS } from '@/config/ai'
+import { AI_MODELS } from '@/config/ai'
+import {
+  checkRateLimitAsync,
+  getRequestIdentifier,
+  rateLimitResponse,
+  RATE_LIMITS,
+} from '@/lib/rateLimit'
+import {
+  validateChatInput,
+  validationErrorResponse,
+} from '@/lib/validation'
+import { requireAuth } from '@/lib/api-auth'
+import {
+  CHAT_SYSTEM_PROMPT,
+  ChatResponseSchema,
+  DEFAULT_CHAT_RESPONSE,
+  parseAIResponse,
+  extractJSON,
+  type ChatResponse,
+} from '@/lib/ai'
 
 interface Source {
   title: string
@@ -8,8 +27,29 @@ interface Source {
 }
 
 export async function POST(request: NextRequest) {
+  // Require authentication
+  const auth = await requireAuth(request)
+  if (auth instanceof NextResponse) {
+    return auth
+  }
+
+  // Rate limiting
+  const identifier = getRequestIdentifier(request, auth.userId)
+  const rateCheck = await checkRateLimitAsync(identifier, RATE_LIMITS.aiChat)
+  if (!rateCheck.allowed) {
+    return rateLimitResponse(rateCheck)
+  }
+
   try {
-    const { message, context, history } = await request.json()
+    const body = await request.json()
+
+    // Input validation
+    const validation = validateChatInput(body)
+    if (!validation.valid) {
+      return validationErrorResponse(validation)
+    }
+
+    const { message, context, history, stream = false } = body
     const structuredContext = typeof context === 'object' && context !== null
 
     const apiKey = process.env.ANTHROPIC_API_KEY
@@ -42,7 +82,307 @@ Return ONLY JSON.`,
       },
     ]
 
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
+    // Handle streaming response
+    if (stream) {
+      const encoder = new TextEncoder()
+
+      const readableStream = new ReadableStream({
+        async start(controller) {
+          try {
+            const sources: Source[] = []
+            let fullText = ''
+
+            // Make streaming request to Anthropic
+            const response = await fetch('https://api.anthropic.com/v1/messages', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'x-api-key': apiKey,
+                'anthropic-version': '2023-06-01',
+              },
+              body: JSON.stringify({
+                model: AI_MODELS.conversation,
+                max_tokens: 512,
+                stream: true,
+                tools: [
+                  {
+                    type: 'web_search_20250305',
+                    name: 'web_search',
+                  },
+                ],
+                system: CHAT_SYSTEM_PROMPT,
+                messages,
+              }),
+            })
+
+            if (!response.ok) {
+              const errorText = await response.text()
+              controller.enqueue(
+                encoder.encode(`event: error\ndata: ${JSON.stringify({ message: errorText })}\n\n`)
+              )
+              controller.close()
+              return
+            }
+
+            const reader = response.body?.getReader()
+            if (!reader) {
+              controller.enqueue(
+                encoder.encode(`event: error\ndata: ${JSON.stringify({ message: 'No response body' })}\n\n`)
+              )
+              controller.close()
+              return
+            }
+
+            const decoder = new TextDecoder()
+            let buffer = ''
+            const toolUseBlocks: Array<{
+              id: string
+              name: string
+              input: Record<string, unknown>
+            }> = []
+            let currentToolUse: { id: string; name: string; inputJson: string } | null = null
+            const accumulatedContent: Array<{ type: string; [key: string]: unknown }> = []
+
+            while (true) {
+              const { done, value } = await reader.read()
+              if (done) break
+
+              buffer += decoder.decode(value, { stream: true })
+              const lines = buffer.split('\n')
+              buffer = lines.pop() || ''
+
+              for (const line of lines) {
+                if (!line.startsWith('data: ')) continue
+
+                const data = line.slice(6)
+                if (data === '[DONE]') continue
+
+                try {
+                  const event = JSON.parse(data)
+
+                  switch (event.type) {
+                    case 'content_block_start':
+                      if (event.content_block?.type === 'tool_use') {
+                        currentToolUse = {
+                          id: event.content_block.id,
+                          name: event.content_block.name,
+                          inputJson: '',
+                        }
+                      } else if (event.content_block?.type === 'web_search_tool_result') {
+                        // Extract sources from web search results
+                        if (event.content_block.content) {
+                          for (const result of event.content_block.content) {
+                            if (result.type === 'web_search_result' && result.url && result.title) {
+                              if (!sources.some((s) => s.url === result.url)) {
+                                sources.push({ title: result.title, url: result.url })
+                              }
+                            }
+                          }
+                        }
+                      }
+                      break
+
+                    case 'content_block_delta':
+                      if (event.delta?.type === 'text_delta') {
+                        const text = event.delta.text
+                        fullText += text
+                        // Send token immediately
+                        controller.enqueue(
+                          encoder.encode(`event: token\ndata: ${JSON.stringify({ text })}\n\n`)
+                        )
+                      } else if (event.delta?.type === 'input_json_delta' && currentToolUse) {
+                        currentToolUse.inputJson += event.delta.partial_json || ''
+                      }
+                      break
+
+                    case 'content_block_stop':
+                      if (currentToolUse) {
+                        try {
+                          const input = JSON.parse(currentToolUse.inputJson || '{}')
+                          toolUseBlocks.push({
+                            id: currentToolUse.id,
+                            name: currentToolUse.name,
+                            input,
+                          })
+                          accumulatedContent.push({
+                            type: 'tool_use',
+                            id: currentToolUse.id,
+                            name: currentToolUse.name,
+                            input,
+                          })
+                        } catch {
+                          // Invalid JSON, skip
+                        }
+                        currentToolUse = null
+                      } else if (fullText) {
+                        accumulatedContent.push({ type: 'text', text: fullText })
+                      }
+                      break
+
+                    case 'message_stop':
+                      // Check if we need to continue due to tool use
+                      if (event.stop_reason === 'tool_use' || toolUseBlocks.length > 0) {
+                        // Continue conversation with tool results
+                        const continueMessages = [
+                          ...messages,
+                          { role: 'assistant', content: accumulatedContent },
+                        ]
+
+                        const continueResponse = await fetch(
+                          'https://api.anthropic.com/v1/messages',
+                          {
+                            method: 'POST',
+                            headers: {
+                              'Content-Type': 'application/json',
+                              'x-api-key': apiKey,
+                              'anthropic-version': '2023-06-01',
+                            },
+                            body: JSON.stringify({
+                              model: AI_MODELS.conversation,
+                              max_tokens: 512,
+                              stream: true,
+                              tools: [
+                                {
+                                  type: 'web_search_20250305',
+                                  name: 'web_search',
+                                },
+                              ],
+                              system: CHAT_SYSTEM_PROMPT,
+                              messages: continueMessages,
+                            }),
+                          }
+                        )
+
+                        if (continueResponse.ok) {
+                          const continueReader = continueResponse.body?.getReader()
+                          if (continueReader) {
+                            let continueBuffer = ''
+                            fullText = '' // Reset for continuation
+
+                            while (true) {
+                              const { done: contDone, value: contValue } =
+                                await continueReader.read()
+                              if (contDone) break
+
+                              continueBuffer += decoder.decode(contValue, { stream: true })
+                              const contLines = continueBuffer.split('\n')
+                              continueBuffer = contLines.pop() || ''
+
+                              for (const contLine of contLines) {
+                                if (!contLine.startsWith('data: ')) continue
+                                const contData = contLine.slice(6)
+                                if (contData === '[DONE]') continue
+
+                                try {
+                                  const contEvent = JSON.parse(contData)
+                                  if (
+                                    contEvent.type === 'content_block_delta' &&
+                                    contEvent.delta?.type === 'text_delta'
+                                  ) {
+                                    const text = contEvent.delta.text
+                                    fullText += text
+                                    controller.enqueue(
+                                      encoder.encode(
+                                        `event: token\ndata: ${JSON.stringify({ text })}\n\n`
+                                      )
+                                    )
+                                  } else if (
+                                    contEvent.type === 'content_block_start' &&
+                                    contEvent.content_block?.type === 'web_search_tool_result'
+                                  ) {
+                                    // Extract more sources
+                                    if (contEvent.content_block.content) {
+                                      for (const result of contEvent.content_block.content) {
+                                        if (
+                                          result.type === 'web_search_result' &&
+                                          result.url &&
+                                          result.title
+                                        ) {
+                                          if (!sources.some((s) => s.url === result.url)) {
+                                            sources.push({ title: result.title, url: result.url })
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                } catch {
+                                  // Skip malformed JSON
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                      break
+                  }
+                } catch {
+                  // Skip malformed JSON
+                }
+              }
+            }
+
+            // Parse the response to extract message and actions
+            const topSources = prioritizeSources(sources).slice(0, 3)
+            let parsedMessage = fullText
+            let actions: Array<Record<string, unknown>> = []
+
+            try {
+              const jsonMatch = fullText.match(/\{[\s\S]*\}/)
+              if (jsonMatch) {
+                const parsed = JSON.parse(jsonMatch[0])
+                if (typeof parsed.message === 'string') {
+                  parsedMessage = parsed.message
+                }
+                if (Array.isArray(parsed.actions)) {
+                  actions = parsed.actions
+                }
+              }
+            } catch {
+              // Fall back to raw text
+            }
+
+            // Send sources
+            if (topSources.length > 0) {
+              controller.enqueue(
+                encoder.encode(`event: sources\ndata: ${JSON.stringify({ sources: topSources })}\n\n`)
+              )
+            }
+
+            // Send done event with parsed response
+            controller.enqueue(
+              encoder.encode(
+                `event: done\ndata: ${JSON.stringify({
+                  response: parsedMessage || "Sorry, I couldn't generate a response.",
+                  sources: topSources,
+                  actions,
+                })}\n\n`
+              )
+            )
+            controller.close()
+          } catch (error) {
+            controller.enqueue(
+              encoder.encode(
+                `event: error\ndata: ${JSON.stringify({
+                  message: error instanceof Error ? error.message : 'Unknown error',
+                })}\n\n`
+              )
+            )
+            controller.close()
+          }
+        },
+      })
+
+      return new Response(readableStream, {
+        headers: {
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          Connection: 'keep-alive',
+        },
+      })
+    }
+
+    // Non-streaming response (existing code path)
+    const aiResponse = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -58,47 +398,12 @@ Return ONLY JSON.`,
             name: 'web_search',
           },
         ],
-        system: `You answer questions for someone with ADHD. Be EXTREMELY concise.
-
-RESPONSE FORMAT:
-Return ONLY a JSON object like:
-{"message":"...","actions":[{"type":"mark_step_done","stepId":"...","label":"..."},{"type":"focus_step","stepId":"...","label":"..."},{"type":"create_task","title":"...","context":"...","label":"..."},{"type":"show_sources","label":"..."}]}
-
-Only include actions if they are clearly relevant to the question and can be executed safely.
-If you suggest mark_step_done or focus_step, you MUST use a stepId that exists in the context.
-If the user asks for proof or sources, suggest {"type":"show_sources","label":"Show sources"}.
-
-SPECIAL: "I'M STUCK" REQUESTS
-When someone says they're stuck on a step:
-1. Acknowledge it briefly (no shame)
-2. Pick ONE of these approaches based on what they need:
-   - If they need info: search and give the specific answer (URL, phone, requirement)
-   - If they need confidence: tell them exactly what to say/do first
-   - If it seems too big: suggest breaking it into a smaller piece
-   - If they've been stuck awhile: suggest skipping it and coming back
-3. End with a simple action they can take in the next 2 minutes
-4. ALWAYS include an action button if relevant (mark done, skip to next, etc.)
-
-Example stuck response:
-{"message":"For the DMV appointment, call 1-800-777-0133 and say 'I need to schedule a license renewal.' They'll ask for your DL number. That's it.","actions":[{"type":"mark_step_done","stepId":"step-123","label":"Done - I called"}]}
-
-RULES:
-- Answer in 1-3 sentences max
-- No headers, bullet points, or markdown formatting
-- No "let me search" or "based on my research" - just answer
-- No disclaimers or caveats
-- Use the web_search tool for any factual, procedural, or requirement-based answer
-- Prefer official sources (.gov/.mil/.edu) and avoid news, forums, or aggregators for requirements/fees/deadlines
-- If no official source is available, say "No official source found" in one short sentence
-- If you don't know, say "I don't know" in 5 words or less
-- If the context includes a specific task or step and the question is unrelated, say: "That seems unrelated to this task. What do you need help with for it?"
-
-Be direct. Be brief. Answer the question.`,
+        system: CHAT_SYSTEM_PROMPT,
         messages,
       }),
     })
 
-    let data = await response.json()
+    let data = await aiResponse.json()
     const sources: Source[] = []
 
     // Handle agentic loop - Claude may search multiple times
@@ -136,27 +441,7 @@ Be direct. Be brief. Answer the question.`,
               name: 'web_search',
             },
           ],
-          system: `You answer questions for someone with ADHD. Be EXTREMELY concise.
-
-RESPONSE FORMAT:
-Return ONLY a JSON object like:
-{"message":"...","actions":[{"type":"mark_step_done","stepId":"...","label":"..."},{"type":"focus_step","stepId":"...","label":"..."},{"type":"create_task","title":"...","context":"...","label":"..."},{"type":"show_sources","label":"..."}]}
-
-Only include actions if they are clearly relevant to the question and can be executed safely.
-If you suggest mark_step_done or focus_step, you MUST use a stepId that exists in the context.
-If the user asks for proof or sources, suggest {"type":"show_sources","label":"Show sources"}.
-
-RULES:
-- Answer in 1-3 sentences max
-- No headers, bullet points, or markdown formatting
-- No "let me search" or "based on my research" - just answer
-- No disclaimers or caveats
-- Use the web_search tool for any factual, procedural, or requirement-based answer
-- Prefer official sources (.gov/.mil/.edu) and avoid news, forums, or aggregators for requirements/fees/deadlines
-- If no official source is available, say "No official source found" in one short sentence
-- If the context includes a specific task or step and the question is unrelated, say: "That seems unrelated to this task. What do you need help with for it?"
-
-Be direct. Be brief. Answer the question.`,
+          system: CHAT_SYSTEM_PROMPT,
           messages,
         }),
       })
@@ -186,7 +471,6 @@ Be direct. Be brief. Answer the question.`,
     }
 
     if (!responseText && data.error) {
-      console.error('Chat API error:', data.error)
       return NextResponse.json({
         response: `Error: ${data.error.message || 'Unknown error'}`,
         sources: []
@@ -207,17 +491,19 @@ Be direct. Be brief. Answer the question.`,
           actions = parsed.actions
         }
       }
-    } catch (parseError) {
+    } catch {
       // Fall back to raw text if JSON parsing fails
     }
 
-    return NextResponse.json({
+    // No caching for AI responses - they should be fresh
+    const response = NextResponse.json({
       response: parsedMessage || 'Sorry, I couldn\'t generate a response.',
       sources: topSources,
       actions,
     })
-  } catch (error) {
-    console.error('Chat API error:', error)
+    response.headers.set('Cache-Control', 'no-store')
+    return response
+  } catch {
     return NextResponse.json(
       { error: 'Failed to process chat request' },
       { status: 500 }

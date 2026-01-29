@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, memo } from 'react'
 
 interface DeadlineBadgeProps {
   dueDate: string | null
@@ -17,7 +17,7 @@ interface DeadlineBadgeProps {
  * - Yellow: Due within a week
  * - Gray: Due later
  */
-export function DeadlineBadge({
+export const DeadlineBadge = memo(function DeadlineBadge({
   dueDate,
   deadlineType = 'soft',
   warnDaysBefore = 3,
@@ -58,8 +58,8 @@ export function DeadlineBadge({
         level: 'tomorrow' as const,
         days: 1,
         label: 'Tomorrow',
-        color: '#ea580c', // orange-600
-        bgColor: 'rgba(234, 88, 12, 0.12)',
+        color: 'var(--accent)', // Use design system accent (coral)
+        bgColor: 'var(--accent-soft)',
       }
     }
 
@@ -68,8 +68,8 @@ export function DeadlineBadge({
         level: 'warning' as const,
         days: diffDays,
         label: `${diffDays}d`,
-        color: '#ea580c', // orange-600
-        bgColor: 'rgba(234, 88, 12, 0.12)',
+        color: 'var(--accent)', // Use design system accent (coral)
+        bgColor: 'var(--accent-soft)',
       }
     }
 
@@ -78,8 +78,8 @@ export function DeadlineBadge({
         level: 'soon' as const,
         days: diffDays,
         label: `${diffDays}d`,
-        color: '#ca8a04', // yellow-600
-        bgColor: 'rgba(202, 138, 4, 0.12)',
+        color: 'var(--text-soft)', // Use design system text-soft
+        bgColor: 'var(--surface)',
       }
     }
 
@@ -132,7 +132,7 @@ export function DeadlineBadge({
       )}
     </span>
   )
-}
+})
 
 /**
  * Get deadline urgency for sorting/filtering

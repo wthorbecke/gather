@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 import { content } from '@/config/content'
 import { User } from '@supabase/supabase-js'
+import { safeGetJSON, safeSetJSON, safeRemoveItem } from '@/lib/storage'
 
 // Get today's date as YYYY-MM-DD
 const getToday = () => new Date().toISOString().split('T')[0]
@@ -105,7 +106,7 @@ export function useHabits(user: User | null) {
   const [completedHabits, setCompletedHabits] = useState<Record<string, boolean>>({})
   const [loading, setLoading] = useState(true)
 
-  // Load habits and today's completions
+  // Load habits and today's completions in parallel
   useEffect(() => {
     if (!user) {
       setLoading(false)
@@ -113,16 +114,28 @@ export function useHabits(user: User | null) {
     }
 
     const loadData = async () => {
-      // Load user's habits
-      const { data: habitsData, error: habitsError } = await supabase
-        .from('habits')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('active', true)
-        .order('sort_order')
+      const today = getToday()
+
+      // Parallel fetch: habits and today's completions
+      const [habitsResult, logsResult] = await Promise.all([
+        supabase
+          .from('habits')
+          .select('*')
+          .eq('user_id', user.id)
+          .eq('active', true)
+          .order('sort_order'),
+        supabase
+          .from('habit_logs')
+          .select('habit_id')
+          .eq('user_id', user.id)
+          .eq('date', today)
+      ])
+
+      const { data: habitsData, error: habitsError } = habitsResult
+      const { data: logsData, error: logsError } = logsResult
 
       if (habitsError) {
-        console.error('Error loading habits:', habitsError)
+        // Error handled silently('Error loading habits:', habitsError)
         setLoading(false)
         return
       }
@@ -136,7 +149,7 @@ export function useHabits(user: User | null) {
           .select()
 
         if (seedError) {
-          console.error('Error seeding habits:', seedError)
+          // Error handled silently('Error seeding habits:', seedError)
         } else {
           setHabits(seededData || [])
         }
@@ -144,19 +157,10 @@ export function useHabits(user: User | null) {
         setHabits(habitsData)
       }
 
-      // Load today's completions
-      const today = getToday()
-      const { data: logsData, error: logsError } = await supabase
-        .from('habit_logs')
-        .select('habit_id')
-        .eq('user_id', user.id)
-        .eq('date', today)
-
-      if (logsError) {
-        console.error('Error loading habit logs:', logsError)
-      } else {
+      // Process completions
+      if (!logsError && logsData) {
         const completedMap: Record<string, boolean> = {}
-        logsData?.forEach((log) => {
+        logsData.forEach((log) => {
           completedMap[log.habit_id] = true
         })
         setCompletedHabits(completedMap)
@@ -186,7 +190,7 @@ export function useHabits(user: User | null) {
         .eq('date', today)
 
       if (error) {
-        console.error('Error removing habit log:', error)
+        // Error handled silently('Error removing habit log:', error)
         setCompletedHabits((prev) => ({ ...prev, [habitId]: true }))
       }
     } else {
@@ -199,7 +203,7 @@ export function useHabits(user: User | null) {
         })
 
       if (error) {
-        console.error('Error adding habit log:', error)
+        // Error handled silently('Error adding habit log:', error)
         setCompletedHabits((prev) => ({ ...prev, [habitId]: false }))
       }
     }
@@ -224,7 +228,7 @@ export function useHabits(user: User | null) {
       .single()
 
     if (error) {
-      console.error('Error adding habit:', error)
+      // Error handled silently('Error adding habit:', error)
     } else if (data) {
       setHabits((prev) => [...prev, data])
     }
@@ -247,16 +251,26 @@ export function useSoulActivities(user: User | null) {
     }
 
     const loadData = async () => {
-      // Load user's soul activities
-      const { data: activitiesData, error: activitiesError } = await supabase
-        .from('soul_activities')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('active', true)
-        .order('sort_order')
+      // Parallel fetch: activities and logs
+      const [activitiesResult, logsResult] = await Promise.all([
+        supabase
+          .from('soul_activities')
+          .select('*')
+          .eq('user_id', user.id)
+          .eq('active', true)
+          .order('sort_order'),
+        supabase
+          .from('soul_logs')
+          .select('activity_id, completed_at')
+          .eq('user_id', user.id)
+          .order('completed_at', { ascending: false })
+      ])
+
+      const { data: activitiesData, error: activitiesError } = activitiesResult
+      const { data: logsData, error: logsError } = logsResult
 
       if (activitiesError) {
-        console.error('Error loading soul activities:', activitiesError)
+        // Error handled silently('Error loading soul activities:', activitiesError)
         setLoading(false)
         return
       }
@@ -270,7 +284,7 @@ export function useSoulActivities(user: User | null) {
           .select()
 
         if (seedError) {
-          console.error('Error seeding soul activities:', seedError)
+          // Error handled silently('Error seeding soul activities:', seedError)
         } else {
           setActivities(seededData || [])
         }
@@ -278,18 +292,10 @@ export function useSoulActivities(user: User | null) {
         setActivities(activitiesData)
       }
 
-      // Load most recent completion for each activity
-      const { data: logsData, error: logsError } = await supabase
-        .from('soul_logs')
-        .select('activity_id, completed_at')
-        .eq('user_id', user.id)
-        .order('completed_at', { ascending: false })
-
-      if (logsError) {
-        console.error('Error loading soul logs:', logsError)
-      } else {
+      // Process logs
+      if (!logsError && logsData) {
         const lastMap: Record<string, number> = {}
-        logsData?.forEach((log) => {
+        logsData.forEach((log) => {
           if (!lastMap[log.activity_id]) {
             lastMap[log.activity_id] = new Date(log.completed_at).getTime()
           }
@@ -318,7 +324,7 @@ export function useSoulActivities(user: User | null) {
       })
 
     if (error) {
-      console.error('Error logging soul activity:', error)
+      // Error handled silently('Error logging soul activity:', error)
     }
   }, [user])
 
@@ -343,7 +349,7 @@ export function useSoulActivities(user: User | null) {
       .single()
 
     if (error) {
-      console.error('Error adding soul activity:', error)
+      // Error handled silently('Error adding soul activity:', error)
     } else if (data) {
       setActivities((prev) => [...prev, data])
     }
@@ -367,23 +373,18 @@ export function useTasks(user: User | null) {
     }
 
     if (isDemoUser) {
-      try {
-        const stored = localStorage.getItem(demoStorageKey)
-        if (stored) {
-          const parsed = JSON.parse(stored)
-          const hasStaleContext = Array.isArray(parsed) && parsed.some((task) =>
-            typeof task?.context_text === 'string' &&
-            task.context_text.toLowerCase().includes('other (i will specify)')
-          )
-          if (!hasStaleContext) {
-            setTasks(parsed || [])
-            setLoading(false)
-            return
-          }
-          localStorage.removeItem(demoStorageKey)
+      const stored = safeGetJSON<Task[]>(demoStorageKey, [])
+      if (stored.length > 0) {
+        const hasStaleContext = stored.some((task) =>
+          typeof task?.context_text === 'string' &&
+          task.context_text.toLowerCase().includes('other (i will specify)')
+        )
+        if (!hasStaleContext) {
+          setTasks(stored)
+          setLoading(false)
+          return
         }
-      } catch (e) {
-        console.warn('Failed to load demo tasks:', e)
+        safeRemoveItem(demoStorageKey)
       }
 
       const seeded = STARTER_TASKS.map((t, i) => ({
@@ -403,11 +404,7 @@ export function useTasks(user: User | null) {
         task_category: undefined,
       }))
       setTasks(seeded)
-      try {
-        localStorage.setItem(demoStorageKey, JSON.stringify(seeded))
-      } catch (e) {
-        console.warn('Failed to save demo tasks:', e)
-      }
+      safeSetJSON(demoStorageKey, seeded)
       setLoading(false)
       return
     }
@@ -421,7 +418,7 @@ export function useTasks(user: User | null) {
         .order('category')
 
       if (error) {
-        console.error('Error loading tasks:', error)
+        // Error handled silently('Error loading tasks:', error)
         setLoading(false)
         return
       }
@@ -441,7 +438,7 @@ export function useTasks(user: User | null) {
           .select()
 
         if (seedError) {
-          console.error('Error seeding tasks:', seedError)
+          // Error handled silently('Error seeding tasks:', seedError)
         } else {
           setTasks(seededData || [])
         }
@@ -462,11 +459,7 @@ export function useTasks(user: User | null) {
     if (isDemoUser) {
       setTasks((prev) => {
         const next = prev.filter((t) => t.id !== taskId)
-        try {
-          localStorage.setItem(demoStorageKey, JSON.stringify(next))
-        } catch (e) {
-          console.warn('Failed to save demo tasks:', e)
-        }
+        safeSetJSON(demoStorageKey, next)
         return next
       })
       return
@@ -484,9 +477,9 @@ export function useTasks(user: User | null) {
       .eq('user_id', user.id)
 
     if (error) {
-      console.error('Error completing task:', error)
+      // Error handled silently('Error completing task:', error)
     }
-  }, [user])
+  }, [user, isDemoUser, demoStorageKey])
 
   const addTask = useCallback(async (
     title: string,
@@ -518,11 +511,7 @@ export function useTasks(user: User | null) {
       }
       setTasks((prev) => {
         const next = [newTask, ...prev]
-        try {
-          localStorage.setItem(demoStorageKey, JSON.stringify(next))
-        } catch (e) {
-          console.warn('Failed to save demo tasks:', e)
-        }
+        safeSetJSON(demoStorageKey, next)
         return next
       })
       return newTask
@@ -547,7 +536,7 @@ export function useTasks(user: User | null) {
       .single()
 
     if (error) {
-      console.error('Error adding task:', error)
+      // Error handled silently('Error adding task:', error)
     } else if (data) {
       // Prepend new tasks so they appear at the top
       setTasks((prev) => [data, ...prev])
@@ -565,11 +554,7 @@ export function useTasks(user: User | null) {
     if (isDemoUser) {
       setTasks((prev) => {
         const next = prev.map((t) => t.id === taskId ? { ...t, ...updates } : t)
-        try {
-          localStorage.setItem(demoStorageKey, JSON.stringify(next))
-        } catch (e) {
-          console.warn('Failed to save demo tasks:', e)
-        }
+        safeSetJSON(demoStorageKey, next)
         return next
       })
       return { success: true }
@@ -588,11 +573,11 @@ export function useTasks(user: User | null) {
       .eq('user_id', user.id)
 
     if (error) {
-      console.error('Error updating task:', error)
+      // Error handled silently('Error updating task:', error)
 
       // Check for schema errors - don't revert UI, just warn
       if (error.code === 'PGRST204') {
-        console.warn('Schema mismatch - some columns may not exist. Run migration 004_add_steps_column.sql')
+        // Warning handled silently('Schema mismatch - some columns may not exist. Run migration 004_add_steps_column.sql')
         // Keep optimistic update for UI, but return error
         return {
           success: false,
@@ -620,11 +605,7 @@ export function useTasks(user: User | null) {
           )
           return { ...t, steps: updatedSteps }
         })
-        try {
-          localStorage.setItem(demoStorageKey, JSON.stringify(next))
-        } catch (e) {
-          console.warn('Failed to save demo tasks:', e)
-        }
+        safeSetJSON(demoStorageKey, next)
         return next
       })
       return
@@ -653,7 +634,7 @@ export function useTasks(user: User | null) {
       .eq('user_id', user.id)
 
     if (error) {
-      console.error('Error toggling step:', error)
+      // Error handled silently('Error toggling step:', error)
       // Revert on error
       setTasks(prev => prev.map(t =>
         t.id === taskId ? { ...t, steps: task.steps } : t
@@ -667,11 +648,7 @@ export function useTasks(user: User | null) {
     if (isDemoUser) {
       setTasks((prev) => {
         const next = prev.filter((t) => t.id !== taskId)
-        try {
-          localStorage.setItem(demoStorageKey, JSON.stringify(next))
-        } catch (e) {
-          console.warn('Failed to save demo tasks:', e)
-        }
+        safeSetJSON(demoStorageKey, next)
         return next
       })
       return
@@ -690,11 +667,11 @@ export function useTasks(user: User | null) {
       .eq('user_id', user.id)
 
     if (error) {
-      console.error('Error deleting task:', error)
+      // Error handled silently('Error deleting task:', error)
       // Revert on error
       setTasks(previousTasks)
     }
-  }, [user, tasks, isDemoUser])
+  }, [user, tasks, isDemoUser, demoStorageKey])
 
   return { tasks, completeTask, addTask, updateTask, toggleStep, deleteTask, loading }
 }
@@ -720,7 +697,7 @@ export function useZoneTasks(user: User | null) {
         .maybeSingle()
 
       if (error) {
-        console.error('Error loading zone tasks:', error)
+        // Error handled silently('Error loading zone tasks:', error)
       } else if (data?.zone_tasks) {
         setZoneTasks(data.zone_tasks)
       }
@@ -747,7 +724,7 @@ export function useZoneTasks(user: User | null) {
       })
 
     if (error) {
-      console.error('Error saving zone tasks:', error)
+      // Error handled silently('Error saving zone tasks:', error)
       setZoneTasks(zoneTasks)
     }
   }, [user, zoneTasks])

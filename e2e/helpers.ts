@@ -79,6 +79,42 @@ export async function enterDemoMode(page: Page) {
   await page.goto('/')
   await page.getByRole('button', { name: /try the demo/i }).click()
   // Wait for the app to load
+  await page.waitForTimeout(1000)
+
+  // Dismiss all demo cards by clicking action buttons repeatedly
+  // Demo mode shows a stack of sample cards with different button texts:
+  // "Add as task", "Noted", "Done", "Break it down"
+  for (let i = 0; i < 10; i++) {
+    const actionButtons = [
+      page.getByRole('button', { name: /^add as task$/i }),
+      page.getByRole('button', { name: /^noted$/i }),
+      page.getByRole('button', { name: /^done$/i }),
+      page.getByRole('button', { name: /^break it down$/i }),
+      page.getByRole('button', { name: /add task without steps/i }),
+    ]
+
+    let clicked = false
+    for (const btn of actionButtons) {
+      if (await btn.isVisible({ timeout: 500 }).catch(() => false)) {
+        await btn.click()
+        await page.waitForTimeout(800)
+        clicked = true
+        break
+      }
+    }
+
+    // If no action buttons visible, we're done with demo cards
+    if (!clicked) break
+  }
+
+  // Also dismiss any AI error cards by clicking X or dismiss
+  const closeButton = page.locator('button:has(svg path[d*="M6 18L18 6"]), button:has(svg path[d*="M18 6L6 18"])').first()
+  if (await closeButton.isVisible({ timeout: 500 }).catch(() => false)) {
+    await closeButton.click()
+    await page.waitForTimeout(300)
+  }
+
+  // Wait for the main app content to be ready
   await page.waitForTimeout(500)
 }
 

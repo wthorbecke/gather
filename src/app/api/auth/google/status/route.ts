@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
     // Get granted scopes - with detailed debugging
     const scopes = await getGrantedScopes(user.id)
 
-    console.log('[GoogleStatus] User:', user.id, 'Scopes:', scopes)
+    // Debug log removed('[GoogleStatus] User:', user.id, 'Scopes:', scopes)
 
     if (scopes.length === 0) {
       // Check if we can even query the tokens table
@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
         .eq('user_id', user.id)
         .single()
 
-      console.log('[GoogleStatus] Direct token query:', { data, error: error?.message, code: error?.code })
+      // Debug log removed('[GoogleStatus] Direct token query:', { data, error: error?.message, code: error?.code })
 
       return NextResponse.json({
         connected: false,
@@ -77,9 +77,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ connected: false, reason: 'token_refresh_failed' })
     }
 
-    return NextResponse.json({ connected: true })
-  } catch (err) {
-    console.error('[GoogleStatus] Error:', err)
+    // Cache for 5 minutes since connection status doesn't change often
+    const response = NextResponse.json({ connected: true })
+    response.headers.set('Cache-Control', 'private, max-age=300, stale-while-revalidate=600')
+    return response
+  } catch {
+    // Error handled silently
     return NextResponse.json({ error: 'Internal error' }, { status: 500 })
   }
 }

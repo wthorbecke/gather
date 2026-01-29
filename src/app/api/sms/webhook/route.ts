@@ -90,7 +90,7 @@ export async function POST(request: NextRequest) {
     const body = (formData.get('Body') as string || '').trim()
     const messageSid = formData.get('MessageSid') as string
 
-    console.log(`[SMS Webhook] Received from ${from}: "${body}" (sid: ${messageSid})`)
+    // Debug log removed(`[SMS Webhook] Received from ${from}: "${body}" (sid: ${messageSid})`)
 
     if (!from || !body) {
       return twimlResponse("I didn't catch that. Try 'done' when you finish a step.")
@@ -108,12 +108,12 @@ export async function POST(request: NextRequest) {
       .maybeSingle()
 
     if (profileError) {
-      console.error('[SMS Webhook] Profile lookup error:', profileError)
+      // Error handled silently('[SMS Webhook] Profile lookup error:', profileError)
       return twimlResponse("Something went wrong. Try again?")
     }
 
     if (!profile) {
-      console.log(`[SMS Webhook] No user found for phone: ${from}`)
+      // Debug log removed(`[SMS Webhook] No user found for phone: ${from}`)
       return twimlResponse("I don't recognize this number. Set up your phone in Gather first.")
     }
 
@@ -133,7 +133,7 @@ export async function POST(request: NextRequest) {
       .order('category')  // urgent first, then soon, then waiting
 
     if (tasksError) {
-      console.error('[SMS Webhook] Tasks lookup error:', tasksError)
+      // Error handled silently('[SMS Webhook] Tasks lookup error:', tasksError)
       return twimlResponse("Couldn't load your tasks. Try again?")
     }
 
@@ -172,7 +172,7 @@ export async function POST(request: NextRequest) {
         .eq('user_id', userId)
 
       if (updateError) {
-        console.error('[SMS Webhook] Step update error:', updateError)
+        // Error handled silently('[SMS Webhook] Step update error:', updateError)
         return twimlResponse("Couldn't mark that done. Try again?")
       }
 
@@ -218,8 +218,8 @@ export async function POST(request: NextRequest) {
       `Current step: ${truncated}\n\nReply 'done' to complete, 'help' for details.`
     )
 
-  } catch (error) {
-    console.error('[SMS Webhook] Unexpected error:', error)
+  } catch {
+    // Error handled silently
     return twimlResponse("Something went wrong. Try again later.")
   }
 }

@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, memo } from 'react'
+import { hapticLight } from '@/lib/haptics'
 
 interface CheckboxProps {
   checked: boolean
@@ -8,7 +9,7 @@ interface CheckboxProps {
   size?: number
 }
 
-export function Checkbox({ checked, onToggle, size = 22 }: CheckboxProps) {
+export const Checkbox = memo(function Checkbox({ checked, onToggle, size = 22 }: CheckboxProps) {
   const padding = Math.max((44 - size) / 2, 0)
   const [isHovered, setIsHovered] = useState(false)
   const [justChecked, setJustChecked] = useState(false)
@@ -18,6 +19,7 @@ export function Checkbox({ checked, onToggle, size = 22 }: CheckboxProps) {
   useEffect(() => {
     if (!prevCheckedRef.current && checked) {
       setJustChecked(true)
+      hapticLight() // Haptic feedback on completion
       const timer = setTimeout(() => setJustChecked(false), 600)
       return () => clearTimeout(timer)
     }
@@ -85,4 +87,4 @@ export function Checkbox({ checked, onToggle, size = 22 }: CheckboxProps) {
       </span>
     </button>
   )
-}
+})

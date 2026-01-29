@@ -1,5 +1,6 @@
 import { Task, Step } from '@/hooks/useUserData'
 import { OTHER_SPECIFY_OPTION } from '@/config/content'
+import type { ChatAction } from '@/lib/api-types'
 
 /**
  * Detect if user input is a question vs a task/step request
@@ -56,12 +57,12 @@ export function isStepRequest(text: string): boolean {
  * Filter AI actions to only allowed types and valid references
  */
 export function filterActions(
-  actions: Array<{ type: string; stepId?: string | number; title?: string }>,
+  actions: Array<{ type: string; stepId?: string | number; title?: string; context?: string; label?: string }>,
   task?: Task | null
-): Array<{ type: string; stepId?: string | number; title?: string }> {
-  const allowed = new Set(['mark_step_done', 'focus_step', 'create_task', 'show_sources'])
-  return actions.filter((action) => {
-    if (!action || !allowed.has(action.type)) return false
+): ChatAction[] {
+  const allowed = new Set<ChatAction['type']>(['mark_step_done', 'focus_step', 'create_task', 'show_sources'])
+  return actions.filter((action): action is ChatAction => {
+    if (!action || !allowed.has(action.type as ChatAction['type'])) return false
     if ((action.type === 'mark_step_done' || action.type === 'focus_step') && task) {
       return (task.steps || []).some((step) => step.id === action.stepId)
     }
