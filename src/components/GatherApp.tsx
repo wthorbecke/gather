@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import { User } from '@supabase/supabase-js'
 import { useTasks, Task, Step } from '@/hooks/useUserData'
 import { useMemory } from '@/hooks/useMemory'
@@ -83,6 +83,17 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
 
   const currentTask = tasks.find((t) => t.id === currentTaskId)
 
+  // Auto-dismiss AI card after task creation (in Stack View)
+  useEffect(() => {
+    if (aiCard?.taskCreated && useStackView && !aiCard.thinking && !aiCard.question) {
+      const timer = setTimeout(() => {
+        setAiCard(null)
+        setPendingInput(null)
+      }, 3000) // Dismiss after 3 seconds
+      return () => clearTimeout(timer)
+    }
+  }, [aiCard, useStackView])
+
   // Navigate to task
   const goToTask = useCallback((taskId: string) => {
     const task = tasks.find(t => t.id === taskId)
@@ -91,6 +102,7 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
     setPendingInput(null)
     setConversationHistory([])
     setIsFollowUp(false)
+    setContextGathering(null) // Clear any pending question flow
     // Set the task as initial context
     if (task) {
       setContextTags([{ type: 'task', label: task.title, task }])
@@ -105,6 +117,7 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
     setContextTags([])
     setConversationHistory([])
     setIsFollowUp(false)
+    setContextGathering(null) // Clear any pending question flow
   }, [])
 
   // Set or clear step context (only one step at a time)
@@ -631,7 +644,7 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
           if (response.ok) {
             const result = await response.json()
             sources = result.sources || []
-            steps = (result.steps || []).map((item: any, index: number) => {
+            steps = (result.subtasks || []).map((item: any, index: number) => {
               const parsed = splitStepText(item.text)
               return {
                 id: `step-${Date.now()}-${index}`,
@@ -1367,7 +1380,7 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
                     className="p-2 rounded-lg text-text-muted hover:text-text hover:bg-surface transition-colors"
                     title="Integrations"
                   >
-                    <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <svg className="w-[20px] h-[20px] md:w-[24px] md:h-[24px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                       <circle cx="12" cy="12" r="3"/>
                       <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
                     </svg>
@@ -1391,8 +1404,13 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
               tasks={tasks}
               onToggleStep={handleToggleStep}
               onGoToTask={goToTask}
-              onAddTask={handleQuickAdd}
-              onAddEmailAsTask={(email) => handleQuickAdd(email.subject)}
+              onAddTask={handleSubmit}
+              onAddEmailAsTask={(email) => handleSubmit(email.subject)}
+              aiCard={aiCard}
+              pendingInput={pendingInput}
+              onDismissAI={dismissAI}
+              onQuickReply={handleQuickReply}
+              onAICardAction={handleAICardAction}
             />
           ) : (
             <HomeView

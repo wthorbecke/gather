@@ -5,6 +5,7 @@ import { Task, Step } from '@/hooks/useUserData'
 import { useAuth } from './AuthProvider'
 import { splitStepText } from '@/lib/stepText'
 import { getDeadlineUrgency } from './DeadlineBadge'
+import { AICard, AICardState } from './AICard'
 
 // Card types
 type EmailCard = { type: 'email'; id: string; subject: string; from: string; snippet: string }
@@ -23,6 +24,12 @@ interface StackViewProps {
   onAddTask: (title: string) => void
   onDismissEmail?: (emailId: string) => void
   onAddEmailAsTask?: (email: { subject: string; from: string }) => void
+  // AI Card props
+  aiCard?: AICardState | null
+  pendingInput?: string | null
+  onDismissAI?: () => void
+  onQuickReply?: (reply: string) => void
+  onAICardAction?: (action: { type: string; stepId?: string | number; title?: string; context?: string }) => void
 }
 
 // Affirmations - brief, unexpected
@@ -57,6 +64,11 @@ export function StackView({
   onGoToTask,
   onAddTask,
   onAddEmailAsTask,
+  aiCard,
+  pendingInput,
+  onDismissAI,
+  onQuickReply,
+  onAICardAction,
 }: StackViewProps) {
   const { session } = useAuth()
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set())
@@ -345,7 +357,7 @@ export function StackView({
     }
   }
 
-  // Empty state
+  // Empty state (but show AI card if processing)
   if (stack.length === 0) {
     return (
       <div className="min-h-screen flex flex-col transition-all duration-700" style={getAmbientStyle()}>
@@ -355,23 +367,37 @@ export function StackView({
         }} />
 
         <div className="flex-1 flex flex-col items-center justify-center px-6">
-          <div className={`text-center transition-all duration-700 ${celebrateEmpty ? 'scale-110' : ''}`}>
-            <div
-              className={`text-6xl mb-4 transition-all duration-500 ${celebrateEmpty ? 'animate-bounce' : ''}`}
-              style={{ fontFamily: 'var(--font-display)' }}
-            >
-              {celebrateEmpty ? '✨' : '○'}
+          {/* Show AI card when processing, otherwise show empty state */}
+          {aiCard && onDismissAI ? (
+            <div className="w-full max-w-sm">
+              <AICard
+                card={aiCard}
+                pendingInput={pendingInput}
+                onDismiss={onDismissAI}
+                onQuickReply={onQuickReply}
+                onGoToTask={onGoToTask}
+                onAction={onAICardAction}
+              />
             </div>
-            <h1
-              className="text-3xl font-medium text-[var(--text)] mb-2"
-              style={{ fontFamily: 'var(--font-display)' }}
-            >
-              {celebrateEmpty ? 'All clear' : 'Clear'}
-            </h1>
-            <p className="text-[var(--text-muted)]">
-              {celebrateEmpty ? 'You did it.' : 'Nothing waiting'}
-            </p>
-          </div>
+          ) : (
+            <div className={`text-center transition-all duration-700 ${celebrateEmpty ? 'scale-110' : ''}`}>
+              <div
+                className={`text-6xl mb-4 transition-all duration-500 ${celebrateEmpty ? 'animate-bounce' : ''}`}
+                style={{ fontFamily: 'var(--font-display)' }}
+              >
+                {celebrateEmpty ? '✨' : '○'}
+              </div>
+              <h1
+                className="text-3xl font-medium text-[var(--text)] mb-2"
+                style={{ fontFamily: 'var(--font-display)' }}
+              >
+                {celebrateEmpty ? 'All clear' : 'Clear'}
+              </h1>
+              <p className="text-[var(--text-muted)]">
+                {celebrateEmpty ? 'You did it.' : 'Nothing waiting'}
+              </p>
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="w-full max-w-xs mt-12">
             <input
@@ -445,7 +471,7 @@ export function StackView({
           onClick={() => setShowInput(!showInput)}
           className="p-2 -ml-2 text-[var(--text-muted)] hover:text-[var(--text)] transition-colors"
         >
-          <svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+          <svg className="w-[22px] h-[22px] md:w-[26px] md:h-[26px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
             <path d="M12 5v14M5 12h14" />
           </svg>
         </button>
@@ -488,24 +514,41 @@ export function StackView({
         </div>
       )}
 
+      {/* AI Card - shows while processing */}
+      {aiCard && onDismissAI && (
+        <div className="relative z-20 px-5 pb-4">
+          <div className="max-w-sm mx-auto">
+            <AICard
+              card={aiCard}
+              pendingInput={pendingInput}
+              onDismiss={onDismissAI}
+              onQuickReply={onQuickReply}
+              onGoToTask={onGoToTask}
+              onAction={onAICardAction}
+            />
+          </div>
+        </div>
+      )}
+
       {/* Stack area */}
       <div className="flex-1 flex items-center justify-center px-5 py-6">
-        <div className="relative w-full max-w-sm" style={{ height: 420 }}>
+        {/* Responsive: taller cards on desktop */}
+        <div className="relative w-full max-w-sm h-[420px] sm:h-[480px] md:h-[520px]">
 
           {/* Swipe hints */}
           <div
-            className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-2 text-[var(--text-muted)] transition-opacity duration-200"
+            className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-2 md:-translate-x-4 text-[var(--text-muted)] transition-opacity duration-200"
             style={{ opacity: isDragging ? 0.6 : 0.15 }}
           >
-            <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg className="w-5 h-5 md:w-6 md:h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M15 18l-6-6 6-6" />
             </svg>
           </div>
           <div
-            className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-2 text-[var(--text-muted)] transition-opacity duration-200"
+            className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-2 md:translate-x-4 text-[var(--text-muted)] transition-opacity duration-200"
             style={{ opacity: isDragging ? 0.6 : 0.15 }}
           >
-            <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg className="w-5 h-5 md:w-6 md:h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M9 18l6-6-6-6" />
             </svg>
           </div>
@@ -564,8 +607,11 @@ export function StackView({
             >
               {/* Affirmation overlay */}
               {affirmation && exitDirection === 'up' && (
-                <div className="absolute inset-0 flex items-center justify-center z-20 bg-[var(--success)]/10">
-                  <span className="text-4xl font-medium text-[var(--success)]" style={{ fontFamily: 'var(--font-display)' }}>
+                <div className="absolute inset-0 flex items-center justify-center z-20 bg-[var(--success)]/20 rounded-[26px] animate-pulse">
+                  <span
+                    className="text-5xl font-semibold text-[var(--success)] animate-bounce"
+                    style={{ fontFamily: 'var(--font-display)', animationDuration: '0.4s' }}
+                  >
                     {affirmation}
                   </span>
                 </div>
