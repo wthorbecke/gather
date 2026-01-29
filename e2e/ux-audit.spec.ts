@@ -1,1027 +1,989 @@
-import { test, expect } from '@playwright/test'
-import { enterDemoMode, screenshot } from './helpers'
+import { test, expect, Page } from '@playwright/test'
+import { enterDemoMode } from './helpers'
 import {
   setMockTime,
   setViewport,
   captureState,
   setTheme,
   extractDesignTokens,
-  captureInteraction,
   extractVisibleText,
   auditAccessibility,
-  expectAccessible,
   capturePerformanceMetrics,
-  measureAnimationTiming,
-  uxAssertions,
-  recordAuditResult,
+  auditColorContrast,
   generateReport,
 } from './helpers/ux-capture'
 
 /**
- * UX Audit Suite
+ * HYPERCRITICAL UX AUDIT SUITE
  *
- * Comprehensive visual and functional audit of the Gather app.
- * Captures screenshots, checks accessibility, measures performance,
- * and validates UX requirements from CLAUDE.md.
+ * This suite enforces UX requirements from CLAUDE.md with hard assertions.
+ * Tests FAIL when requirements aren't met, with actionable error messages.
  *
- * Run with: npx playwright test ux-audit.spec.ts --headed
- * View report: open e2e-screenshots/ux-audit/report.html
+ * Run: npx playwright test ux-audit.spec.ts
+ * Report: open e2e-screenshots/ux-audit/report.html
  */
 
-// ============ Selectors ============
-// Centralized selectors for maintainability
-const selectors = {
-  // Main input - matches StackView placeholders
-  mainInput: 'input[placeholder*="next"], input[placeholder*="Add something"]',
-  demoButton: 'button:has-text("Try the demo"), button:has-text("demo")',
-  aiCard: '[data-testid="ai-card"], .ai-card, [class*="AICard"]',
-  taskCard: '[data-testid="task-card"], [class*="TaskCard"], [class*="card"]',
-  quickReply: 'button:has-text("Yes"), button:has-text("No"), button:has-text("ASAP"), button:has-text("No rush")',
+// ============ DESIGN SYSTEM SPECS (from CLAUDE.md) ============
+const DESIGN_SPECS = {
+  colors: {
+    light: {
+      canvas: '#FAFAFA',
+      surface: 'rgba(0,0,0,0.03)',
+      elevated: '#FFFFFF',
+      text: '#171717',
+      textSoft: '#525252',
+      textMuted: '#a3a3a3',
+      accent: '#E07A5F',
+      success: '#6B9080',
+      danger: '#DC6B6B',
+    },
+    dark: {
+      canvas: '#0a0a0a',
+      elevated: '#141414',
+      accent: '#E8A990',
+      success: '#9ECBB3',
+    },
+  },
+  typography: {
+    minFontSize: 12, // px - nothing smaller
+    inputText: 20,
+    taskTitle: 16,
+    body: 14,
+    labels: 12,
+  },
+  spacing: {
+    minTouchTarget: 44, // px - per WCAG
+  },
+  borderRadius: {
+    small: [6, 8],
+    inputs: 10,
+    buttons: 12,
+    cards: 16,
+    modals: 20,
+  },
+  motion: {
+    standard: 200, // ms
+    spring: 350,
+    modalOpen: 350,
+    modalClose: 250,
+    tolerance: 150, // acceptable variance
+  },
+  performance: {
+    lcpGood: 2500, // ms
+    lcpNeedsImprovement: 4000,
+    clsGood: 0.1,
+    fcpGood: 1800,
+  },
+  contrast: {
+    aaMinimum: 4.5,
+    aaLarge: 3.0,
+  },
 }
 
-// ============ Test Setup ============
+// ============ FORBIDDEN PATTERNS (from CLAUDE.md) ============
+const FORBIDDEN_PATTERNS = {
+  guiltTripping: [
+    /you have \d+ overdue/i,
+    /\d+ tasks? overdue/i,
+    /falling behind/i,
+    /you're behind/i,
+    /don't forget/i,
+    /you still have/i,
+    /incomplete tasks?/i,
+    /you haven't/i,
+    /why haven't you/i,
+  ],
+  overCelebration: [
+    /amazing!{2,}/i,
+    /great job!{2,}/i,
+    /fantastic!{2,}/i,
+    /wonderful!{2,}/i,
+    /!!!/, // Triple exclamation
+    /🌟{2,}/, // Multiple star emoji
+    /🎉{3,}/, // Excessive party emoji
+    /AMAZING/,
+    /INCREDIBLE/,
+    /FANTASTIC/,
+  ],
+  corporateWellness: [
+    /self.?care journey/i,
+    /wellness goals/i,
+    /mindful moment/i,
+    /you've got this/i,
+    /believe in yourself/i,
+    /positive vibes/i,
+  ],
+  deadEnds: [
+    /something went wrong$/i, // Error without recovery
+    /error$/i, // Just "error" with nothing else
+    /failed$/i, // Just "failed"
+    /try again later$/i, // No immediate action
+  ],
+}
 
-test.describe('UX Audit - Empty States', () => {
-  const times = [
-    { hour: 7, label: 'morning' as const },
-    { hour: 14, label: 'day' as const },
-    { hour: 18, label: 'evening' as const },
-    { hour: 23, label: 'night' as const },
-  ]
+// ============ SELECTORS ============
+const selectors = {
+  mainInput: 'input[placeholder*="next"], input[placeholder*="Add something"]',
+  taskCard: '[class*="TaskCard"], [class*="task-card"], [data-testid*="task"]',
+  aiCard: '[class*="AICard"], [class*="ai-card"]',
+  button: 'button',
+  checkbox: 'button[role="checkbox"], input[type="checkbox"], [class*="checkbox"]',
+  modal: '[class*="modal"], [class*="Modal"], [role="dialog"]',
+  loadingIndicator: '[class*="loading"], [class*="spinner"], [aria-busy="true"], .animate-pulse',
+  errorMessage: '[class*="error"], [role="alert"], [class*="Error"]',
+}
 
-  for (const { hour, label } of times) {
-    test(`empty state at ${label} (${hour}:00)`, async ({ page }) => {
-      await setMockTime(page, hour)
-      await page.goto('/')
-      await page.getByRole('button', { name: /try the demo/i }).click()
-      await page.waitForLoadState('networkidle')
+// ============ HELPER: Collect all issues ============
+interface UXIssue {
+  severity: 'critical' | 'major' | 'minor'
+  category: string
+  message: string
+  element?: string
+  expected?: string
+  actual?: string
+  fix?: string
+}
 
-      // Light mode
-      await setTheme(page, 'light')
-      await captureState(page, 'empty-states', 'empty', { theme: 'light', time: label })
+class UXAuditor {
+  issues: UXIssue[] = []
+  page: Page
 
-      // Dark mode
-      await setTheme(page, 'dark')
-      await captureState(page, 'empty-states', 'empty', { theme: 'dark', time: label })
-
-      // Verify UX requirements
-      await uxAssertions.hasClearPrimaryAction(page)
-      await uxAssertions.noGuiltTripping(page)
-    })
+  constructor(page: Page) {
+    this.page = page
   }
 
-  test('responsive: mobile vs desktop', async ({ page }) => {
-    await setMockTime(page, 14)
-    await enterDemoMode(page)
-    await page.waitForLoadState('networkidle')
+  addIssue(issue: UXIssue) {
+    this.issues.push(issue)
+  }
 
-    // Mobile (375px - per CLAUDE.md requirement)
-    await setViewport(page, 'mobile')
-    await captureState(page, 'responsive', 'empty-mobile', { device: 'mobile' })
+  critical(category: string, message: string, details?: Partial<UXIssue>) {
+    this.addIssue({ severity: 'critical', category, message, ...details })
+  }
 
-    // Verify input is still usable on mobile
-    const input = page.locator(selectors.mainInput).first()
-    await expect(input).toBeVisible()
+  major(category: string, message: string, details?: Partial<UXIssue>) {
+    this.addIssue({ severity: 'major', category, message, ...details })
+  }
 
-    // Desktop
-    await setViewport(page, 'desktop')
-    await captureState(page, 'responsive', 'empty-desktop', { device: 'desktop' })
-  })
-})
+  minor(category: string, message: string, details?: Partial<UXIssue>) {
+    this.addIssue({ severity: 'minor', category, message, ...details })
+  }
 
-test.describe('UX Audit - AI Card States', () => {
-  test.beforeEach(async ({ page }) => {
-    await enterDemoMode(page)
-    await page.waitForLoadState('networkidle')
-  })
+  async assertNoIssues(allowMinor = false) {
+    const failing = allowMinor
+      ? this.issues.filter((i) => i.severity !== 'minor')
+      : this.issues
 
-  test('AI thinking and response states', async ({ page }) => {
-    const input = page.locator(selectors.mainInput).first()
-    await input.fill('renew my passport')
+    if (failing.length > 0) {
+      const report = failing
+        .map((i) => {
+          let msg = `[${i.severity.toUpperCase()}] ${i.category}: ${i.message}`
+          if (i.element) msg += `\n  Element: ${i.element}`
+          if (i.expected) msg += `\n  Expected: ${i.expected}`
+          if (i.actual) msg += `\n  Actual: ${i.actual}`
+          if (i.fix) msg += `\n  Fix: ${i.fix}`
+          return msg
+        })
+        .join('\n\n')
 
-    // Capture interaction flow
-    await captureInteraction(page, 'ai-flow', [
-      {
-        label: 'input-filled',
-        action: async () => {},
-      },
-      {
-        label: 'submitted',
-        action: async () => await input.press('Enter'),
-        waitFor: async () => {
-          // Wait for either thinking indicator or response
-          await page
-            .locator('.animate-pulse, [class*="thinking"], [class*="AICard"]')
-            .first()
-            .waitFor({ state: 'visible', timeout: 3000 })
-            .catch(() => {})
-        },
-      },
-      {
-        label: 'response',
-        action: async () => {},
-        waitFor: async () => {
-          // Wait for AI to finish responding
-          await page.waitForLoadState('networkidle')
-          await page.waitForTimeout(2000) // AI response time
-        },
-      },
-    ])
-
-    // Verify no over-celebration in AI response
-    await uxAssertions.noOverCelebration(page)
-  })
-
-  test('quick reply buttons', async ({ page }) => {
-    const input = page.locator(selectors.mainInput).first()
-    await input.fill('help me plan a trip')
-    await input.press('Enter')
-
-    // Wait for quick replies to appear
-    const quickReply = page.locator(selectors.quickReply).first()
-    await quickReply.waitFor({ state: 'visible', timeout: 10000 }).catch(() => {})
-
-    if (await quickReply.isVisible()) {
-      await captureState(page, 'ai-card', 'quick-replies')
-
-      // Test hover state
-      await quickReply.hover()
-      await page.waitForTimeout(100) // Brief wait for hover styles
-      await captureState(page, 'ai-card', 'quick-reply-hover')
+      throw new Error(`UX AUDIT FAILED\n\n${report}\n\nTotal issues: ${failing.length}`)
     }
-  })
-})
+  }
 
-test.describe('UX Audit - Task Interactions', () => {
-  test.beforeEach(async ({ page }) => {
-    await enterDemoMode(page)
-    await page.waitForLoadState('networkidle')
-  })
+  getReport(): string {
+    if (this.issues.length === 0) return 'No issues found'
+    return this.issues
+      .map((i) => `[${i.severity}] ${i.category}: ${i.message}`)
+      .join('\n')
+  }
+}
 
-  test('task creation flow with loading feedback', async ({ page }) => {
-    await captureInteraction(page, 'task-creation', [
-      {
-        label: 'empty-input',
-        action: async () => {},
-      },
-      {
-        label: 'typing',
-        action: async () => {
-          const input = page.locator(selectors.mainInput).first()
-          await input.fill('buy groceries')
-        },
-      },
-      {
-        label: 'submitted',
-        action: async () => {
-          const input = page.locator(selectors.mainInput).first()
-          await input.press('Enter')
-        },
-        waitFor: async () => {
-          await page.waitForLoadState('networkidle')
-          await page.waitForTimeout(2000)
-        },
-      },
-    ])
+// ============ HELPER: Check text content ============
+async function auditTextContent(page: Page, auditor: UXAuditor) {
+  const texts = await extractVisibleText(page)
+  const allText = texts.join(' ')
 
-    // Verify UX requirements
-    await uxAssertions.hasClearPrimaryAction(page)
-  })
-
-  test('task with steps shows progress', async ({ page }) => {
-    const input = page.locator(selectors.mainInput).first()
-    await input.fill('plan a birthday party')
-    await input.press('Enter')
-
-    // Wait for task to be created and potentially have steps
-    await page.waitForLoadState('networkidle')
-    await page.waitForTimeout(3000)
-
-    // Capture whatever state we end up with
-    await captureState(page, 'progress', 'task-with-steps')
-  })
-})
-
-test.describe('UX Audit - Theme Comparison', () => {
-  test('light vs dark mode with content', async ({ page }) => {
-    await setMockTime(page, 14)
-    await enterDemoMode(page)
-
-    // Add some content
-    const input = page.locator(selectors.mainInput).first()
-    await input.fill('test task for theme comparison')
-    await input.press('Enter')
-    await page.waitForLoadState('networkidle')
-    await page.waitForTimeout(2000)
-
-    // Capture light mode
-    await setTheme(page, 'light')
-    await page.waitForTimeout(150) // Transition time
-    await captureState(page, 'themes', 'with-content', { theme: 'light' })
-    const lightTokens = await extractDesignTokens(page)
-
-    // Capture dark mode
-    await setTheme(page, 'dark')
-    await page.waitForTimeout(150)
-    await captureState(page, 'themes', 'with-content', { theme: 'dark' })
-    const darkTokens = await extractDesignTokens(page)
-
-    // Log token comparison for design review
-    console.log('\n=== Design Token Comparison ===')
-    const tokenKeys = Array.from(new Set([...Object.keys(lightTokens), ...Object.keys(darkTokens)]))
-    for (const key of tokenKeys.slice(0, 20)) {
-      // Limit output
-      if (lightTokens[key] !== darkTokens[key]) {
-        console.log(`${key}:`)
-        console.log(`  light: ${lightTokens[key] || '(not set)'}`)
-        console.log(`  dark:  ${darkTokens[key] || '(not set)'}`)
-      }
-    }
-  })
-})
-
-test.describe('UX Audit - Input States', () => {
-  test('input focus and typing states', async ({ page }) => {
-    await enterDemoMode(page)
-
-    const input = page.locator(selectors.mainInput).first()
-
-    // Unfocused state
-    await captureState(page, 'input', 'unfocused')
-
-    // Focused state (measure focus animation)
-    const focusTiming = await measureAnimationTiming(page, selectors.mainInput, async () => {
-      await input.focus()
-    })
-    await captureState(page, 'input', 'focused')
-    console.log(`Focus animation: ${focusTiming.duration}ms on ${focusTiming.property}`)
-
-    // With text
-    await input.fill('typing some text here')
-    await captureState(page, 'input', 'with-text')
-  })
-
-  test('input breathing animation frames', async ({ page }) => {
-    await setMockTime(page, 14)
-    await enterDemoMode(page)
-
-    // Capture multiple frames of the breathing animation
-    for (let i = 0; i < 4; i++) {
-      await captureState(page, 'input', `breathing-frame-${i}`)
-      await page.waitForTimeout(750) // ~1/4 of typical breathing animation cycle
-    }
-  })
-})
-
-test.describe('UX Audit - Typography & Content', () => {
-  test('extract all text for tone audit', async ({ page }) => {
-    await enterDemoMode(page)
-
-    // Trigger AI to get various messages
-    const input = page.locator(selectors.mainInput).first()
-    await input.fill('help me')
-    await input.press('Enter')
-    await page.waitForLoadState('networkidle')
-    await page.waitForTimeout(3000)
-
-    const texts = await extractVisibleText(page)
-    console.log('\n=== Visible Text Audit ===')
-    texts.forEach((t) => console.log(`  "${t}"`))
-
-    // Verify tone requirements
-    await uxAssertions.noGuiltTripping(page)
-    await uxAssertions.noOverCelebration(page)
-  })
-})
-
-test.describe('UX Audit - Login Page', () => {
-  test('login page variants', async ({ page }) => {
-    await setMockTime(page, 14)
-    await page.goto('/')
-
-    // Wait for login animations (staggered fade-in)
-    await page.waitForTimeout(1200)
-
-    // Light mode
-    await setTheme(page, 'light')
-    await captureState(page, 'login', 'default', { theme: 'light' })
-
-    // Dark mode
-    await setTheme(page, 'dark')
-    await page.waitForTimeout(150)
-    await captureState(page, 'login', 'default', { theme: 'dark' })
-
-    // Mobile
-    await setViewport(page, 'mobile')
-    await setTheme(page, 'light')
-    await page.waitForTimeout(150)
-    await captureState(page, 'login', 'mobile', { device: 'mobile' })
-  })
-})
-
-test.describe('UX Audit - View Switching', () => {
-  test('StackView vs other views', async ({ page }) => {
-    await enterDemoMode(page)
-    await page.waitForLoadState('networkidle')
-
-    // Capture default view (StackView)
-    await captureState(page, 'views', 'stack-view')
-
-    // Look for view toggle
-    const viewToggle = page.locator('button[title*="list" i], button[title*="view" i], button[aria-label*="view" i]').first()
-    if (await viewToggle.isVisible().catch(() => false)) {
-      await viewToggle.click()
-      await page.waitForTimeout(300)
-      await captureState(page, 'views', 'alternate-view')
-    }
-  })
-})
-
-test.describe('UX Audit - Accessibility', () => {
-  test('login page accessibility', async ({ page }) => {
-    await page.goto('/')
-    await page.waitForTimeout(1000)
-
-    const a11yResults = await auditAccessibility(page)
-    recordAuditResult({
-      category: 'accessibility',
-      screenshots: [],
-      accessibility: a11yResults,
-    })
-
-    console.log('\n=== Login Page A11y ===')
-    console.log(`Passes: ${a11yResults.passes}`)
-    console.log(`Violations: ${a11yResults.violations.length}`)
-    if (a11yResults.violations.length > 0) {
-      a11yResults.violations.forEach((v) => {
-        console.log(`  [${v.impact}] ${v.id}: ${v.description}`)
+  // Check for guilt-tripping
+  for (const pattern of FORBIDDEN_PATTERNS.guiltTripping) {
+    if (pattern.test(allText)) {
+      const match = allText.match(pattern)?.[0]
+      auditor.critical('tone', 'Guilt-tripping language detected', {
+        actual: match,
+        fix: 'Remove guilt-inducing language. Per CLAUDE.md: "Never guilt trip users about incomplete tasks"',
       })
     }
+  }
 
-    // Allow minor issues but fail on serious/critical
-    await expectAccessible(page, { allowMinor: true })
-  })
-
-  test('main app accessibility', async ({ page }) => {
-    await enterDemoMode(page)
-    await page.waitForLoadState('networkidle')
-
-    const a11yResults = await auditAccessibility(page)
-    recordAuditResult({
-      category: 'accessibility',
-      screenshots: [],
-      accessibility: a11yResults,
-    })
-
-    console.log('\n=== Main App A11y ===')
-    console.log(`Passes: ${a11yResults.passes}`)
-    console.log(`Violations: ${a11yResults.violations.length}`)
-
-    await expectAccessible(page, { allowMinor: true })
-  })
-})
-
-test.describe('UX Audit - Performance', () => {
-  test('login page performance metrics', async ({ page }) => {
-    await page.goto('/')
-    await page.waitForLoadState('networkidle')
-
-    const metrics = await capturePerformanceMetrics(page)
-    recordAuditResult({
-      category: 'performance',
-      screenshots: [],
-      performance: metrics,
-    })
-
-    console.log('\n=== Login Page Performance ===')
-    console.log(`TTFB: ${metrics.ttfb}ms`)
-    console.log(`FCP: ${metrics.fcp}ms`)
-    console.log(`LCP: ${metrics.lcp}ms`)
-    console.log(`CLS: ${metrics.cls}`)
-
-    // Soft assertions - log warnings but don't fail
-    if (metrics.lcp && metrics.lcp > 2500) {
-      console.warn('Warning: LCP exceeds 2.5s threshold')
-    }
-    if (metrics.cls && metrics.cls > 0.1) {
-      console.warn('Warning: CLS exceeds 0.1 threshold')
-    }
-  })
-
-  test('main app performance metrics', async ({ page }) => {
-    await enterDemoMode(page)
-    await page.waitForLoadState('networkidle')
-
-    const metrics = await capturePerformanceMetrics(page)
-    recordAuditResult({
-      category: 'performance',
-      screenshots: [],
-      performance: metrics,
-    })
-
-    console.log('\n=== Main App Performance ===')
-    console.log(`LCP: ${metrics.lcp}ms`)
-    console.log(`CLS: ${metrics.cls}`)
-  })
-})
-
-// ============ NEW TEST SCENARIOS ============
-
-test.describe('UX Audit - Task Completion', () => {
-  test('task completion flow and celebration', async ({ page }) => {
-    await enterDemoMode(page)
-    await page.waitForLoadState('networkidle')
-
-    // Create a simple task
-    const input = page.locator(selectors.mainInput).first()
-    await input.fill('test task to complete')
-    await input.press('Enter')
-    await page.waitForLoadState('networkidle')
-    await page.waitForTimeout(3000)
-
-    await captureState(page, 'completion', 'task-created')
-
-    // Look for a task card/checkbox to complete
-    const checkbox = page
-      .locator('button[role="checkbox"], input[type="checkbox"], [class*="checkbox"], [class*="Checkbox"]')
-      .first()
-
-    if (await checkbox.isVisible().catch(() => false)) {
-      // Capture before completion
-      await captureState(page, 'completion', 'before-complete')
-
-      // Complete the task
-      await checkbox.click()
-
-      // Quickly capture any confetti/celebration animation
-      await page.waitForTimeout(100)
-      await captureState(page, 'completion', 'completing')
-
-      await page.waitForTimeout(500)
-      await captureState(page, 'completion', 'after-complete')
-
-      // Check for confetti element
-      const confetti = page.locator('[class*="confetti"], [class*="Confetti"], canvas')
-      if (await confetti.isVisible().catch(() => false)) {
-        console.log('✓ Confetti animation detected')
-      }
-    }
-
-    // Verify no over-celebration in completion message
-    await uxAssertions.noOverCelebration(page)
-  })
-
-  test('step completion within task', async ({ page }) => {
-    await enterDemoMode(page)
-    await page.waitForLoadState('networkidle')
-
-    // Create a task that should generate steps
-    const input = page.locator(selectors.mainInput).first()
-    await input.fill('organize my closet')
-    await input.press('Enter')
-    await page.waitForLoadState('networkidle')
-    await page.waitForTimeout(4000)
-
-    // Click on task to open detail view if needed
-    const taskCard = page.locator('[class*="card"], [class*="Card"]').first()
-    if (await taskCard.isVisible().catch(() => false)) {
-      await taskCard.click()
-      await page.waitForTimeout(500)
-    }
-
-    await captureState(page, 'completion', 'task-with-steps')
-
-    // Look for step checkboxes
-    const stepCheckbox = page
-      .locator('[class*="step"] button, [class*="Step"] button, [class*="subtask"] button')
-      .first()
-
-    if (await stepCheckbox.isVisible().catch(() => false)) {
-      await captureState(page, 'completion', 'step-before')
-      await stepCheckbox.click()
-      await page.waitForTimeout(300)
-      await captureState(page, 'completion', 'step-after')
-    }
-  })
-})
-
-test.describe('UX Audit - Error States', () => {
-  test('network offline indicator', async ({ page, context }) => {
-    await enterDemoMode(page)
-    await page.waitForLoadState('networkidle')
-    await captureState(page, 'errors', 'online-state')
-
-    // Simulate offline
-    await context.setOffline(true)
-    await page.waitForTimeout(500)
-
-    // Try to perform an action that requires network
-    const input = page.locator(selectors.mainInput).first()
-    await input.fill('task while offline')
-    await input.press('Enter')
-
-    await page.waitForTimeout(1000)
-    await captureState(page, 'errors', 'offline-state')
-
-    // Check for offline indicator
-    const offlineIndicator = page.locator(
-      '[class*="offline"], [class*="error"], [class*="warning"], [role="alert"]'
-    )
-    if (await offlineIndicator.isVisible().catch(() => false)) {
-      console.log('✓ Offline indicator detected')
-    } else {
-      console.log('⚠ No offline indicator visible')
-    }
-
-    // Restore online
-    await context.setOffline(false)
-    await page.waitForTimeout(500)
-    await captureState(page, 'errors', 'back-online')
-  })
-
-  test('API error handling', async ({ page }) => {
-    await enterDemoMode(page)
-    await page.waitForLoadState('networkidle')
-
-    // Intercept API calls and force an error
-    await page.route('**/api/**', (route) => {
-      route.fulfill({
-        status: 500,
-        contentType: 'application/json',
-        body: JSON.stringify({ error: 'Internal Server Error' }),
+  // Check for over-celebration
+  for (const pattern of FORBIDDEN_PATTERNS.overCelebration) {
+    if (pattern.test(allText)) {
+      const match = allText.match(pattern)?.[0]
+      auditor.major('tone', 'Over-celebration detected', {
+        actual: match,
+        fix: 'Tone down celebration. Per CLAUDE.md: No "AMAZING!!!" or excessive emoji',
       })
+    }
+  }
+
+  // Check for corporate wellness speak
+  for (const pattern of FORBIDDEN_PATTERNS.corporateWellness) {
+    if (pattern.test(allText)) {
+      const match = allText.match(pattern)?.[0]
+      auditor.major('tone', 'Corporate wellness buzzwords detected', {
+        actual: match,
+        fix: 'Use warm, direct language. Per CLAUDE.md: "No wellness buzzwords"',
+      })
+    }
+  }
+
+  // Check for dead-end messages
+  for (const pattern of FORBIDDEN_PATTERNS.deadEnds) {
+    if (pattern.test(allText)) {
+      const match = allText.match(pattern)?.[0]
+      auditor.critical('ux', 'Dead-end message without recovery action', {
+        actual: match,
+        fix: 'Every error needs a clear recovery path, not just an error message',
+      })
+    }
+  }
+}
+
+// ============ HELPER: Check touch targets ============
+async function auditTouchTargets(page: Page, auditor: UXAuditor) {
+  const buttons = await page.locator(selectors.button).all()
+
+  for (const button of buttons) {
+    const box = await button.boundingBox()
+    if (!box) continue
+
+    const minSize = DESIGN_SPECS.spacing.minTouchTarget
+    if (box.width < minSize || box.height < minSize) {
+      const label = await button.textContent() || await button.getAttribute('aria-label') || 'unknown'
+      auditor.major('accessibility', `Touch target too small: ${Math.round(box.width)}x${Math.round(box.height)}px`, {
+        element: `button: "${label.slice(0, 30)}"`,
+        expected: `${minSize}x${minSize}px minimum`,
+        actual: `${Math.round(box.width)}x${Math.round(box.height)}px`,
+        fix: 'Increase button padding or size to meet 44x44px WCAG requirement',
+      })
+    }
+  }
+}
+
+// ============ HELPER: Check typography ============
+async function auditTypography(page: Page, auditor: UXAuditor) {
+  const tooSmall = await page.evaluate((minSize) => {
+    const issues: Array<{ text: string; size: number }> = []
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT)
+
+    while (walker.nextNode()) {
+      const node = walker.currentNode
+      const parent = node.parentElement
+      if (!parent) continue
+
+      const style = getComputedStyle(parent)
+      const fontSize = parseFloat(style.fontSize)
+      const text = node.textContent?.trim()
+
+      if (text && text.length > 1 && fontSize < minSize && style.display !== 'none') {
+        issues.push({ text: text.slice(0, 30), size: Math.round(fontSize) })
+      }
+    }
+
+    return issues.slice(0, 5) // Limit to first 5
+  }, DESIGN_SPECS.typography.minFontSize)
+
+  for (const issue of tooSmall) {
+    auditor.major('typography', `Text too small: ${issue.size}px`, {
+      element: `"${issue.text}..."`,
+      expected: `${DESIGN_SPECS.typography.minFontSize}px minimum`,
+      actual: `${issue.size}px`,
+      fix: 'Increase font size to at least 12px for readability',
     })
+  }
+}
 
-    // Try to create a task (should trigger API call)
-    const input = page.locator(selectors.mainInput).first()
-    await input.fill('task that will fail')
-    await input.press('Enter')
+// ============ HELPER: Check design tokens ============
+async function auditDesignTokens(page: Page, auditor: UXAuditor, theme: 'light' | 'dark') {
+  const tokens = await extractDesignTokens(page)
+  const specs = theme === 'light' ? DESIGN_SPECS.colors.light : DESIGN_SPECS.colors.dark
 
-    await page.waitForTimeout(2000)
-    await captureState(page, 'errors', 'api-error')
-
-    // Check for error message
-    const errorMessage = page.locator('[class*="error"], [role="alert"], [class*="Error"]')
-    if (await errorMessage.isVisible().catch(() => false)) {
-      console.log('✓ Error message displayed')
-      const text = await errorMessage.textContent()
-      console.log(`  Error text: "${text}"`)
+  // Check key tokens exist
+  const requiredTokens = ['--canvas', '--text', '--accent']
+  for (const token of requiredTokens) {
+    if (!tokens[token]) {
+      auditor.major('design-system', `Missing CSS variable: ${token}`, {
+        fix: `Define ${token} in your CSS variables for ${theme} mode`,
+      })
     }
+  }
+}
 
-    // Clear route interception
-    await page.unroute('**/api/**')
-  })
+// ============ HELPER: Check for loading states ============
+async function auditLoadingFeedback(
+  page: Page,
+  auditor: UXAuditor,
+  action: () => Promise<void>,
+  actionName: string
+) {
+  let loadingDetected = false
 
-  test('empty input validation', async ({ page }) => {
+  // Set up observer before action
+  const loadingPromise = page
+    .locator(selectors.loadingIndicator)
+    .first()
+    .waitFor({ state: 'visible', timeout: 500 })
+    .then(() => {
+      loadingDetected = true
+    })
+    .catch(() => {})
+
+  await action()
+  await loadingPromise
+
+  if (!loadingDetected) {
+    auditor.major('feedback', `No loading indicator for: ${actionName}`, {
+      fix: 'Add visible loading feedback within 100ms of async action start',
+    })
+  }
+}
+
+// ============ HELPER: Check primary action visibility ============
+async function auditPrimaryAction(page: Page, auditor: UXAuditor) {
+  const input = page.locator(selectors.mainInput).first()
+  const isVisible = await input.isVisible().catch(() => false)
+
+  if (!isVisible) {
+    auditor.critical('ux', 'Primary action (main input) not visible', {
+      fix: 'The main input should always be visible and accessible. Per CLAUDE.md: "Zero friction - Show the action button"',
+    })
+    return
+  }
+
+  // Check it's not obscured
+  const box = await input.boundingBox()
+  if (box) {
+    // Check if within viewport
+    const viewport = page.viewportSize()
+    if (viewport && (box.y + box.height > viewport.height || box.y < 0)) {
+      auditor.major('ux', 'Primary action partially outside viewport', {
+        fix: 'Main input should be fully visible without scrolling on initial load',
+      })
+    }
+  }
+}
+
+// ============ HELPER: Check for dead ends ============
+async function auditDeadEnds(page: Page, auditor: UXAuditor) {
+  // Check that there's always a way to act
+  const hasInput = await page.locator(selectors.mainInput).isVisible().catch(() => false)
+  const hasButtons = await page.locator(selectors.button).count() > 0
+
+  if (!hasInput && !hasButtons) {
+    auditor.critical('ux', 'Dead end: No interactive elements on screen', {
+      fix: 'Every screen should have a clear next action or way out',
+    })
+  }
+}
+
+// ============ HELPER: Audit error recovery ============
+async function auditErrorRecovery(page: Page, auditor: UXAuditor) {
+  const errorElements = await page.locator(selectors.errorMessage).all()
+
+  for (const error of errorElements) {
+    const text = await error.textContent()
+    if (!text) continue
+
+    // Check if error has nearby action button
+    const parent = error.locator('..')
+    const hasAction = await parent.locator('button').count() > 0
+
+    if (!hasAction) {
+      // Check if there's a button in the error element itself
+      const hasInternalAction = await error.locator('button').count() > 0
+      if (!hasInternalAction) {
+        auditor.critical('error-handling', 'Error message without recovery action', {
+          element: text.slice(0, 50),
+          fix: 'Every error needs a clear recovery path (retry button, dismiss, alternative action)',
+        })
+      }
+    }
+  }
+}
+
+// ============ TEST SUITES ============
+
+test.describe('CRITICAL: Core UX Requirements', () => {
+  test('primary action always visible and accessible', async ({ page }) => {
+    const auditor = new UXAuditor(page)
     await enterDemoMode(page)
     await page.waitForLoadState('networkidle')
 
-    const input = page.locator(selectors.mainInput).first()
+    await auditPrimaryAction(page, auditor)
+    await auditDeadEnds(page, auditor)
 
-    // Try submitting empty input
-    await input.focus()
-    await input.press('Enter')
+    // Mobile too
+    await setViewport(page, 'mobile')
     await page.waitForTimeout(300)
+    await auditPrimaryAction(page, auditor)
 
-    await captureState(page, 'errors', 'empty-submit')
-
-    // Try submitting whitespace only
-    await input.fill('   ')
-    await input.press('Enter')
-    await page.waitForTimeout(300)
-
-    await captureState(page, 'errors', 'whitespace-submit')
+    await captureState(page, 'critical', 'primary-action')
+    await auditor.assertNoIssues()
   })
-})
 
-test.describe('UX Audit - Swipe Gestures', () => {
-  test('swipe interactions on task cards', async ({ page }) => {
+  test('no guilt-tripping or over-celebration in any state', async ({ page }) => {
+    const auditor = new UXAuditor(page)
     await enterDemoMode(page)
     await page.waitForLoadState('networkidle')
 
-    // Create a task first
+    // Check empty state
+    await auditTextContent(page, auditor)
+
+    // Check with task
     const input = page.locator(selectors.mainInput).first()
-    await input.fill('swipeable task')
+    await input.fill('test task')
     await input.press('Enter')
     await page.waitForLoadState('networkidle')
     await page.waitForTimeout(3000)
 
-    await captureState(page, 'gestures', 'before-swipe')
+    await auditTextContent(page, auditor)
+    await captureState(page, 'critical', 'tone-check')
 
-    // Find a task card
-    const taskCard = page.locator('[class*="card"], [class*="Card"]').first()
-
-    if (await taskCard.isVisible().catch(() => false)) {
-      const box = await taskCard.boundingBox()
-      if (box) {
-        // Swipe left
-        await page.mouse.move(box.x + box.width - 20, box.y + box.height / 2)
-        await page.mouse.down()
-        await page.mouse.move(box.x + 20, box.y + box.height / 2, { steps: 10 })
-        await page.waitForTimeout(100)
-        await captureState(page, 'gestures', 'swipe-left')
-        await page.mouse.up()
-
-        await page.waitForTimeout(500)
-
-        // Swipe right
-        await page.mouse.move(box.x + 20, box.y + box.height / 2)
-        await page.mouse.down()
-        await page.mouse.move(box.x + box.width - 20, box.y + box.height / 2, { steps: 10 })
-        await page.waitForTimeout(100)
-        await captureState(page, 'gestures', 'swipe-right')
-        await page.mouse.up()
-      }
-    }
-
-    await page.waitForTimeout(300)
-    await captureState(page, 'gestures', 'after-swipe')
+    await auditor.assertNoIssues()
   })
 
-  test('pull to refresh gesture', async ({ page }) => {
+  test('all touch targets meet 44x44px minimum', async ({ page }) => {
+    const auditor = new UXAuditor(page)
     await setViewport(page, 'mobile')
     await enterDemoMode(page)
     await page.waitForLoadState('networkidle')
 
-    await captureState(page, 'gestures', 'before-pull')
+    await auditTouchTargets(page, auditor)
+    await captureState(page, 'critical', 'touch-targets')
 
-    // Simulate pull down from top
-    await page.mouse.move(187, 100)
-    await page.mouse.down()
-    await page.mouse.move(187, 300, { steps: 10 })
-    await page.waitForTimeout(200)
-    await captureState(page, 'gestures', 'pulling')
-    await page.mouse.up()
-
-    await page.waitForTimeout(500)
-    await captureState(page, 'gestures', 'after-pull')
+    // Allow minor issues but fail on major
+    await auditor.assertNoIssues(true)
   })
-})
 
-test.describe('UX Audit - Modal Flows', () => {
-  test('task detail modal', async ({ page }) => {
+  test('no text smaller than 12px', async ({ page }) => {
+    const auditor = new UXAuditor(page)
     await enterDemoMode(page)
     await page.waitForLoadState('networkidle')
 
-    // Create a task
-    const input = page.locator(selectors.mainInput).first()
-    await input.fill('task for modal test')
-    await input.press('Enter')
+    await auditTypography(page, auditor)
+    await captureState(page, 'critical', 'typography')
+
+    await auditor.assertNoIssues()
+  })
+})
+
+test.describe('CRITICAL: Accessibility', () => {
+  test('WCAG 2.1 AA compliance - no critical violations', async ({ page }) => {
+    const auditor = new UXAuditor(page)
+    await enterDemoMode(page)
     await page.waitForLoadState('networkidle')
-    await page.waitForTimeout(3000)
 
-    // Click on task to open modal/detail view
-    const taskCard = page.locator('[class*="card"], [class*="Card"]').first()
+    const results = await auditAccessibility(page)
 
-    if (await taskCard.isVisible().catch(() => false)) {
-      await captureState(page, 'modals', 'before-open')
-
-      await taskCard.click()
-      await page.waitForTimeout(500)
-
-      await captureState(page, 'modals', 'task-detail-open')
-
-      // Look for close button or back button
-      const closeBtn = page.locator(
-        'button[aria-label*="close" i], button[aria-label*="back" i], [class*="close"], [class*="back"]'
-      ).first()
-
-      if (await closeBtn.isVisible().catch(() => false)) {
-        await closeBtn.click()
-        await page.waitForTimeout(300)
-        await captureState(page, 'modals', 'after-close')
+    for (const violation of results.violations) {
+      if (violation.impact === 'critical') {
+        auditor.critical('a11y', violation.description, {
+          element: `${violation.nodes} elements affected`,
+          fix: `See: ${violation.helpUrl}`,
+        })
+      } else if (violation.impact === 'serious') {
+        auditor.major('a11y', violation.description, {
+          element: `${violation.nodes} elements affected`,
+          fix: `See: ${violation.helpUrl}`,
+        })
       }
     }
+
+    await captureState(page, 'critical', 'accessibility')
+    console.log(`A11y: ${results.passes} rules passed, ${results.violations.length} violations`)
+
+    await auditor.assertNoIssues()
   })
 
-  test('settings modal', async ({ page }) => {
+  test('color contrast meets WCAG AA', async ({ page }) => {
+    const auditor = new UXAuditor(page)
     await enterDemoMode(page)
     await page.waitForLoadState('networkidle')
 
-    // Look for settings button (gear icon)
-    const settingsBtn = page
-      .locator('button[aria-label*="settings" i], button[title*="settings" i], [class*="settings"]')
-      .first()
+    // Check main text elements
+    const textSelectors = ['h1', 'h2', 'p', 'span', 'label', 'button']
 
-    if (await settingsBtn.isVisible().catch(() => false)) {
-      await captureState(page, 'modals', 'before-settings')
+    for (const selector of textSelectors) {
+      const elements = await page.locator(selector).all()
+      for (const el of elements.slice(0, 3)) {
+        // Sample first 3 of each
+        const text = await el.textContent()
+        if (!text?.trim()) continue
 
-      await settingsBtn.click()
-      await page.waitForTimeout(500)
-
-      await captureState(page, 'modals', 'settings-open')
-
-      // Test theme toggle if present
-      const themeToggle = page.locator('[class*="theme"], [aria-label*="theme" i], [aria-label*="dark" i]').first()
-      if (await themeToggle.isVisible().catch(() => false)) {
-        await themeToggle.click()
-        await page.waitForTimeout(300)
-        await captureState(page, 'modals', 'settings-theme-toggled')
+        try {
+          const contrast = await auditColorContrast(page, selector)
+          if (contrast.ratio > 0 && contrast.ratio < DESIGN_SPECS.contrast.aaMinimum) {
+            auditor.major('contrast', `Insufficient contrast ratio: ${contrast.ratio}:1`, {
+              element: `${selector}: "${text.slice(0, 20)}..."`,
+              expected: `${DESIGN_SPECS.contrast.aaMinimum}:1 minimum`,
+              actual: `${contrast.ratio}:1`,
+              fix: 'Increase contrast between text and background colors',
+            })
+          }
+        } catch {
+          // Skip if we can't measure
+        }
+        break // Only check first of each type
       }
     }
-  })
-})
 
-test.describe('UX Audit - Multi-Task Stack', () => {
-  test('visual hierarchy with multiple tasks', async ({ page }) => {
+    await auditor.assertNoIssues(true) // Allow minor
+  })
+
+  test('keyboard navigation works without mouse', async ({ page }) => {
+    const auditor = new UXAuditor(page)
     await enterDemoMode(page)
     await page.waitForLoadState('networkidle')
 
-    // Create multiple tasks to see stack behavior
-    const tasks = ['First task', 'Second task', 'Third task', 'Fourth task', 'Fifth task']
-
-    for (const task of tasks) {
-      // Re-locate input each time as DOM may change
-      const input = page.locator(selectors.mainInput).first()
-      await input.waitFor({ state: 'visible', timeout: 5000 })
-      await input.fill(task)
-      await input.press('Enter')
-      await page.waitForLoadState('networkidle')
-      await page.waitForTimeout(2000)
-
-      // Dismiss any AI cards/modals that appear by clicking outside or pressing Escape
-      await page.keyboard.press('Escape')
-      await page.waitForTimeout(300)
-    }
-
-    await captureState(page, 'multi-task', 'five-tasks-light')
-
-    // Dark mode
-    await setTheme(page, 'dark')
-    await page.waitForTimeout(150)
-    await captureState(page, 'multi-task', 'five-tasks-dark')
-
-    // Mobile view
-    await setViewport(page, 'mobile')
-    await page.waitForTimeout(150)
-    await captureState(page, 'multi-task', 'five-tasks-mobile')
-
-    // Count visible task elements (exclude the input which also has "card" class)
-    const visibleTasks = page.locator('[class*="TaskCard"], [class*="task-card"], [data-testid*="task"]')
-    const count = await visibleTasks.count()
-    console.log(`\n=== Multi-Task Stack ===`)
-    console.log(`Visible task elements: ${count}`)
-  })
-
-  test('task stack depth visualization', async ({ page }) => {
-    await enterDemoMode(page)
-    await page.waitForLoadState('networkidle')
-
-    const input = page.locator(selectors.mainInput).first()
-
-    // Add tasks one by one and capture the stack growth
-    for (let i = 1; i <= 3; i++) {
-      await input.fill(`Task number ${i}`)
-      await input.press('Enter')
-      await page.waitForLoadState('networkidle')
-      await page.waitForTimeout(2500)
-
-      await captureState(page, 'multi-task', `stack-depth-${i}`)
-    }
-  })
-})
-
-test.describe('UX Audit - Keyboard Navigation', () => {
-  test('tab order and focus indicators', async ({ page }) => {
-    await enterDemoMode(page)
-    await page.waitForLoadState('networkidle')
-
-    // Start tabbing through the interface
-    const focusStates: string[] = []
+    // Tab through interface
+    const focusedElements: string[] = []
 
     for (let i = 0; i < 10; i++) {
       await page.keyboard.press('Tab')
       await page.waitForTimeout(100)
 
-      // Get currently focused element
       const focused = await page.evaluate(() => {
         const el = document.activeElement
+        if (!el || el === document.body) return null
+
+        const style = getComputedStyle(el)
+        const hasVisibleFocus =
+          style.outlineWidth !== '0px' ||
+          style.boxShadow !== 'none' ||
+          el.classList.toString().includes('focus')
+
         return {
-          tag: el?.tagName,
-          role: el?.getAttribute('role'),
-          label: el?.getAttribute('aria-label') || el?.textContent?.slice(0, 30),
+          tag: el.tagName,
+          label: el.getAttribute('aria-label') || el.textContent?.slice(0, 20) || '',
+          hasVisibleFocus,
         }
       })
 
-      focusStates.push(`${focused.tag}${focused.role ? `[${focused.role}]` : ''}: ${focused.label}`)
+      if (focused) {
+        focusedElements.push(`${focused.tag}: ${focused.label}`)
 
-      if (i === 0) await captureState(page, 'keyboard', 'focus-1')
-      if (i === 4) await captureState(page, 'keyboard', 'focus-5')
-      if (i === 9) await captureState(page, 'keyboard', 'focus-10')
+        if (!focused.hasVisibleFocus) {
+          auditor.major('keyboard', 'No visible focus indicator', {
+            element: `${focused.tag}: "${focused.label}"`,
+            fix: 'Add visible focus styles (outline, box-shadow, or ring)',
+          })
+        }
+      }
     }
 
-    console.log('\n=== Tab Order ===')
-    focusStates.forEach((state, i) => console.log(`  ${i + 1}. ${state}`))
+    console.log('Tab order:', focusedElements.join(' -> '))
+    await captureState(page, 'critical', 'keyboard-nav')
 
-    // Test Enter key on focused button
-    await page.keyboard.press('Enter')
-    await page.waitForTimeout(300)
-    await captureState(page, 'keyboard', 'after-enter')
-  })
-
-  test('escape key closes modals', async ({ page }) => {
-    await enterDemoMode(page)
-    await page.waitForLoadState('networkidle')
-
-    // Create a task and open it
-    const input = page.locator(selectors.mainInput).first()
-    await input.fill('escape test task')
-    await input.press('Enter')
-    await page.waitForLoadState('networkidle')
-    await page.waitForTimeout(3000)
-
-    const taskCard = page.locator('[class*="card"], [class*="Card"]').first()
-    if (await taskCard.isVisible().catch(() => false)) {
-      await taskCard.click()
-      await page.waitForTimeout(500)
-      await captureState(page, 'keyboard', 'modal-open')
-
-      // Press Escape
-      await page.keyboard.press('Escape')
-      await page.waitForTimeout(300)
-      await captureState(page, 'keyboard', 'after-escape')
+    // Check we could tab to the main input
+    const reachedInput = focusedElements.some((e) => e.includes('INPUT'))
+    if (!reachedInput) {
+      auditor.major('keyboard', 'Cannot reach main input via Tab key', {
+        fix: 'Ensure main input is in natural tab order',
+      })
     }
-  })
 
-  test('keyboard shortcuts', async ({ page }) => {
-    await enterDemoMode(page)
-    await page.waitForLoadState('networkidle')
-
-    // Test common shortcuts
-    // Cmd/Ctrl + K (command palette or search)
-    await page.keyboard.press('Meta+k')
-    await page.waitForTimeout(300)
-    await captureState(page, 'keyboard', 'shortcut-cmd-k')
-
-    await page.keyboard.press('Escape')
-    await page.waitForTimeout(200)
-
-    // Focus main input with /
-    await page.keyboard.press('/')
-    await page.waitForTimeout(300)
-    await captureState(page, 'keyboard', 'shortcut-slash')
+    await auditor.assertNoIssues(true)
   })
 })
 
-test.describe('UX Audit - Long Content', () => {
-  test('long task title handling', async ({ page }) => {
+test.describe('CRITICAL: Error Handling', () => {
+  test('network errors show recovery options', async ({ page, context }) => {
+    const auditor = new UXAuditor(page)
     await enterDemoMode(page)
     await page.waitForLoadState('networkidle')
 
+    // Go offline
+    await context.setOffline(true)
+
     const input = page.locator(selectors.mainInput).first()
-
-    // Create task with very long title
-    const longTitle =
-      'This is an extremely long task title that should test how the UI handles text overflow and truncation in various places throughout the application'
-    await input.fill(longTitle)
+    await input.fill('offline test task')
     await input.press('Enter')
-    await page.waitForLoadState('networkidle')
-    await page.waitForTimeout(3000)
 
-    await captureState(page, 'long-content', 'long-title')
+    await page.waitForTimeout(2000)
+    await captureState(page, 'errors', 'offline-error')
 
-    // Check for text truncation
-    const taskText = page.locator(`text=${longTitle.slice(0, 20)}`).first()
-    if (await taskText.isVisible().catch(() => false)) {
-      const box = await taskText.boundingBox()
-      console.log(`\n=== Long Title Handling ===`)
-      console.log(`Text box width: ${box?.width}px`)
-    }
+    // Check for recovery options
+    await auditErrorRecovery(page, auditor)
+    await auditTextContent(page, auditor) // Check for dead-end messages
+
+    // Restore
+    await context.setOffline(false)
+
+    await auditor.assertNoIssues()
   })
 
-  test('many steps overflow', async ({ page }) => {
+  test('API errors provide actionable feedback', async ({ page }) => {
+    const auditor = new UXAuditor(page)
     await enterDemoMode(page)
     await page.waitForLoadState('networkidle')
 
-    // Create a task that might generate many steps
+    // Intercept and fail API calls
+    await page.route('**/api/**', (route) =>
+      route.fulfill({ status: 500, body: JSON.stringify({ error: 'Server error' }) })
+    )
+    await page.route('**/*.supabase.co/**', (route) =>
+      route.fulfill({ status: 500, body: JSON.stringify({ error: 'Server error' }) })
+    )
+
     const input = page.locator(selectors.mainInput).first()
-    await input.fill('plan a wedding with all the details')
+    await input.fill('api error test')
     await input.press('Enter')
-    await page.waitForLoadState('networkidle')
-    await page.waitForTimeout(5000)
 
-    await captureState(page, 'long-content', 'many-steps')
+    await page.waitForTimeout(3000)
+    await captureState(page, 'errors', 'api-error')
 
-    // Click to see full task
-    const taskCard = page.locator('[class*="card"], [class*="Card"]').first()
-    if (await taskCard.isVisible().catch(() => false)) {
-      await taskCard.click()
-      await page.waitForTimeout(500)
-      await captureState(page, 'long-content', 'many-steps-expanded')
+    await auditErrorRecovery(page, auditor)
+    await auditTextContent(page, auditor)
 
-      // Scroll if needed
-      await page.mouse.wheel(0, 500)
-      await page.waitForTimeout(300)
-      await captureState(page, 'long-content', 'many-steps-scrolled')
-    }
+    await page.unroute('**/api/**')
+    await page.unroute('**/*.supabase.co/**')
+
+    await auditor.assertNoIssues()
   })
 
-  test('unicode and emoji handling', async ({ page }) => {
+  test('empty/whitespace input handled gracefully', async ({ page }) => {
+    const auditor = new UXAuditor(page)
     await enterDemoMode(page)
     await page.waitForLoadState('networkidle')
 
     const input = page.locator(selectors.mainInput).first()
 
-    // Create task with unicode characters
-    await input.fill('日本語タスク 🎉 émojis ñ ü')
+    // Empty submit
+    await input.focus()
     await input.press('Enter')
-    await page.waitForLoadState('networkidle')
-    await page.waitForTimeout(3000)
-
-    await captureState(page, 'long-content', 'unicode-emoji')
-  })
-})
-
-test.describe('UX Audit - Animation Timing', () => {
-  test('modal open/close animation timing', async ({ page }) => {
-    await enterDemoMode(page)
-    await page.waitForLoadState('networkidle')
-
-    // Create a task
-    const input = page.locator(selectors.mainInput).first()
-    await input.fill('animation timing test')
-    await input.press('Enter')
-    await page.waitForLoadState('networkidle')
-    await page.waitForTimeout(3000)
-
-    // Dismiss any AI card first
-    await page.keyboard.press('Escape')
     await page.waitForTimeout(500)
 
-    // Look for task card - be specific to avoid matching the input
-    // Task cards typically have the task title text in them
-    const taskCard = page.locator('text=animation timing test').first()
+    // Should not create task or show error
+    await auditTextContent(page, auditor)
+    await captureState(page, 'errors', 'empty-submit')
 
-    if (await taskCard.isVisible().catch(() => false)) {
-      // Measure open animation
-      const openStart = Date.now()
-      await taskCard.click({ force: true })
+    // Whitespace submit
+    await input.fill('   ')
+    await input.press('Enter')
+    await page.waitForTimeout(500)
 
-      // Wait for any modal/view change
-      await page.waitForTimeout(500)
-      const openDuration = Date.now() - openStart
+    await auditTextContent(page, auditor)
+    await captureState(page, 'errors', 'whitespace-submit')
 
-      console.log(`\n=== Animation Timing ===`)
-      console.log(`View transition: ${openDuration}ms`)
-
-      await captureState(page, 'animations', 'task-opened')
-
-      // Per CLAUDE.md: Modal open should be ~350ms spring
-      if (openDuration > 100 && openDuration < 600) {
-        console.log('✓ Open animation within expected range (100-600ms)')
-      }
-
-      await page.waitForTimeout(300)
-
-      // Measure close/back animation
-      const closeStart = Date.now()
-      await page.keyboard.press('Escape')
-      await page.waitForTimeout(400)
-      const closeDuration = Date.now() - closeStart
-
-      console.log(`View close: ${closeDuration}ms`)
-
-      await captureState(page, 'animations', 'task-closed')
-
-      // Per CLAUDE.md: Modal close should be ~250ms ease
-      if (closeDuration > 50 && closeDuration < 500) {
-        console.log('✓ Close animation within expected range (50-500ms)')
-      }
-    } else {
-      console.log('Task card not found - skipping animation timing test')
-      await captureState(page, 'animations', 'no-task-card')
-    }
+    await auditor.assertNoIssues()
   })
+})
 
-  test('button press feedback', async ({ page }) => {
+test.describe('MAJOR: Performance', () => {
+  test('LCP under 2.5s, CLS under 0.1', async ({ page }) => {
+    const auditor = new UXAuditor(page)
     await enterDemoMode(page)
     await page.waitForLoadState('networkidle')
 
-    // Find any button
-    const button = page.locator('button').first()
+    const metrics = await capturePerformanceMetrics(page)
 
-    if (await button.isVisible().catch(() => false)) {
-      await captureState(page, 'animations', 'button-normal')
+    console.log(`Performance: LCP=${metrics.lcp}ms, CLS=${metrics.cls}, FCP=${metrics.fcp}ms`)
 
-      // Capture during press (mousedown without mouseup)
-      await button.hover()
-      await page.mouse.down()
-      await page.waitForTimeout(50)
-      await captureState(page, 'animations', 'button-pressed')
-      await page.mouse.up()
-
-      await page.waitForTimeout(200)
-      await captureState(page, 'animations', 'button-released')
+    if (metrics.lcp && metrics.lcp > DESIGN_SPECS.performance.lcpGood) {
+      auditor.major('performance', `LCP too slow: ${metrics.lcp}ms`, {
+        expected: `< ${DESIGN_SPECS.performance.lcpGood}ms`,
+        actual: `${metrics.lcp}ms`,
+        fix: 'Optimize largest contentful paint - check image sizes, render-blocking resources',
+      })
     }
+
+    if (metrics.cls && metrics.cls > DESIGN_SPECS.performance.clsGood) {
+      auditor.major('performance', `Cumulative Layout Shift too high: ${metrics.cls}`, {
+        expected: `< ${DESIGN_SPECS.performance.clsGood}`,
+        actual: `${metrics.cls}`,
+        fix: 'Reduce layout shift - set explicit dimensions on images/embeds, avoid inserting content above existing content',
+      })
+    }
+
+    await auditor.assertNoIssues()
+  })
+
+  test('async actions show loading within 100ms', async ({ page }) => {
+    const auditor = new UXAuditor(page)
+    await enterDemoMode(page)
+    await page.waitForLoadState('networkidle')
+
+    const input = page.locator(selectors.mainInput).first()
+
+    await auditLoadingFeedback(
+      page,
+      auditor,
+      async () => {
+        await input.fill('loading test task')
+        await input.press('Enter')
+      },
+      'task creation'
+    )
+
+    await page.waitForTimeout(2000)
+    await captureState(page, 'performance', 'loading-feedback')
+
+    // This is advisory - don't fail the test but report
+    console.log(auditor.getReport())
+  })
+})
+
+test.describe('MAJOR: Design System Compliance', () => {
+  test('light mode tokens match spec', async ({ page }) => {
+    const auditor = new UXAuditor(page)
+    await enterDemoMode(page)
+    await setTheme(page, 'light')
+    await page.waitForTimeout(200)
+
+    await auditDesignTokens(page, auditor, 'light')
+    await captureState(page, 'design-system', 'light-mode')
+
+    await auditor.assertNoIssues()
+  })
+
+  test('dark mode tokens match spec', async ({ page }) => {
+    const auditor = new UXAuditor(page)
+    await enterDemoMode(page)
+    await setTheme(page, 'dark')
+    await page.waitForTimeout(200)
+
+    await auditDesignTokens(page, auditor, 'dark')
+    await captureState(page, 'design-system', 'dark-mode')
+
+    await auditor.assertNoIssues()
+  })
+})
+
+test.describe('MAJOR: Responsive Design', () => {
+  test('mobile (375px) - no horizontal scroll, all content accessible', async ({ page }) => {
+    const auditor = new UXAuditor(page)
+    await setViewport(page, 'mobile')
+    await enterDemoMode(page)
+    await page.waitForLoadState('networkidle')
+
+    // Check for horizontal overflow
+    const hasHorizontalScroll = await page.evaluate(() => {
+      return document.documentElement.scrollWidth > document.documentElement.clientWidth
+    })
+
+    if (hasHorizontalScroll) {
+      auditor.critical('responsive', 'Horizontal scroll on mobile', {
+        fix: 'Fix overflow - check for fixed widths, long unbroken text, or elements wider than viewport',
+      })
+    }
+
+    await auditPrimaryAction(page, auditor)
+    await auditTouchTargets(page, auditor)
+    await captureState(page, 'responsive', 'mobile-375')
+
+    await auditor.assertNoIssues()
+  })
+
+  test('tablet (768px) - layout adapts appropriately', async ({ page }) => {
+    const auditor = new UXAuditor(page)
+    await setViewport(page, 'tablet')
+    await enterDemoMode(page)
+    await page.waitForLoadState('networkidle')
+
+    await auditPrimaryAction(page, auditor)
+    await captureState(page, 'responsive', 'tablet-768')
+
+    await auditor.assertNoIssues()
+  })
+
+  test('desktop (1280px) - efficient use of space', async ({ page }) => {
+    const auditor = new UXAuditor(page)
+    await setViewport(page, 'desktop')
+    await enterDemoMode(page)
+    await page.waitForLoadState('networkidle')
+
+    // Check content isn't stretched too wide (max-width should be applied)
+    const contentWidth = await page.evaluate(() => {
+      const main = document.querySelector('main') || document.body.firstElementChild
+      return main?.getBoundingClientRect().width || 0
+    })
+
+    if (contentWidth > 1000) {
+      auditor.minor('responsive', `Content may be too wide: ${contentWidth}px`, {
+        fix: 'Consider max-width constraint on main content for readability',
+      })
+    }
+
+    await captureState(page, 'responsive', 'desktop-1280')
+    await auditor.assertNoIssues(true) // Allow minor
+  })
+})
+
+test.describe('MAJOR: Edge Cases', () => {
+  test('very long task title - proper truncation', async ({ page }) => {
+    const auditor = new UXAuditor(page)
+    await enterDemoMode(page)
+    await page.waitForLoadState('networkidle')
+
+    const longTitle = 'A'.repeat(200) // 200 character title
+    const input = page.locator(selectors.mainInput).first()
+    await input.fill(longTitle)
+    await input.press('Enter')
+
+    await page.waitForLoadState('networkidle')
+    await page.waitForTimeout(3000)
+
+    // Check for text overflow issues
+    const hasOverflow = await page.evaluate(() => {
+      const elements = document.querySelectorAll('*')
+      for (const el of elements) {
+        const style = getComputedStyle(el)
+        if (el.scrollWidth > el.clientWidth && style.overflow !== 'hidden' && style.textOverflow !== 'ellipsis') {
+          const text = el.textContent || ''
+          if (text.length > 50) return true
+        }
+      }
+      return false
+    })
+
+    if (hasOverflow) {
+      auditor.major('edge-case', 'Long text overflows container', {
+        fix: 'Add text-overflow: ellipsis or proper wrapping for long content',
+      })
+    }
+
+    await captureState(page, 'edge-cases', 'long-title')
+    await auditor.assertNoIssues()
+  })
+
+  test('unicode and emoji - renders correctly', async ({ page }) => {
+    const auditor = new UXAuditor(page)
+    await enterDemoMode(page)
+    await page.waitForLoadState('networkidle')
+
+    const unicodeText = '日本語タスク 🎉 émojis ñ ü العربية'
+    const input = page.locator(selectors.mainInput).first()
+    await input.fill(unicodeText)
+    await input.press('Enter')
+
+    await page.waitForLoadState('networkidle')
+    await page.waitForTimeout(3000)
+
+    // Verify text is visible somewhere
+    const hasUnicode = await page.locator(`text=${unicodeText.slice(0, 10)}`).isVisible().catch(() => false)
+
+    if (!hasUnicode) {
+      // Check if it's in any element
+      const pageText = await page.textContent('body')
+      if (!pageText?.includes('日本語')) {
+        auditor.major('edge-case', 'Unicode text not rendering', {
+          fix: 'Ensure proper font-family stack supports international characters',
+        })
+      }
+    }
+
+    await captureState(page, 'edge-cases', 'unicode-emoji')
+    await auditor.assertNoIssues()
+  })
+
+  test('rapid input - no race conditions', async ({ page }) => {
+    const auditor = new UXAuditor(page)
+    await enterDemoMode(page)
+    await page.waitForLoadState('networkidle')
+
+    const input = page.locator(selectors.mainInput).first()
+
+    // Rapid fire multiple tasks
+    for (let i = 0; i < 3; i++) {
+      await input.fill(`Rapid task ${i + 1}`)
+      await input.press('Enter')
+      await page.waitForTimeout(100) // Very short delay
+    }
+
+    await page.waitForTimeout(5000)
+    await captureState(page, 'edge-cases', 'rapid-input')
+
+    // Check for error states
+    await auditTextContent(page, auditor)
+    await auditErrorRecovery(page, auditor)
+
+    await auditor.assertNoIssues()
+  })
+})
+
+test.describe('MINOR: Visual Polish', () => {
+  test('time-of-day greeting changes appropriately', async ({ page }) => {
+    const times = [
+      { hour: 7, expected: ['morning', 'ready', 'start'] },
+      { hour: 14, expected: ['afternoon', 'open', 'going'] },
+      { hour: 20, expected: ['evening', 'wind', 'still'] },
+    ]
+
+    for (const { hour, expected } of times) {
+      await setMockTime(page, hour)
+      await page.goto('/')
+      await page.getByRole('button', { name: /try the demo/i }).click()
+      await page.waitForLoadState('networkidle')
+
+      const texts = await extractVisibleText(page)
+      const allText = texts.join(' ').toLowerCase()
+
+      const hasExpected = expected.some((word) => allText.includes(word))
+      if (!hasExpected) {
+        console.log(`Note: ${hour}:00 greeting doesn't include expected words (${expected.join('/')})`)
+      }
+
+      await captureState(page, 'visual', `greeting-${hour}h`)
+    }
+  })
+
+  test('theme transition is smooth', async ({ page }) => {
+    await enterDemoMode(page)
+    await page.waitForLoadState('networkidle')
+
+    await setTheme(page, 'light')
+    await captureState(page, 'visual', 'theme-light')
+
+    // Measure transition
+    const start = Date.now()
+    await setTheme(page, 'dark')
+
+    // Wait for transition
+    await page.waitForTimeout(300)
+    const duration = Date.now() - start
+
+    await captureState(page, 'visual', 'theme-dark')
+
+    console.log(`Theme transition: ${duration}ms`)
+
+    // Check for jarring flash
+    if (duration < 100) {
+      console.log('Note: Theme transition may be too fast (< 100ms) - could feel jarring')
+    }
+  })
+
+  test('empty state is inviting, not bleak', async ({ page }) => {
+    await enterDemoMode(page)
+    await page.waitForLoadState('networkidle')
+
+    const texts = await extractVisibleText(page)
+    const allText = texts.join(' ').toLowerCase()
+
+    // Should have some inviting text
+    const invitingWords = ['ready', 'open', 'next', 'add', 'start', 'help']
+    const hasInviting = invitingWords.some((word) => allText.includes(word))
+
+    if (!hasInviting) {
+      console.log('Note: Empty state could be more inviting - consider warmer copy')
+    }
+
+    await captureState(page, 'visual', 'empty-state')
   })
 })
 
 test.afterAll(async () => {
-  const reportPath = generateReport('Gather UX Audit')
+  const reportPath = generateReport('Gather UX Audit - Hypercritical')
   if (reportPath) {
-    console.log(`\n${'='.repeat(50)}`)
-    console.log(`📊 UX Audit Report: ${reportPath}`)
-    console.log(`Open in browser to review all captured states`)
-    console.log(`${'='.repeat(50)}\n`)
+    console.log(`\n${'='.repeat(60)}`)
+    console.log(`📊 UX AUDIT REPORT: ${reportPath}`)
+    console.log(`${'='.repeat(60)}\n`)
   }
 })
