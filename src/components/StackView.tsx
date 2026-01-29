@@ -40,6 +40,26 @@ interface StackViewProps {
 // Affirmations - brief, unexpected
 const AFFIRMATIONS = ['done', 'nice', 'gone', '✓', 'cleared', 'onwards']
 
+// Time-based empty state messages - personality that fits the moment
+function getEmptyStateMessage(celebrating: boolean): { symbol: string; title: string; subtitle: string } {
+  const hour = new Date().getHours()
+
+  if (celebrating) {
+    // Just cleared everything - brief acknowledgment
+    if (hour >= 5 && hour < 12) return { symbol: '✨', title: 'cleared', subtitle: 'good start to the day' }
+    if (hour >= 12 && hour < 17) return { symbol: '✨', title: 'all done', subtitle: 'nice momentum' }
+    if (hour >= 17 && hour < 21) return { symbol: '✨', title: 'cleared', subtitle: 'you earned this evening' }
+    return { symbol: '✨', title: 'done', subtitle: 'rest well' }
+  }
+
+  // Default empty state - inviting, time-appropriate
+  if (hour >= 5 && hour < 9) return { symbol: '○', title: 'ready', subtitle: 'what\'s on your mind?' }
+  if (hour >= 9 && hour < 12) return { symbol: '○', title: 'clear', subtitle: 'nothing waiting' }
+  if (hour >= 12 && hour < 17) return { symbol: '○', title: 'open', subtitle: 'add something whenever' }
+  if (hour >= 17 && hour < 21) return { symbol: '○', title: 'quiet', subtitle: 'nothing pressing' }
+  return { symbol: '○', title: 'still', subtitle: 'here when you need' }
+}
+
 // Persist dismiss counts
 function getDismissCounts(): Record<string, number> {
   if (typeof window === 'undefined') return {}
@@ -386,6 +406,39 @@ aiCard,
           backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
         }} />
 
+        {/* Toolbar - same as main view for consistency */}
+        <div className="sticky top-0 z-20 px-4 py-3 flex items-center justify-end">
+          <div className="flex items-center gap-1">
+            {onSwitchView && (
+              <button
+                onClick={onSwitchView}
+                className="p-2.5 rounded-full text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--surface)] transition-all duration-150"
+                title="Switch to list view"
+              >
+                <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                  <line x1="3" y1="6" x2="21" y2="6" />
+                  <line x1="3" y1="12" x2="21" y2="12" />
+                  <line x1="3" y1="18" x2="21" y2="18" />
+                </svg>
+              </button>
+            )}
+            {onSignOut && (
+              <button
+                onClick={onSignOut}
+                className="p-2.5 rounded-full text-[var(--text-muted)]/50 hover:text-[var(--text-muted)] hover:bg-[var(--surface)] transition-all duration-150"
+                title={isDemoUser ? 'Exit demo' : 'Sign out'}
+                aria-label={isDemoUser ? 'Exit demo' : 'Sign out'}
+              >
+                <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                  <polyline points="16 17 21 12 16 7" />
+                  <line x1="21" y1="12" x2="9" y2="12" />
+                </svg>
+              </button>
+            )}
+          </div>
+        </div>
+
         <div className="flex-1 flex flex-col items-center justify-center px-6">
           {/* Show AI card when processing, otherwise show empty state */}
           {aiCard && onDismissAI ? (
@@ -400,23 +453,28 @@ aiCard,
               />
             </div>
           ) : (
-            <div className={`text-center transition-all duration-700 ${celebrateEmpty ? 'scale-110' : ''}`}>
-              <div
-                className={`text-6xl mb-4 transition-all duration-500 ${celebrateEmpty ? 'animate-bounce' : ''}`}
-                style={{ fontFamily: 'var(--font-display)' }}
-              >
-                {celebrateEmpty ? '✨' : '○'}
-              </div>
-              <h1
-                className="text-3xl font-medium text-[var(--text)] mb-2"
-                style={{ fontFamily: 'var(--font-display)' }}
-              >
-                {celebrateEmpty ? 'All clear' : 'Clear'}
-              </h1>
-              <p className="text-[var(--text-muted)]">
-                {celebrateEmpty ? 'You did it.' : 'Nothing waiting'}
-              </p>
-            </div>
+            (() => {
+              const emptyState = getEmptyStateMessage(celebrateEmpty)
+              return (
+                <div className={`text-center transition-all duration-700 ${celebrateEmpty ? 'scale-105' : ''}`}>
+                  <div
+                    className={`text-5xl mb-4 transition-all duration-500 ${celebrateEmpty ? 'animate-bounce' : 'opacity-40'}`}
+                    style={{ fontFamily: 'var(--font-display)', animationDuration: celebrateEmpty ? '0.6s' : undefined }}
+                  >
+                    {emptyState.symbol}
+                  </div>
+                  <h1
+                    className="text-2xl font-medium text-[var(--text)] mb-1"
+                    style={{ fontFamily: 'var(--font-display)' }}
+                  >
+                    {emptyState.title}
+                  </h1>
+                  <p className="text-sm text-[var(--text-muted)]">
+                    {emptyState.subtitle}
+                  </p>
+                </div>
+              )
+            })()
           )}
 
           <form onSubmit={handleSubmit} className="w-full max-w-xs mt-12">
@@ -488,31 +546,37 @@ aiCard,
         backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
       }} />
 
-      {/* Toolbar with blur effect */}
-      <div className="sticky top-0 z-20 px-4 py-3 flex items-center justify-between bg-[var(--canvas)]/80 backdrop-blur-md border-b border-[var(--border)]/30">
-        {/* Left: Add button */}
-        <button
-          onClick={() => setShowInput(!showInput)}
-          className="p-2 -ml-2 text-[var(--text-muted)] hover:text-[var(--text)] transition-colors"
-          title="Add task"
-        >
-<svg className="w-[20px] h-[20px] md:w-[24px] md:h-[24px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-            <path d="M12 5v14M5 12h14" />
-          </svg>
-        </button>
-
-        {/* Center: Deck counter */}
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-[var(--text)]">{stack.length}</span>
-          <span className="text-xs text-[var(--text-muted)]">cards</span>
+      {/* Minimal toolbar - clean, unobtrusive */}
+      <div className="sticky top-0 z-20 px-4 py-3 flex items-center justify-between">
+        {/* Left: Card count (subtle, only when there are cards) */}
+        <div className="text-xs text-[var(--text-muted)]/60 tabular-nums min-w-[20px]">
+          {stack.length > 0 && stack.length}
         </div>
 
-        {/* Right: View toggle & actions */}
+        {/* Right: Essential actions */}
         <div className="flex items-center gap-1">
+          {/* Add button - primary action, prominent when active */}
+          <button
+            onClick={() => setShowInput(!showInput)}
+            className={`
+              p-2.5 rounded-full transition-all duration-150
+              ${showInput
+                ? 'bg-[var(--accent)] text-white shadow-sm'
+                : 'text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--surface)]'
+              }
+            `}
+            title="Add task"
+          >
+            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+              <path d={showInput ? "M18 6L6 18M6 6l12 12" : "M12 5v14M5 12h14"} />
+            </svg>
+          </button>
+
+          {/* View toggle */}
           {onSwitchView && (
             <button
               onClick={onSwitchView}
-              className="p-2 text-[var(--text-muted)] hover:text-[var(--text)] transition-colors"
+              className="p-2.5 rounded-full text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--surface)] transition-all duration-150"
               title="Switch to list view"
             >
               <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -522,13 +586,16 @@ aiCard,
               </svg>
             </button>
           )}
+
+          {/* Sign out - subtle, secondary */}
           {onSignOut && (
             <button
               onClick={onSignOut}
-              className="p-2 text-[var(--text-muted)] hover:text-[var(--text)] transition-colors"
+              className="p-2.5 rounded-full text-[var(--text-muted)]/50 hover:text-[var(--text-muted)] hover:bg-[var(--surface)] transition-all duration-150"
               title={isDemoUser ? 'Exit demo' : 'Sign out'}
+              aria-label={isDemoUser ? 'Exit demo' : 'Sign out'}
             >
-              <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                 <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
                 <polyline points="16 17 21 12 16 7" />
                 <line x1="21" y1="12" x2="9" y2="12" />
@@ -760,8 +827,8 @@ aiCard,
                       ${isHolding ? 'scale-[0.97]' : 'active:scale-[0.98]'}
                     `}
                     style={isSecondary ? {} : {
-                      background: 'linear-gradient(180deg, #e07a5f 0%, #d06a50 100%)',
-                      boxShadow: '0 4px 12px rgba(224, 122, 95, 0.3)',
+                      background: 'var(--accent)',
+                      boxShadow: '0 2px 8px rgba(217, 117, 86, 0.25), 0 1px 2px rgba(217, 117, 86, 0.15)',
                     }}
                   >
                     {/* Hold progress fill */}

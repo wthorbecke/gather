@@ -302,6 +302,7 @@ export function UnifiedInput({
 
   // Show keyboard shortcut hint when input is not focused
   const showShortcutHint = !focused
+  const showBreathing = !focused && !value && !hasContext && tasks.length === 0
 
   return (
     <div ref={containerRef} className={`mb-6 ${containerClassName}`}>
@@ -310,10 +311,17 @@ export function UnifiedInput({
           onClick={() => inputRef.current?.focus()}
           className={`
             flex items-center gap-2 px-4 py-3 cursor-text
-            bg-card rounded-md shadow-sm
-            border ${focused ? 'border-border' : 'border-border-subtle'}
+            bg-card rounded-md
+            border transition-[border-color,box-shadow] duration-200
+            ${focused ? 'border-border-focus input-focused' : 'border-border-subtle'}
             ${inputWrapperClassName}
+            ${showBreathing ? 'input-breathing' : ''}
           `}
+          style={{
+            boxShadow: showBreathing
+              ? undefined // Let CSS animation handle it
+              : 'var(--shadow-sm)',
+          }}
         >
           {/* Context tags */}
           {visibleTagEntries.map(({ tag, index }) => (

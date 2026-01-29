@@ -4,13 +4,14 @@ import { useState, useEffect, useRef } from 'react'
 import { Task } from '@/hooks/useUserData'
 import { hasAuthoritativeSources } from '@/lib/sourceQuality'
 
+// Conversational, lowercase - like a friend thinking out loud
 const loadingMessages = [
-  'Finding the steps...',
-  'Researching your situation...',
-  'Almost there...',
-  'Just a moment...',
-  'Gathering the details...',
-  'Making it doable...',
+  'let me look into this...',
+  'checking a few things...',
+  'finding what you need...',
+  'one sec...',
+  'pulling together the details...',
+  'making this doable...',
 ]
 
 // Strip <cite> tags from AI responses (they're metadata, not display content)
@@ -112,11 +113,17 @@ export function AICard({
   return (
     <div
       className={`
-        bg-subtle rounded-md p-4
-        border border-border
+        rounded-xl p-4
         mb-4
         ${isDismissing ? 'animate-fade-out' : 'animate-fade-in'}
       `}
+      style={{
+        background: card.thinking ? 'var(--ai-bg-thinking)' : 'var(--ai-bg)',
+        border: '1px solid var(--ai-border)',
+        boxShadow: card.thinking
+          ? '0 0 0 1px var(--ai-glow), 0 2px 8px var(--ai-glow)'
+          : '0 1px 3px var(--ai-glow)',
+      }}
     >
       {/* Header row with dismiss button */}
       {pendingInput && (
@@ -180,11 +187,31 @@ export function AICard({
             </div>
           )}
           <div className="space-y-3">
-            <div className="skeleton h-3 w-1/3" />
-            <div className="skeleton h-3 w-full" />
-            <div className="skeleton h-3 w-4/5" />
-            <div className="text-xs text-text-muted mt-2">{loadingMessages[loadingMessageIndex]}</div>
+            {/* Thinking indicator - three gentle dots with staggered pulse */}
+            <div className="flex items-center gap-3">
+              <div className="flex gap-1.5">
+                <span
+                  className="w-2 h-2 rounded-full bg-accent/40"
+                  style={{ animation: 'thinkingPulse 1.4s ease-in-out infinite' }}
+                />
+                <span
+                  className="w-2 h-2 rounded-full bg-accent/40"
+                  style={{ animation: 'thinkingPulse 1.4s ease-in-out infinite', animationDelay: '0.2s' }}
+                />
+                <span
+                  className="w-2 h-2 rounded-full bg-accent/40"
+                  style={{ animation: 'thinkingPulse 1.4s ease-in-out infinite', animationDelay: '0.4s' }}
+                />
+              </div>
+              <span className="text-sm text-text-soft italic">{loadingMessages[loadingMessageIndex]}</span>
+            </div>
           </div>
+          <style jsx>{`
+            @keyframes thinkingPulse {
+              0%, 100% { opacity: 0.3; transform: scale(1); }
+              50% { opacity: 1; transform: scale(1.2); }
+            }
+          `}</style>
         </>
       ) : (
         <>
@@ -322,12 +349,12 @@ export function AICard({
                     key={reply}
                     onClick={() => onQuickReply(reply)}
                     className={`
-                      px-3.5 py-2 rounded-sm text-sm
-                      transition-all duration-[80ms] ease-out
+                      px-4 py-2.5 rounded-full text-sm font-medium
+                      transition-all duration-150 ease-out
                       tap-target btn-press animate-rise
                       ${isSaved(reply)
-                        ? 'bg-accent text-white border border-accent'
-                        : 'bg-card border border-border text-text hover:bg-card-hover'
+                        ? 'bg-accent text-white shadow-sm'
+                        : 'bg-card border border-border text-text hover:border-accent/40 hover:bg-accent/5 hover:shadow-sm'
                       }
                     `}
                     style={{ animationDelay: `${index * 30}ms` }}

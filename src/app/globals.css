@@ -60,18 +60,20 @@
   --border-subtle: rgba(0, 0, 0, 0.03);
   --border-focus: rgba(217, 117, 86, 0.4);
 
-  /* Shadows - Simplified */
-  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.03);
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.04);
-  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.06);
-  --shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.08);
+  /* Shadows - Warm tinted for life (not pure black) */
+  --shadow-xs: 0 1px 2px rgba(120, 80, 60, 0.04);
+  --shadow-sm: 0 1px 3px rgba(120, 80, 60, 0.06), 0 1px 2px rgba(0, 0, 0, 0.02);
+  --shadow-md: 0 2px 8px rgba(120, 80, 60, 0.08), 0 1px 3px rgba(0, 0, 0, 0.03);
+  --shadow-lg: 0 4px 16px rgba(120, 80, 60, 0.10), 0 2px 6px rgba(0, 0, 0, 0.04);
 
   /* Hover state - ONE consistent value */
   --hover-bg: rgba(0, 0, 0, 0.04);
 
-  /* AI card specific */
-  --ai-bg: #F7F7F7;
-  --ai-border: var(--border);
+  /* AI card specific - warm, distinct, like a collaborator */
+  --ai-bg: #FBF9F7;
+  --ai-bg-thinking: linear-gradient(135deg, #FBF9F7 0%, #F9F6F2 100%);
+  --ai-border: rgba(217, 117, 86, 0.12);
+  --ai-glow: rgba(217, 117, 86, 0.06);
   --user-bg: rgba(217, 117, 86, 0.06);
 
   /* Legacy aliases */
@@ -93,13 +95,13 @@
    DARK MODE - Same unified approach
    ============================================= */
 .dark {
-  /* Background layers */
-  --canvas: #0a0a0a;
-  --surface: rgba(255, 255, 255, 0.03);
-  --card: #141414;
-  --card-hover: rgba(255, 255, 255, 0.04);
-  --elevated: #181818;
-  --subtle: #141414;
+  /* Background layers - warm undertones, not cold gray */
+  --canvas: #0c0a09;
+  --surface: rgba(255, 245, 235, 0.03);
+  --card: #161412;
+  --card-hover: rgba(255, 245, 235, 0.04);
+  --elevated: #1a1816;
+  --subtle: #141210;
 
   /* Text hierarchy */
   --text: #F5F5F5;
@@ -128,18 +130,20 @@
   --border-subtle: rgba(255, 255, 255, 0.04);
   --border-focus: rgba(232, 169, 144, 0.5);
 
-  /* Shadows - Darker for dark mode */
-  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.2);
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.25);
-  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.3);
-  --shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.4);
+  /* Shadows - Darker with warm undertone for dark mode */
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.25);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3), 0 1px 2px rgba(180, 120, 80, 0.05);
+  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.35), 0 1px 4px rgba(180, 120, 80, 0.08);
+  --shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.45), 0 2px 8px rgba(180, 120, 80, 0.1);
 
   /* Hover state */
   --hover-bg: rgba(255, 255, 255, 0.06);
 
-  /* AI card */
-  --ai-bg: #141414;
-  --ai-border: var(--border);
+  /* AI card - warm even in dark mode */
+  --ai-bg: #1a1614;
+  --ai-bg-thinking: linear-gradient(135deg, #1a1614 0%, #1c1815 100%);
+  --ai-border: rgba(232, 169, 144, 0.15);
+  --ai-glow: rgba(232, 169, 144, 0.08);
   --user-bg: rgba(232, 169, 144, 0.08);
 
   /* Legacy aliases */
@@ -454,6 +458,42 @@ textarea:focus-visible {
    ============================================= */
 .main-input-wrapper {
   transform-origin: center center;
+}
+
+/* Breathing animation for empty input - subtle, inviting pulse */
+@keyframes inputBreathe {
+  0%, 100% {
+    box-shadow: var(--shadow-sm);
+    border-color: var(--border-subtle);
+  }
+  50% {
+    box-shadow: 0 2px 12px rgba(217, 117, 86, 0.08), 0 0 0 1px rgba(217, 117, 86, 0.06);
+    border-color: rgba(217, 117, 86, 0.15);
+  }
+}
+.dark .input-breathing {
+  animation: inputBreatheDark 4s ease-in-out infinite;
+}
+@keyframes inputBreatheDark {
+  0%, 100% {
+    box-shadow: var(--shadow-sm);
+    border-color: var(--border-subtle);
+  }
+  50% {
+    box-shadow: 0 2px 12px rgba(232, 169, 144, 0.1), 0 0 0 1px rgba(232, 169, 144, 0.08);
+    border-color: rgba(232, 169, 144, 0.2);
+  }
+}
+.input-breathing {
+  animation: inputBreathe 4s ease-in-out infinite;
+}
+
+/* Input focus state - subtle warm glow */
+.input-focused {
+  box-shadow: 0 0 0 2px rgba(217, 117, 86, 0.08);
+}
+.dark .input-focused {
+  box-shadow: 0 0 0 2px rgba(232, 169, 144, 0.1);
 }
 
 /* =============================================

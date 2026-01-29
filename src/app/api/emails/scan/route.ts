@@ -2,6 +2,32 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { getValidToken } from '@/lib/google-auth'
 
+// In-memory cache for scan results (5 minute TTL)
+// This avoids repeated expensive Gmail API calls within a session
+const CACHE_TTL_MS = 5 * 60 * 1000 // 5 minutes
+interface CacheEntry {
+  data: {
+    potentialTasks: PotentialTask[]
+    scannedCount: number
+    beforeDedup: number
+    message: string
+  }
+  timestamp: number
+}
+const scanCache = new Map<string, CacheEntry>()
+
+// Clean up expired cache entries periodically
+function cleanupCache() {
+  const now = Date.now()
+  const keysToDelete: string[] = []
+  scanCache.forEach((entry, key) => {
+    if (now - entry.timestamp > CACHE_TTL_MS) {
+      keysToDelete.push(key)
+    }
+  })
+  keysToDelete.forEach(key => scanCache.delete(key))
+}
+
 // Task-like patterns in email subjects and snippets
 const TASK_PATTERNS = [
   // Action required
@@ -285,6 +311,17 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid session' }, { status: 401 })
     }
 
+    // Check cache first - avoid expensive Gmail API calls
+    cleanupCache()
+    const cacheKey = user.id
+    const cached = scanCache.get(cacheKey)
+    const forceRefresh = request.nextUrl.searchParams.get('refresh') === 'true'
+
+    if (cached && !forceRefresh && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+      console.log(`[EmailScan] Cache hit for user ${user.id.slice(0, 8)}...`)
+      return NextResponse.json({ ...cached.data, cached: true })
+    }
+
     // Try to get stored token first (for background/refresh token support)
     let gmailToken = await getValidToken(user.id)
 
@@ -381,14 +418,23 @@ export async function GET(request: NextRequest) {
     // De-duplicate similar emails from same sender
     const dedupedTasks = deduplicateEmails(potentialTasks)
 
-    return NextResponse.json({
+    // Cache the result
+    const responseData = {
       potentialTasks: dedupedTasks,
       scannedCount: messages.length,
       beforeDedup: potentialTasks.length,
       message: dedupedTasks.length > 0
         ? `Found ${dedupedTasks.length} emails that might need action`
         : 'No actionable emails found'
+    }
+
+    scanCache.set(cacheKey, {
+      data: responseData,
+      timestamp: Date.now()
     })
+    console.log(`[EmailScan] Cached results for user ${user.id.slice(0, 8)}... (${dedupedTasks.length} tasks)`)
+
+    return NextResponse.json(responseData)
 
   } catch (error) {
     console.error('Error scanning emails:', error)

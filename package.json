@@ -12,6 +12,8 @@
     "test:headed": "playwright test --headed",
     "test:debug": "playwright test --debug",
     "test:report": "playwright show-report",
+    "test:ux-audit": "playwright test ux-audit.spec.ts --headed",
+    "test:ux-audit:ci": "playwright test ux-audit.spec.ts",
     "validate": "./scripts/validate.sh"
   },
   "dependencies": {

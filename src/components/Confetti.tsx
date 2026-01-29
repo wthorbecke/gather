@@ -2,6 +2,22 @@
 
 import { useEffect, useState } from 'react'
 
+// Add the completion pop animation
+const completionPopKeyframes = `
+@keyframes completionPop {
+  0% { opacity: 0; transform: scale(0.8); }
+  50% { opacity: 1; transform: scale(1.05); }
+  100% { opacity: 1; transform: scale(1); }
+}
+`
+
+// Inject keyframes once
+if (typeof document !== 'undefined') {
+  const style = document.createElement('style')
+  style.textContent = completionPopKeyframes
+  document.head.appendChild(style)
+}
+
 const CONFETTI_COLORS = ['#E07A5F', '#6B9080', '#F4D35E', '#EE6C4D', '#98C1D9', '#81B29A']
 const PIECE_COUNT = 50
 
@@ -73,30 +89,43 @@ export function Confetti({ active, onComplete }: ConfettiProps) {
   )
 }
 
+// Brief, unexpected affirmations - matches StackView tone
+const COMPLETION_WORDS = ['done', 'finished', 'cleared', 'complete', '✓']
+
 interface CompletionCelebrationProps {
   taskName: string | null
   onDismiss?: () => void
 }
 
 export function CompletionCelebration({ taskName, onDismiss }: CompletionCelebrationProps) {
+  const [word] = useState(() => COMPLETION_WORDS[Math.floor(Math.random() * COMPLETION_WORDS.length)])
+
   useEffect(() => {
     if (taskName) {
       const timer = setTimeout(() => {
         onDismiss?.()
-      }, 3000)
+      }, 2000) // Shorter - don't overstay
       return () => clearTimeout(timer)
     }
   }, [taskName, onDismiss])
 
   if (!taskName) return null
 
+  // Minimal, restrained celebration - just the word and task name
+  // Let the confetti do the celebrating, not the copy
   return (
-    <div className="fixed top-1/2 left-1/2 z-[101] pointer-events-none animate-celebrate">
-      <div className="bg-elevated p-6 px-10 rounded-2xl shadow-modal border border-border text-center">
-        <div className="text-5xl mb-3">🎉</div>
-        <p className="text-sm text-text-muted mb-1">You finished</p>
-        <p className="text-xl font-semibold text-text">{taskName}</p>
-        <p className="text-sm text-success mt-2">Nice work!</p>
+    <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[101] pointer-events-none">
+      <div
+        className="text-center animate-fade-in"
+        style={{ animation: 'completionPop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)' }}
+      >
+        <p
+          className="text-4xl font-semibold text-success mb-2"
+          style={{ fontFamily: 'var(--font-display)' }}
+        >
+          {word}
+        </p>
+        <p className="text-base text-text-soft max-w-[200px] truncate">{taskName}</p>
       </div>
     </div>
   )

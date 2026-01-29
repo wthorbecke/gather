@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useEffect } from 'react'
+import { useMemo, useEffect, useState } from 'react'
 import { Task } from '@/hooks/useUserData'
 import { splitStepText } from '@/lib/stepText'
 import { getNextStep } from '@/hooks/useTaskSearch'
@@ -12,6 +12,32 @@ import { getDeadlineUrgency } from './DeadlineBadge'
 import { CalendarWidget } from './CalendarSidebar'
 import { EmailTasksCard } from './EmailTasksCard'
 import { content, OTHER_SPECIFY_OPTION } from '@/config/content'
+
+// Time-based ambient style - shared atmosphere with StackView
+function getAmbientStyle(taskCount: number, isDark: boolean) {
+  const hour = new Date().getHours()
+  const calmRatio = Math.max(0, 1 - taskCount / 8) // Fewer items = calmer
+
+  if (isDark) {
+    if (hour >= 5 && hour < 9) {
+      return { background: `linear-gradient(170deg, hsl(30, 35%, ${8 + calmRatio * 3}%) 0%, hsl(220, 20%, 4%) 100%)` }
+    } else if (hour >= 17 && hour < 21) {
+      return { background: `linear-gradient(170deg, hsl(${15 + calmRatio * 15}, 40%, ${9 + calmRatio * 3}%) 0%, hsl(260, 20%, 5%) 100%)` }
+    } else if (hour >= 21 || hour < 5) {
+      return { background: `linear-gradient(170deg, hsl(240, 25%, ${7 + calmRatio * 2}%) 0%, hsl(240, 20%, 3%) 100%)` }
+    }
+    return { background: `linear-gradient(170deg, hsl(220, 15%, ${7 + calmRatio * 2}%) 0%, hsl(220, 12%, 4%) 100%)` }
+  } else {
+    if (hour >= 5 && hour < 9) {
+      return { background: `linear-gradient(170deg, hsl(45, ${40 + calmRatio * 20}%, ${95 - calmRatio * 3}%) 0%, hsl(50, 20%, 98%) 100%)` }
+    } else if (hour >= 17 && hour < 21) {
+      return { background: `linear-gradient(170deg, hsl(25, ${35 + calmRatio * 20}%, ${95 - calmRatio * 3}%) 0%, hsl(35, 20%, 98%) 100%)` }
+    } else if (hour >= 21 || hour < 5) {
+      return { background: `linear-gradient(170deg, hsl(220, ${20 + calmRatio * 10}%, ${96 - calmRatio * 2}%) 0%, hsl(220, 15%, 98%) 100%)` }
+    }
+    return { background: `linear-gradient(170deg, hsl(50, ${15 + calmRatio * 15}%, ${97 - calmRatio * 2}%) 0%, hsl(50, 10%, 99%) 100%)` }
+  }
+}
 
 interface HomeViewProps {
   tasks: Task[]
@@ -76,6 +102,16 @@ export function HomeView({
   )
   const getDerivedStepTitle = (text: string) => splitStepText(text).title
 
+  // Detect dark mode
+  const [isDark, setIsDark] = useState(false)
+  useEffect(() => {
+    const checkDark = () => setIsDark(document.documentElement.classList.contains('dark'))
+    checkDark()
+    const observer = new MutationObserver(checkDark)
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] })
+    return () => observer.disconnect()
+  }, [])
+
   // Global Enter key handler for question flow with saved answer
   useEffect(() => {
     if (!isQuestionFlow || !aiCard?.savedAnswer) return
@@ -96,8 +132,15 @@ export function HomeView({
   }, [isQuestionFlow, aiCard?.savedAnswer, onQuickReply])
 
   return (
-    <div className="min-h-screen px-5 pt-6 pb-8">
-      <div className="max-w-[540px] mx-auto">
+    <div
+      className="min-h-screen px-5 pt-6 pb-8 transition-all duration-700"
+      style={getAmbientStyle(activeTasks.length, isDark)}
+    >
+      {/* Subtle paper texture - matches StackView */}
+      <div className="fixed inset-0 opacity-[0.02] pointer-events-none" style={{
+        backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
+      }} />
+      <div className="relative max-w-[540px] mx-auto">
         {/* Suggestions - only show when no tasks */}
         {!aiCard && activeTasks.length === 0 && (
           <div className="-mx-5 mb-6">
