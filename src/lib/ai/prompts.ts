@@ -546,6 +546,121 @@ Return JSON: {
 }
 
 // ============================================================================
+// TASK INTELLIGENCE (Proactive task health analysis)
+// ============================================================================
+
+export interface TaskForIntelligence {
+  id: string
+  title: string
+  createdAt: string
+  category: 'urgent' | 'soon' | 'waiting'
+  dueDate?: string | null
+  stepsTotal: number
+  stepsDone: number
+  lastInteraction?: string | null
+  notes?: string | null
+}
+
+export interface UserPatterns {
+  avgCompletionDays: number
+  preferredDays: string[]
+  productiveHours: string
+  recentCompletions: number
+}
+
+export interface InsightHistory {
+  totalShown: number
+  actedOn: number
+  dismissed: number
+  avgActionDelayHours: number
+  recentTaskIds: string[] // Tasks that had insights recently - don't repeat
+}
+
+export function buildTaskIntelligencePrompt(
+  tasks: TaskForIntelligence[],
+  patterns: UserPatterns,
+  now: Date,
+  history?: InsightHistory
+): string {
+  // Filter out tasks we've recently given insights about
+  const recentlyObserved = new Set(history?.recentTaskIds || [])
+  const eligibleTasks = tasks.filter(t => !recentlyObserved.has(t.id))
+
+  const taskSummaries = eligibleTasks.map(t => {
+    const ageInDays = Math.floor((now.getTime() - new Date(t.createdAt).getTime()) / (1000 * 60 * 60 * 24))
+    const progress = t.stepsTotal > 0 ? `${t.stepsDone}/${t.stepsTotal} steps` : 'no steps'
+    const deadline = t.dueDate ? `due ${t.dueDate}` : 'no deadline'
+    const lastTouch = t.lastInteraction
+      ? `last touched ${Math.floor((now.getTime() - new Date(t.lastInteraction).getTime()) / (1000 * 60 * 60 * 24))} days ago`
+      : 'never touched'
+
+    return `- [${t.id}] "${t.title}" | ${ageInDays} days old | ${progress} | ${deadline} | ${lastTouch}`
+  }).join('\n')
+
+  // Build learning context if we have history
+  const learningContext = history && history.totalShown > 0
+    ? `
+## What we've learned about this user
+- Total insights shown: ${history.totalShown}
+- Acted on: ${history.actedOn} (${Math.round((history.actedOn / history.totalShown) * 100)}%)
+- Dismissed: ${history.dismissed} (${Math.round((history.dismissed / history.totalShown) * 100)}%)
+- Avg time to action: ${history.avgActionDelayHours > 0 ? `${Math.round(history.avgActionDelayHours)} hours` : 'unknown'}
+${history.dismissed > history.actedOn ? '- This user often dismisses insights. Be more selective — only flag truly critical issues.' : ''}
+${history.actedOn > history.dismissed ? '- This user usually acts on insights. They find them helpful.' : ''}`
+    : ''
+
+  return `You are the executive function layer for someone with ADHD. Your job is to look at their tasks and notice what needs attention.
+
+Current date: ${now.toISOString().split('T')[0]}
+
+## User patterns
+- Average task completion time: ${patterns.avgCompletionDays} days
+- Most productive days: ${patterns.preferredDays.join(', ') || 'unknown'}
+- Productive hours: ${patterns.productiveHours || 'unknown'}
+- Tasks completed recently: ${patterns.recentCompletions}
+${learningContext}
+
+## Open tasks
+${taskSummaries || '(no open tasks)'}
+
+## Your job
+Look at each task and ask:
+1. Is this STUCK? (sitting way longer than their average, no progress, not touched)
+2. Is this VAGUE? (title is a wish, not an action — "get organized" vs "file Q3 taxes")
+3. Does this need a DEADLINE? (floating forever, soft commitment that needs a date)
+4. Is this a PATTERN? (similar tasks keep appearing, suggesting a recurring need)
+
+## Rules
+- ONE observation only. Pick the single most important issue across all tasks.
+- Be direct. "This has been sitting for 2 weeks with no progress" not "I noticed this might need attention"
+- Don't observe tasks that are fine. Only surface problems.
+- Prioritize: stuck > vague > needs_deadline > pattern
+- If everything looks fine, return an empty array.
+- Don't point out the obvious. If a task is 2 days old with no steps, that's normal. Wait until it's actually stuck.
+
+## Tone
+Warm but not soft. Like a friend who knows you well.
+- YES: "This one's been sitting for 12 days untouched."
+- YES: "'Get organized' is a wish, not a task. Try: 'Spend 15 min clearing desk'."
+- NO: "I noticed this task might benefit from some attention..."
+- NO: "Great job on your progress! Maybe consider..."
+
+## Output format
+Return ONLY a JSON array:
+[
+  {
+    "taskId": "uuid",
+    "type": "stuck" | "vague" | "needs_deadline" | "pattern",
+    "observation": "What you notice (1 sentence, direct)",
+    "suggestion": "One specific thing they could do (1 sentence)",
+    "priority": 1-3 (1 = most urgent)
+  }
+]
+
+If no observations, return: []`
+}
+
+// ============================================================================
 // HEALTH CHECK (simple test prompt)
 // ============================================================================
 

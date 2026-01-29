@@ -328,8 +328,23 @@ export async function loginAsTestUser(page: Page) {
   // Reload to pick up the session
   await page.reload()
 
-  // Wait for authenticated state - v17 shows "Sign out" button
-  await page.waitForSelector('text=Sign out', { timeout: 10000 })
+  // Wait for page to fully load after auth
+  await page.waitForLoadState('networkidle', { timeout: 15000 }).catch(() => {})
+
+  // Wait for authenticated state - either main input, task cards, or Gather heading
+  await page.waitForSelector('h1:has-text("Gather"), input[placeholder*="next"], [data-testid="task-item"]', { timeout: 15000 })
+
+  // Give the app a moment to render fully
+  await page.waitForTimeout(1000)
+
+  // If we're in a task view, navigate back to home
+  const backButton = page.locator('button:has(svg path[d*="M10 12L6 8"])').first()
+  let attempts = 0
+  while (await backButton.isVisible({ timeout: 500 }).catch(() => false) && attempts < 5) {
+    await backButton.click()
+    await page.waitForTimeout(500)
+    attempts++
+  }
 
   return data.session
 }

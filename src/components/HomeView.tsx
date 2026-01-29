@@ -13,6 +13,7 @@ import { getDeadlineUrgency } from './DeadlineBadge'
 import { CalendarWidget } from './CalendarSidebar'
 import { EmailTasksCard } from './EmailTasksCard'
 import { content, OTHER_SPECIFY_OPTION } from '@/config/content'
+import { TaskInsight } from './TaskInsight'
 
 // Time-based ambient style - shared atmosphere with StackView
 function getAmbientStyle(taskCount: number, isDark: boolean) {
@@ -214,6 +215,11 @@ export function HomeView({
             />
           )
         })()}
+
+        {/* Task Intelligence Insight - only show when there are tasks and no AI conversation */}
+        {!aiCard && activeTasks.length > 0 && (
+          <TaskInsight onGoToTask={onGoToTask} />
+        )}
 
         {/* Calendar Widget */}
         <CalendarWidget isDemoUser={isDemoUser} />

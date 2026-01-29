@@ -294,6 +294,25 @@ export function getDefaultReflection(tasksCompleted: number, busiestDay: string)
 }
 
 // ============================================================================
+// TASK INTELLIGENCE
+// ============================================================================
+
+export const TaskIntelligenceObservationSchema = z.object({
+  taskId: z.string(),
+  type: z.enum(['stuck', 'vague', 'needs_deadline', 'pattern']),
+  observation: z.string(),
+  suggestion: z.string(),
+  priority: z.number().min(1).max(3),
+})
+
+export const TaskIntelligenceResponseSchema = z.array(TaskIntelligenceObservationSchema)
+
+export type TaskIntelligenceObservation = z.infer<typeof TaskIntelligenceObservationSchema>
+export type TaskIntelligenceResponse = z.infer<typeof TaskIntelligenceResponseSchema>
+
+export const DEFAULT_TASK_INTELLIGENCE: TaskIntelligenceResponse = []
+
+// ============================================================================
 // VALIDATION HELPERS
 // ============================================================================
 

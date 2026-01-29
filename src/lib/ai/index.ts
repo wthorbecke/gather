@@ -40,6 +40,11 @@ export {
   buildNudgePrompt,
   // Reflection
   buildWeeklyReflectionPrompt,
+  // Task intelligence
+  buildTaskIntelligencePrompt,
+  type TaskForIntelligence,
+  type UserPatterns,
+  type InsightHistory,
   // Health check
   HEALTH_CHECK_PROMPT,
 } from './prompts'
@@ -89,6 +94,12 @@ export {
   getDefaultReflection,
   type WeeklyReflection,
   type WeeklyReflectionWithStats,
+  // Task intelligence
+  TaskIntelligenceObservationSchema,
+  TaskIntelligenceResponseSchema,
+  DEFAULT_TASK_INTELLIGENCE,
+  type TaskIntelligenceObservation,
+  type TaskIntelligenceResponse,
   // Utilities
   parseAIResponse,
   extractJSON,

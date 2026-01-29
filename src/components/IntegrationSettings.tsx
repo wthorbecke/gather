@@ -23,6 +23,8 @@ interface IntegrationStatus {
   }
 }
 
+type InsightFrequency = 'off' | 'minimal' | 'normal' | 'frequent'
+
 export function IntegrationSettings({ isOpen, onClose }: IntegrationSettingsProps) {
   const { session } = useAuth()
   const [status, setStatus] = useState<IntegrationStatus>({
@@ -30,8 +32,9 @@ export function IntegrationSettings({ isOpen, onClose }: IntegrationSettingsProp
     gmail: { enabled: false, active: false },
     calendar: { enabled: false, active: false },
   })
-  const [loading, setLoading] = useState<'gmail' | 'calendar' | 'connect' | null>(null)
+  const [loading, setLoading] = useState<'gmail' | 'calendar' | 'connect' | 'insights' | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [insightFrequency, setInsightFrequency] = useState<InsightFrequency>('normal')
 
   // Check if Google is connected with proper scopes
   const checkGoogleConnection = useCallback(async () => {
@@ -51,9 +54,29 @@ export function IntegrationSettings({ isOpen, onClose }: IntegrationSettingsProp
     }
   }, [session?.access_token])
 
+  // Fetch insight frequency from profile
+  const fetchInsightFrequency = useCallback(async () => {
+    if (!session?.access_token) return
+
+    try {
+      const res = await fetch('/api/profile/insight-frequency', {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setInsightFrequency(data.frequency || 'normal')
+      }
+    } catch {
+      // Use default
+    }
+  }, [session?.access_token])
+
   // Fetch integration status
   const fetchStatus = useCallback(async () => {
     if (!session?.access_token) return
+
+    // Also fetch insight frequency
+    fetchInsightFrequency()
 
     try {
       const googleConnected = await checkGoogleConnection()
@@ -95,7 +118,7 @@ export function IntegrationSettings({ isOpen, onClose }: IntegrationSettingsProp
     } catch (err) {
       // Error handled silently('Error fetching integration status:', err)
     }
-  }, [session?.access_token, checkGoogleConnection])
+  }, [session?.access_token, checkGoogleConnection, fetchInsightFrequency])
 
   useEffect(() => {
     if (isOpen) {
@@ -214,6 +237,32 @@ export function IntegrationSettings({ isOpen, onClose }: IntegrationSettingsProp
           calendar: { enabled: true, active: true },
         }))
       }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Something went wrong')
+    } finally {
+      setLoading(null)
+    }
+  }
+
+  const handleInsightFrequencyChange = async (frequency: InsightFrequency) => {
+    if (!session?.access_token) return
+
+    setLoading('insights')
+    setError(null)
+
+    try {
+      const res = await fetch('/api/profile/insight-frequency', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ frequency }),
+      })
+
+      if (!res.ok) throw new Error('Failed to update insight frequency')
+
+      setInsightFrequency(frequency)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong')
     } finally {
@@ -422,6 +471,49 @@ export function IntegrationSettings({ isOpen, onClose }: IntegrationSettingsProp
             </div>
           </>
         )}
+
+        {/* Task Insights Settings */}
+        <div className="p-4 bg-surface rounded-xl border border-border">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-lg bg-card flex items-center justify-center">
+              <svg width={20} height={20} viewBox="0 0 24 24" className="text-accent">
+                <path
+                  d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  fill="none"
+                />
+              </svg>
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="font-medium text-text">Task Insights</h3>
+              <p className="text-sm text-text-muted mt-1">
+                Get proactive nudges about stuck or vague tasks
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {(['off', 'minimal', 'normal', 'frequent'] as InsightFrequency[]).map((freq) => (
+                  <button
+                    key={freq}
+                    onClick={() => handleInsightFrequencyChange(freq)}
+                    disabled={loading === 'insights'}
+                    className={`
+                      px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-150 ease-out
+                      ${insightFrequency === freq
+                        ? 'bg-accent text-white'
+                        : 'bg-card text-text-soft hover:bg-card-hover'
+                      }
+                      ${loading === 'insights' ? 'opacity-50' : ''}
+                    `}
+                  >
+                    {freq === 'off' ? 'Off' : freq === 'minimal' ? 'Weekly' : freq === 'normal' ? 'Every few days' : 'Daily'}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
 
         {/* Disconnect option */}
         {status.googleConnected && (
