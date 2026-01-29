@@ -17,6 +17,7 @@ import {
 import { OTHER_SPECIFY_OPTION } from '@/config/content'
 import { splitStepText } from '@/lib/stepText'
 import { authFetch } from '@/lib/supabase'
+import { consumeStream } from '@/lib/ai/streaming'
 import type { ChatAction, SubtaskItem, AnalyzeIntentStep } from '@/lib/api-types'
 import type { ContextTag } from './useTaskNavigation'
 
@@ -264,18 +265,63 @@ export function useAIConversation(deps: AIConversationDeps): AIConversationState
               ]
             : []
 
+          // Use streaming for chat responses
+          setAiCard({ streaming: true, streamingText: '', pendingTaskName: currentAiCard?.pendingTaskName })
+
           const response = await authFetch('/api/chat', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                message: value,
-                context,
-                history,
-              }),
-            })
+            headers: { 'Content-Type': 'application/json', 'Accept': 'text/event-stream' },
+            body: JSON.stringify({
+              message: value,
+              context,
+              history,
+              stream: true,
+            }),
+          })
 
           if (response.ok) {
-            const data = await response.json()
+            let streamedSources: { title: string; url: string }[] = []
+            let streamedActions: ChatAction[] = []
+            let fullText = ''
+
+            // Check content type to see if server is streaming
+            const contentType = response.headers.get('content-type')
+            if (contentType?.includes('text/event-stream')) {
+              // Stream the response
+              await consumeStream(response, {
+                onToken: (text) => {
+                  fullText += text
+                  setAiCard(prev => ({
+                    ...prev,
+                    streaming: true,
+                    streamingText: fullText,
+                  }))
+                },
+                onSources: (sources) => {
+                  streamedSources = sources
+                },
+                onDone: (finalData) => {
+                  // Parse the done event data if it's an object
+                  try {
+                    const parsed = typeof finalData === 'string' ? JSON.parse(finalData) : finalData
+                    if (parsed.actions) streamedActions = parsed.actions
+                    if (parsed.sources) streamedSources = parsed.sources
+                    if (parsed.response) fullText = parsed.response
+                  } catch {
+                    // Use accumulated text
+                  }
+                },
+                onError: (error) => {
+                  setAiCard({ message: error || "Sorry, I couldn't get an answer." })
+                },
+              })
+            } else {
+              // Fallback to non-streaming
+              const data = await response.json()
+              fullText = data.response || ''
+              streamedSources = data.sources || []
+              streamedActions = data.actions || []
+            }
 
             // Check if user message suggests they completed something
             let completionPrompt: string | undefined
@@ -291,10 +337,12 @@ export function useAIConversation(deps: AIConversationDeps): AIConversationState
               ...(isFollowUpMessage && currentAiCard?.message ? [{ role: 'assistant', content: currentAiCard.message }] : []),
             ])
             setIsFollowUp(true)
-            const actions = filterActions(Array.isArray(data.actions) ? data.actions : [], currentTask) as ChatAction[]
+            const actions = filterActions(Array.isArray(streamedActions) ? streamedActions : [], currentTask) as ChatAction[]
             setAiCard({
-              message: data.response,
-              sources: data.sources || [],
+              streaming: false,
+              streamingText: undefined,
+              message: fullText,
+              sources: streamedSources,
               pendingTaskName: currentAiCard?.pendingTaskName,
               quickReplies: actions.length > 0 ? undefined : (completionPrompt ? [completionPrompt] : currentAiCard?.quickReplies),
               actions: actions.map((action) => ({
@@ -305,6 +353,7 @@ export function useAIConversation(deps: AIConversationDeps): AIConversationState
             })
           } else {
             setAiCard({
+              streaming: false,
               message: "Sorry, I couldn't get an answer. Try rephrasing your question.",
             })
           }
@@ -441,42 +490,109 @@ export function useAIConversation(deps: AIConversationDeps): AIConversationState
             ]
           : []
 
+        // Use streaming for chat responses
+        setAiCard({ streaming: true, streamingText: '', pendingTaskName: currentAiCard?.pendingTaskName })
+
         const response = await authFetch('/api/chat', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              message: value,
-              context,
-              history,
-            }),
-          })
+          headers: { 'Content-Type': 'application/json', 'Accept': 'text/event-stream' },
+          body: JSON.stringify({
+            message: value,
+            context,
+            history,
+            stream: true,
+          }),
+        })
 
         if (response.ok) {
-          const data = await response.json()
-          // Update conversation history
-          setConversationHistory(prev => [
-            ...prev,
-            ...(isFollowUpMessage && currentPendingInput ? [{ role: 'user', content: currentPendingInput }] : []),
-            ...(isFollowUpMessage && currentAiCard?.message ? [{ role: 'assistant', content: currentAiCard.message }] : []),
-          ])
-          setIsFollowUp(true)
-          const actions = filterActions(Array.isArray(data.actions) ? data.actions : [], currentContextTags.find((tag) => tag.type === 'task')?.task || currentTaskValue) as ChatAction[]
-          setAiCard({
-            message: data.response,
-            sources: data.sources || [],
-            // Preserve pending task name for continued conversation
-            pendingTaskName: currentAiCard?.pendingTaskName,
-            // Keep quick replies available
-            quickReplies: actions.length > 0 ? undefined : currentAiCard?.quickReplies,
-            actions: actions.map((action) => ({
-              ...action,
-              label: action.label || (action.type === 'mark_step_done' ? `Mark step complete` : action.type === 'focus_step' ? 'Jump to step' : action.type === 'create_task' ? `Create task` : action.type === 'show_sources' ? 'Show sources' : action.type),
-            })),
-            showSources: actions.some((action) => action.type === 'show_sources') ? false : true,
-          })
+          let streamedSources: { title: string; url: string }[] = []
+          let streamedActions: ChatAction[] = []
+          let fullText = ''
+
+          const contentType = response.headers.get('content-type')
+          if (contentType?.includes('text/event-stream')) {
+            await consumeStream(response, {
+              onToken: (text) => {
+                fullText += text
+                setAiCard(prev => ({
+                  ...prev,
+                  streaming: true,
+                  streamingText: fullText,
+                }))
+              },
+              onSources: (sources) => {
+                streamedSources = sources as { title: string; url: string }[]
+              },
+              onDone: (finalText) => {
+                // Try to parse actions from the response
+                try {
+                  const jsonMatch = finalText.match(/\{[\s\S]*\}/)
+                  if (jsonMatch) {
+                    const parsed = JSON.parse(jsonMatch[0])
+                    if (Array.isArray(parsed.actions)) {
+                      streamedActions = filterActions(parsed.actions, currentContextTags.find((tag) => tag.type === 'task')?.task || currentTaskValue) as ChatAction[]
+                    }
+                  }
+                } catch {
+                  // No actions in response
+                }
+              },
+              onError: (error) => {
+                setAiCard({
+                  message: error || "Something went wrong. Please try again.",
+                  streaming: false,
+                })
+              },
+            })
+
+            // Update conversation history
+            setConversationHistory(prev => [
+              ...prev,
+              ...(isFollowUpMessage && currentPendingInput ? [{ role: 'user', content: currentPendingInput }] : []),
+              ...(isFollowUpMessage && currentAiCard?.message ? [{ role: 'assistant', content: currentAiCard.message }] : []),
+            ])
+            setIsFollowUp(true)
+
+            // Finalize with streaming complete
+            setAiCard({
+              message: fullText,
+              sources: streamedSources,
+              streaming: false,
+              pendingTaskName: currentAiCard?.pendingTaskName,
+              quickReplies: streamedActions.length > 0 ? undefined : currentAiCard?.quickReplies,
+              actions: streamedActions.map((action) => ({
+                ...action,
+                label: action.label || (action.type === 'mark_step_done' ? `Mark step complete` : action.type === 'focus_step' ? 'Jump to step' : action.type === 'create_task' ? `Create task` : action.type === 'show_sources' ? 'Show sources' : action.type),
+              })),
+              showSources: streamedActions.some((action) => action.type === 'show_sources') ? false : true,
+            })
+          } else {
+            // Fallback to JSON response if not streaming
+            const data = await response.json()
+            setConversationHistory(prev => [
+              ...prev,
+              ...(isFollowUpMessage && currentPendingInput ? [{ role: 'user', content: currentPendingInput }] : []),
+              ...(isFollowUpMessage && currentAiCard?.message ? [{ role: 'assistant', content: currentAiCard.message }] : []),
+            ])
+            setIsFollowUp(true)
+            const actions = filterActions(Array.isArray(data.actions) ? data.actions : [], currentContextTags.find((tag) => tag.type === 'task')?.task || currentTaskValue) as ChatAction[]
+            setAiCard({
+              message: data.response,
+              sources: data.sources || [],
+              streaming: false,
+              pendingTaskName: currentAiCard?.pendingTaskName,
+              quickReplies: actions.length > 0 ? undefined : currentAiCard?.quickReplies,
+              actions: actions.map((action) => ({
+                ...action,
+                label: action.label || (action.type === 'mark_step_done' ? `Mark step complete` : action.type === 'focus_step' ? 'Jump to step' : action.type === 'create_task' ? `Create task` : action.type === 'show_sources' ? 'Show sources' : action.type),
+              })),
+              showSources: actions.some((action) => action.type === 'show_sources') ? false : true,
+            })
+          }
         } else {
           setAiCard({
             message: "Sorry, I couldn't get an answer. Try rephrasing your question.",
+            streaming: false,
           })
         }
       } catch {
