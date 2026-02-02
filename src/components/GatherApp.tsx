@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback } from 'react'
+import { useCallback, useState } from 'react'
 import dynamic from 'next/dynamic'
 import { User } from '@supabase/supabase-js'
 import { useTasks, Task, Step } from '@/hooks/useUserData'
@@ -15,8 +15,12 @@ import { useAIConversation } from '@/hooks/useAIConversation'
 import { ThemeToggle } from './ThemeProvider'
 import { HomeView } from './HomeView'
 import { StackView } from './StackView'
+import { DayView } from './DayView'
 import { TaskView } from './TaskView'
 import { ErrorBoundary } from './ErrorBoundary'
+import { ChatModal } from './ChatModal'
+import { ViewToggle } from './ViewToggle'
+import { calculateNewStreak, isHabitCompletedToday } from '@/lib/taskTypes'
 
 // Lazy load heavy components that are not needed immediately
 const Confetti = dynamic(() => import('./Confetti').then(mod => ({ default: mod.Confetti })), {
@@ -43,14 +47,21 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
   const { addEntry, addToConversation, getMemoryForAI, getRelevantMemory, getPreference, setPreference } = useMemory()
   const isDemoUser = Boolean(user?.id?.startsWith('demo-') || user?.email?.endsWith('@gather.local'))
 
+  // Chat modal state
+  const [showChatModal, setShowChatModal] = useState(false)
+
   // View state
   const {
     currentTaskId,
     showIntegrationSettings,
     useStackView,
+    viewMode,
+    selectedDate,
     setCurrentTaskId,
     setShowIntegrationSettings,
     setUseStackView,
+    setViewMode,
+    setSelectedDate,
   } = useViewState()
 
   // Task navigation
@@ -135,9 +146,28 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
   }, [setCurrentTaskId, navGoHome, clearConversation, clearContextTags])
 
   // Handle quick add - creates task immediately, then generates AI steps in background
-  const handleQuickAdd = useCallback(async (value: string) => {
-    const newTask = await addTask(value, 'soon')
+  const handleQuickAdd = useCallback(async (value: string, metadata?: { type?: string; scheduledAt?: Date | null }) => {
+    const taskType = (metadata?.type as import('@/lib/constants').TaskType) || undefined
+    const scheduledAt = metadata?.scheduledAt?.toISOString() || null
+
+    const newTask = await addTask(
+      value,
+      'soon',
+      undefined, // description
+      undefined, // badge
+      undefined, // clarifyingAnswers
+      undefined, // taskCategory
+      null,      // dueDate
+      taskType,
+      scheduledAt
+    )
+
     if (newTask) {
+      // Skip AI steps for reminders/events - they don't need breakdown
+      if (taskType === 'reminder' || taskType === 'event') {
+        return
+      }
+
       // Add a placeholder step immediately so the task doesn't look empty
       const placeholderStep = { id: `step-${Date.now()}`, text: 'Breaking this down...', done: false }
       try {
@@ -249,6 +279,40 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
     goHome() // Navigate back home after snoozing
   }, [updateTask, goHome])
 
+  // Toggle habit completion for today
+  const handleToggleHabit = useCallback(async (taskId: string) => {
+    const task = tasks.find(t => t.id === taskId)
+    if (!task) return
+
+    const wasCompleted = isHabitCompletedToday(task)
+    const currentStreak = task.streak?.current || 0
+    const bestStreak = task.streak?.best || 0
+    const lastCompleted = task.streak?.lastCompleted
+
+    if (wasCompleted) {
+      // Uncompleting - just remove today's completion
+      await updateTask(taskId, {
+        streak: {
+          current: Math.max(0, currentStreak - 1),
+          best: bestStreak,
+          lastCompleted: undefined,
+        },
+      } as Partial<Task>)
+    } else {
+      // Completing - calculate new streak
+      const result = calculateNewStreak(currentStreak, lastCompleted)
+      const newCurrent = result.shouldIncrement ? result.current : currentStreak
+
+      await updateTask(taskId, {
+        streak: {
+          current: newCurrent,
+          best: Math.max(bestStreak, newCurrent),
+          lastCompleted: new Date().toISOString(),
+        },
+      } as Partial<Task>)
+    }
+  }, [tasks, updateTask])
+
   // Handle AI card action with focus step support
   const handleAICardAction = useCallback(async (action: { type: string; stepId?: string | number; title?: string; context?: string }) => {
     if (action.type === 'focus_step' && action.stepId !== undefined) {
@@ -311,7 +375,9 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
             <div className="max-w-[540px] mx-auto">
               <div className="flex justify-between items-center">
                 <h1 className="text-3xl font-display font-semibold tracking-tight text-text">Gather</h1>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1">
+                  {/* View toggle - list/day/stack */}
+                  <ViewToggle currentView={viewMode} onViewChange={setViewMode} />
                   <button
                     onClick={() => setShowIntegrationSettings(true)}
                     className="p-3 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg text-text-muted hover:text-text hover:bg-surface transition-colors"
@@ -333,7 +399,7 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
       {/* Views */}
       {!currentTaskId ? (
         <>
-          {useStackView ? (
+          {viewMode === 'stack' ? (
             <ErrorBoundary>
               <StackView
                 tasks={tasks}
@@ -346,7 +412,27 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
                 onDismissAI={dismissAI}
                 onQuickReply={handleQuickReply}
                 onAICardAction={handleAICardAction}
-                onSwitchView={() => setUseStackView(false)}
+                onSwitchView={() => setViewMode('list')}
+                onSignOut={onSignOut}
+                isDemoUser={isDemoUser}
+              />
+            </ErrorBoundary>
+          ) : viewMode === 'day' ? (
+            <ErrorBoundary>
+              <DayView
+                tasks={tasks}
+                aiCard={aiCard}
+                pendingInput={pendingInput}
+                selectedDate={selectedDate}
+                onDateChange={setSelectedDate}
+                onSubmit={handleSubmit}
+                onQuickAdd={handleQuickAdd}
+                onQuickReply={handleQuickReply}
+                onDismissAI={dismissAI}
+                onGoToTask={goToTask}
+                onToggleStep={handleToggleStep}
+                onToggleHabit={handleToggleHabit}
+                onAICardAction={handleAICardAction}
                 onSignOut={onSignOut}
                 isDemoUser={isDemoUser}
               />
@@ -372,8 +458,8 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
               />
             </ErrorBoundary>
           )}
-          {/* Footer - only show for classic view */}
-          {!useStackView && (
+          {/* Footer - only show for list view */}
+          {viewMode === 'list' && (
             <div className="px-5 pb-8">
               <div className="max-w-[540px] mx-auto text-center">
                 <button
@@ -384,26 +470,6 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
                 </button>
               </div>
             </div>
-          )}
-          {/* View toggle - only show for Classic view (Stack view has it in header) */}
-          {!useStackView && (
-            <button
-              onClick={() => setUseStackView(true)}
-              className="
-                fixed bottom-6 right-6 z-50
-                px-4 py-2
-                bg-card/90 backdrop-blur-sm
-                border border-border-strong
-                rounded-xl
-                text-sm font-medium text-text
-                hover:bg-card hover:border-accent/30
-                active:scale-95
-                shadow-md
-                transition-all duration-150
-              "
-            >
-              Stack view
-            </button>
           )}
         </>
       ) : currentTask ? (
@@ -449,6 +515,44 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
         isOpen={showIntegrationSettings}
         onClose={() => setShowIntegrationSettings(false)}
       />
+
+      {/* Chat Modal */}
+      <ChatModal
+        isOpen={showChatModal}
+        onClose={() => setShowChatModal(false)}
+        onGoToTask={goToTask}
+        addTask={addTask}
+        updateTask={updateTask}
+      />
+
+      {/* Chat FAB - floating action button */}
+      <button
+        onClick={() => setShowChatModal(true)}
+        className="
+          fixed z-40
+          w-14 h-14
+          flex items-center justify-center
+          bg-accent text-white
+          rounded-full
+          shadow-lg hover:shadow-xl
+          hover:bg-accent/90
+          active:scale-95
+          transition-all duration-150
+          bottom-6 right-6
+        "
+        aria-label="Open chat"
+        title="Chat with AI"
+      >
+        <svg width={24} height={24} viewBox="0 0 24 24" fill="none">
+          <path
+            d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2v10z"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      </button>
     </div>
   )
 }
