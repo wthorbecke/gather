@@ -23,20 +23,46 @@ Gather is an **AI-powered executive function layer** for people with ADHD or exe
 
 ## Competitive Landscape
 
-*To research:*
-- [ ] Things 3 - popular task manager
-- [ ] Todoist - mass market todo
-- [ ] TickTick - habit/task hybrid
-- [ ] Structured - time blocking
-- [ ] Goblin Tools - AI task breakdown
-- [ ] Finch - gamified self-care
-- [ ] Bearable - mood/habit tracking
+### Key Competitors (Researched Feb 2026)
 
-**Initial observations:**
-- Most todo apps show tasks, not steps. They assume you can break things down yourself.
-- AI tools like Goblin Tools exist but are standalone - not integrated into a daily flow.
-- Habit trackers punish missed days with broken streaks.
-- None speak with the warmth/directness this product aims for.
+**Tiimo** - 2025 App Store App of the Year
+- Visual timelines, AI task breakdown
+- Built by neurodivergent people
+- *Weaknesses:* Complex input ("steep learning curve"), aggressive review prompts, data loss issues, iOS only
+
+**neurolist** - AI Planner for ADHD
+- AI breaks tasks into checklist with time estimates
+- Simple, focused on ADHD
+- Direct competitor in the AI breakdown space
+
+**Amazing Marvin** - "Best todo for ADHD"
+- Highly customizable "strategies" system
+- Gamification (beat the clock, task jar)
+- *Weakness:* Overwhelming number of options
+
+**Motion** - AI Autopilot
+- Auto-schedules tasks based on deadlines/priorities
+- Reschedules in real-time when conflicts arise
+- More focused on scheduling than breakdown
+
+**Lunatask** - Holistic Planner
+- Tasks, habits, moods, journal in one app
+- Prioritizes and lets you focus on one area at a time
+
+### Gather's Differentiation
+1. **Zero friction input** vs Tiimo's "steep learning curve"
+2. **Conversational AI** that asks clarifying questions vs just generating steps
+3. **Web-first** - works on any device vs iOS-only competitors
+4. **Proactive outreach** via SMS/notifications vs waiting to be opened
+5. **Warm, direct tone** like a trusted friend - no corporate wellness speak
+6. **No guilt-tripping** about incomplete tasks (vs streak-based shame)
+
+### Market Insight
+The ADHD productivity app space is growing. Tiimo winning App of the Year validates the market. Users complain about:
+- Complexity and steep learning curves
+- Apps that assume you can break down tasks yourself
+- Streak-based guilt when missing days
+- Lack of proactive help (waiting to be opened)
 
 ---
 
