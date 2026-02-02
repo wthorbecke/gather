@@ -13,7 +13,7 @@ import {
   validateTaskInput,
   validationErrorResponse,
 } from '@/lib/validation'
-import { requireAuth } from '@/lib/api-auth'
+import { requireAuthOrDemo, type DemoResult } from '@/lib/api-auth'
 import {
   TASK_BREAKDOWN_SYSTEM_PROMPT,
   TaskBreakdownResponseSchema,
@@ -105,15 +105,21 @@ async function searchWeb(query: string): Promise<SearchResult> {
 const generateFallbackSteps = getDefaultSteps
 
 export async function POST(request: NextRequest) {
-  // Require authentication
-  const auth = await requireAuth(request)
+  // Require authentication OR demo mode
+  const auth = await requireAuthOrDemo(request)
   if (auth instanceof NextResponse) {
     return auth
   }
 
-  // Rate limiting - task breakdown is expensive
-  const identifier = getRequestIdentifier(request, auth.userId)
-  const rateCheck = await checkRateLimitAsync(identifier, RATE_LIMITS.aiTaskBreakdown)
+  // Use stricter rate limits for demo users (by IP)
+  const isDemo = 'isDemo' in auth && auth.isDemo
+  const identifier = isDemo
+    ? `demo:${request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown'}`
+    : getRequestIdentifier(request, auth.userId)
+
+  // Demo users get fewer requests per hour (task breakdown is expensive)
+  const rateLimit = isDemo ? { maxRequests: 5, windowMs: 60 * 60 * 1000 } : RATE_LIMITS.aiTaskBreakdown
+  const rateCheck = await checkRateLimitAsync(identifier, rateLimit)
   if (!rateCheck.allowed) {
     return rateLimitResponse(rateCheck)
   }

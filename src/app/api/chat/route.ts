@@ -11,7 +11,7 @@ import {
   validateChatInput,
   validationErrorResponse,
 } from '@/lib/validation'
-import { requireAuth } from '@/lib/api-auth'
+import { requireAuthOrDemo, type DemoResult } from '@/lib/api-auth'
 import {
   CHAT_SYSTEM_PROMPT,
   ChatResponseSchema,
@@ -28,15 +28,21 @@ interface Source {
 }
 
 export async function POST(request: NextRequest) {
-  // Require authentication
-  const auth = await requireAuth(request)
+  // Require authentication OR demo mode
+  const auth = await requireAuthOrDemo(request)
   if (auth instanceof NextResponse) {
     return auth
   }
 
-  // Rate limiting
-  const identifier = getRequestIdentifier(request, auth.userId)
-  const rateCheck = await checkRateLimitAsync(identifier, RATE_LIMITS.aiChat)
+  // Use stricter rate limits for demo users (by IP)
+  const isDemo = 'isDemo' in auth && auth.isDemo
+  const identifier = isDemo
+    ? `demo:${request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown'}`
+    : getRequestIdentifier(request, auth.userId)
+
+  // Demo users get fewer requests per hour
+  const rateLimit = isDemo ? { maxRequests: 10, windowMs: 60 * 60 * 1000 } : RATE_LIMITS.aiChat
+  const rateCheck = await checkRateLimitAsync(identifier, rateLimit)
   if (!rateCheck.allowed) {
     return rateLimitResponse(rateCheck)
   }

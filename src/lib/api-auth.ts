@@ -96,6 +96,61 @@ export async function requireAuth(
   return auth
 }
 
+/**
+ * Check if a request is from a demo user.
+ * Demo users send X-Demo-User header instead of auth token.
+ */
+export function isDemoRequest(request: NextRequest): boolean {
+  return request.headers.get('x-demo-user') === 'true'
+}
+
+/**
+ * Demo user result - used when allowing demo requests through.
+ */
+export interface DemoResult {
+  success: true
+  userId: 'demo-user'
+  user: {
+    id: 'demo-user'
+    email: 'demo@gather.local'
+  }
+  isDemo: true
+}
+
+/**
+ * Verify user authentication OR allow demo users through.
+ * Use this for AI endpoints that should work in demo mode.
+ * Demo requests are rate-limited by IP in the calling route.
+ *
+ * @param request - The incoming request
+ * @returns User info if authenticated or demo, NextResponse error if neither
+ */
+export async function requireAuthOrDemo(
+  request: NextRequest
+): Promise<AuthResult | DemoResult | NextResponse> {
+  // Check for demo mode first
+  if (isDemoRequest(request)) {
+    return {
+      success: true,
+      userId: 'demo-user',
+      user: {
+        id: 'demo-user',
+        email: 'demo@gather.local',
+      },
+      isDemo: true,
+    } as DemoResult
+  }
+
+  // Otherwise require real auth
+  const auth = await verifyAuth(request)
+
+  if (!auth.success) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status })
+  }
+
+  return auth
+}
+
 // Use any to avoid complex Supabase generic type issues
 // eslint-disable-next-line
 type SupabaseClient = any

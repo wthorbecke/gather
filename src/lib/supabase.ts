@@ -24,6 +24,7 @@ export async function getAccessToken(): Promise<string | null> {
 /**
  * Make an authenticated fetch request to an API route.
  * Automatically adds the Authorization header with the user's access token.
+ * For demo users (no token), adds X-Demo-User header to identify demo requests.
  */
 export async function authFetch(
   url: string,
@@ -36,6 +37,9 @@ export async function authFetch(
 
   if (token) {
     headers.set('Authorization', `Bearer ${token}`)
+  } else {
+    // Mark demo requests so API can handle them appropriately
+    headers.set('X-Demo-User', 'true')
   }
 
   return fetch(url, {
