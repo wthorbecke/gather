@@ -3,7 +3,7 @@
 
 -- Track task insights shown to users and their outcomes
 CREATE TABLE IF NOT EXISTS public.task_insights (
-  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
   task_id UUID REFERENCES public.tasks(id) ON DELETE CASCADE,
   insight_type TEXT NOT NULL CHECK (insight_type IN ('stuck', 'vague', 'needs_deadline', 'pattern')),

@@ -2,15 +2,24 @@
 
 import { useState, useCallback } from 'react'
 
+// View modes
+export type ViewMode = 'list' | 'day' | 'stack'
+
 export interface ViewState {
   currentTaskId: string | null
   showIntegrationSettings: boolean
+  viewMode: ViewMode
+  selectedDate: Date  // For day view
+  // Legacy compatibility
   useStackView: boolean
 }
 
 export interface ViewStateActions {
   setCurrentTaskId: (taskId: string | null) => void
   setShowIntegrationSettings: (show: boolean) => void
+  setViewMode: (mode: ViewMode) => void
+  setSelectedDate: (date: Date) => void
+  // Legacy compatibility
   setUseStackView: (use: boolean) => void
   toggleStackView: () => void
 }
@@ -25,23 +34,37 @@ export function useViewState() {
   // Integration settings state
   const [showIntegrationSettings, setShowIntegrationSettings] = useState(false)
 
-  // Stack view toggle (new UI experiment)
-  const [useStackView, setUseStackView] = useState(true)
+  // View mode (list, day, stack)
+  const [viewMode, setViewMode] = useState<ViewMode>('list')
+
+  // Selected date for day view
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date())
+
+  // Legacy compatibility: useStackView maps to viewMode === 'stack'
+  const useStackView = viewMode === 'stack'
+
+  const setUseStackView = useCallback((use: boolean) => {
+    setViewMode(use ? 'stack' : 'list')
+  }, [])
 
   const toggleStackView = useCallback(() => {
-    setUseStackView(prev => !prev)
+    setViewMode(prev => prev === 'stack' ? 'list' : 'stack')
   }, [])
 
   return {
     // State
     currentTaskId,
     showIntegrationSettings,
-    useStackView,
+    viewMode,
+    selectedDate,
+    useStackView, // Legacy
 
     // Actions
     setCurrentTaskId,
     setShowIntegrationSettings,
-    setUseStackView,
+    setViewMode,
+    setSelectedDate,
+    setUseStackView, // Legacy
     toggleStackView,
   }
 }

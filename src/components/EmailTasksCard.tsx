@@ -85,6 +85,7 @@ export function EmailTasksCard({ onAddTask, onIgnoreSender, isDemoUser }: EmailT
   const [dismissed, setDismissed] = useState<Set<string>>(new Set())
   const [hasScanned, setHasScanned] = useState(false)
   const [needsReauth, setNeedsReauth] = useState(false)
+  const [isExpanded, setIsExpanded] = useState(false)
   const retryCountRef = useRef(0)
   const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
@@ -320,8 +321,11 @@ export function EmailTasksCard({ onAddTask, onIgnoreSender, isDemoUser }: EmailT
 
   return (
     <div className="mb-6 bg-card rounded-lg border border-border-subtle overflow-hidden animate-fade-in">
-      {/* Header */}
-      <div className="px-4 py-3 bg-subtle border-b border-border-subtle flex items-center justify-between">
+      {/* Collapsed summary bar - clickable to expand */}
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="w-full px-4 py-3 flex items-center justify-between hover:bg-subtle/50 transition-colors duration-150 ease-out"
+      >
         <div className="flex items-center gap-2 text-sm font-medium text-text">
           <svg width={16} height={16} viewBox="0 0 24 24" className="text-accent">
             <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" stroke="currentColor" strokeWidth="2" fill="none"/>
@@ -329,82 +333,99 @@ export function EmailTasksCard({ onAddTask, onIgnoreSender, isDemoUser }: EmailT
           </svg>
           {visibleTasks.length} email{visibleTasks.length === 1 ? '' : 's'} that might be tasks
         </div>
-        <button
-          onClick={handleDismissAll}
-          className="text-xs text-text-muted hover:text-text transition-colors duration-150 ease-out btn-press tap-target"
+        <svg
+          width={16}
+          height={16}
+          viewBox="0 0 16 16"
+          className={`text-text-muted transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
         >
-          Dismiss all
-        </button>
-      </div>
+          <path d="M4 6L8 10L12 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" fill="none"/>
+        </svg>
+      </button>
 
-      {/* Email list - compact design */}
-      <div className="divide-y divide-border-subtle">
-        {visibleTasks.slice(0, 5).map((task) => (
-          <div
-            key={task.id}
-            className="px-4 py-3 min-h-[44px] hover:bg-subtle/50 transition-colors duration-150 ease-out flex items-center gap-3 group cursor-pointer"
-            onClick={() => handleAddTask(task)}
-          >
-            {/* Content */}
-            <div className="min-w-0 flex-1">
-              <div className="text-sm font-medium text-text truncate">
-                {task.subject}
-              </div>
-              <div className="text-xs text-text-muted mt-0.5 truncate">
-                {task.from} · {task.date}
-              </div>
-            </div>
-
-            {/* Actions - show on hover */}
-            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-              <button
-                onClick={(e) => {
-                  e.stopPropagation()
-                  handleAddTask(task)
-                }}
-                className="px-3 py-2 min-h-[44px] text-xs font-medium text-accent hover:bg-accent/10 rounded transition-colors duration-150 ease-out"
-              >
-                Add
-              </button>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation()
-                  handleDismiss(task.id)
-                }}
-                className="p-2 min-w-[44px] min-h-[44px] flex items-center justify-center text-text-muted hover:text-text transition-colors duration-150 ease-out"
-              >
-                <svg width={14} height={14} viewBox="0 0 16 16">
-                  <path d="M4 4L12 12M12 4L4 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-                </svg>
-              </button>
-            </div>
-
-            {/* Touch-friendly indicator for mobile */}
-            <svg
-              width={16}
-              height={16}
-              viewBox="0 0 16 16"
-              className="text-text-muted flex-shrink-0 group-hover:hidden"
+      {/* Expanded email list */}
+      {isExpanded && (
+        <>
+          {/* Header actions */}
+          <div className="px-4 py-2 bg-subtle border-t border-border-subtle flex justify-end">
+            <button
+              onClick={handleDismissAll}
+              className="text-xs text-text-muted hover:text-text transition-colors duration-150 ease-out btn-press tap-target"
             >
-              <path d="M6 4L10 8L6 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" fill="none"/>
-            </svg>
+              Dismiss all
+            </button>
           </div>
-        ))}
-      </div>
 
-      {/* Footer with scan again */}
-      <div className="px-4 py-3 bg-subtle border-t border-border-subtle flex justify-end">
-        <button
-          onClick={() => scanEmails(false)}
-          disabled={loading}
-          className="text-xs text-text-muted hover:text-text transition-colors btn-press tap-target flex items-center gap-1"
-        >
-          <svg width={12} height={12} viewBox="0 0 24 24" className={loading ? 'animate-spin' : ''}>
-            <path d="M21 12a9 9 0 11-9-9" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round"/>
-          </svg>
-          Scan again
-        </button>
-      </div>
+          {/* Email list - compact design */}
+          <div className="divide-y divide-border-subtle border-t border-border-subtle">
+            {visibleTasks.slice(0, 5).map((task) => (
+              <div
+                key={task.id}
+                className="px-4 py-3 min-h-[44px] hover:bg-subtle/50 transition-colors duration-150 ease-out flex items-center gap-3 group cursor-pointer"
+                onClick={() => handleAddTask(task)}
+              >
+                {/* Content */}
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-medium text-text truncate">
+                    {task.subject}
+                  </div>
+                  <div className="text-xs text-text-muted mt-0.5 truncate">
+                    {task.from} · {task.date}
+                  </div>
+                </div>
+
+                {/* Actions - show on hover */}
+                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleAddTask(task)
+                    }}
+                    className="px-3 py-2 min-h-[44px] text-xs font-medium text-accent hover:bg-accent/10 rounded transition-colors duration-150 ease-out"
+                  >
+                    Add
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleDismiss(task.id)
+                    }}
+                    className="p-2 min-w-[44px] min-h-[44px] flex items-center justify-center text-text-muted hover:text-text transition-colors duration-150 ease-out"
+                  >
+                    <svg width={14} height={14} viewBox="0 0 16 16">
+                      <path d="M4 4L12 12M12 4L4 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                    </svg>
+                  </button>
+                </div>
+
+                {/* Touch-friendly indicator for mobile */}
+                <svg
+                  width={16}
+                  height={16}
+                  viewBox="0 0 16 16"
+                  className="text-text-muted flex-shrink-0 group-hover:hidden"
+                >
+                  <path d="M6 4L10 8L6 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" fill="none"/>
+                </svg>
+              </div>
+            ))}
+          </div>
+
+          {/* Footer with scan again */}
+          <div className="px-4 py-3 bg-subtle border-t border-border-subtle flex justify-end">
+            <button
+              onClick={() => scanEmails(false)}
+              disabled={loading}
+              className="text-xs text-text-muted hover:text-text transition-colors btn-press tap-target flex items-center gap-1"
+            >
+              <svg width={12} height={12} viewBox="0 0 24 24" className={loading ? 'animate-spin' : ''}>
+                <path d="M21 12a9 9 0 11-9-9" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round"/>
+              </svg>
+              Scan again
+            </button>
+          </div>
+        </>
+      )}
     </div>
   )
 }

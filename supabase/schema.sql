@@ -11,6 +11,8 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   timezone TEXT DEFAULT 'America/Los_Angeles',
   morning_checkin_time TIME DEFAULT '08:00',
   evening_checkin_time TIME DEFAULT '20:00',
+  insight_frequency TEXT DEFAULT 'normal' CHECK (insight_frequency IN ('off', 'minimal', 'normal', 'frequent')),
+  last_insight_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -74,6 +76,15 @@ CREATE TABLE IF NOT EXISTS public.tasks (
   subtasks JSONB DEFAULT '[]', -- Array of subtask objects: [{ id, title, completed }]
   steps JSONB DEFAULT '[]', -- v17: Rich step objects: [{ id, text, done, summary, detail, ... }]
   notes TEXT, -- Freeform notes and context
+  source TEXT DEFAULT 'manual' CHECK (source IN ('manual', 'email', 'gmail', 'calendar')),
+  snoozed_until DATE,
+  -- v18: Task types
+  type TEXT DEFAULT 'task' CHECK (type IN ('task', 'reminder', 'habit', 'event')),
+  scheduled_at TIMESTAMPTZ, -- When it should happen (reminders, events)
+  recurrence JSONB, -- For habits: { frequency, days }
+  streak JSONB, -- For habits: { current, best, lastCompleted }
+  external_source JSONB, -- For synced items: { provider, externalId, readOnly }
+  duration INT, -- Duration in minutes
   created_at TIMESTAMPTZ DEFAULT NOW(),
   completed_at TIMESTAMPTZ
 );
@@ -290,3 +301,50 @@ CREATE TABLE IF NOT EXISTS public.integration_settings (
   calendar_lookahead_days INT DEFAULT 7,
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- ================================================
+-- Task Intelligence Tables
+-- ================================================
+
+-- Track task insights shown to users and their outcomes
+CREATE TABLE IF NOT EXISTS public.task_insights (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
+  task_id UUID REFERENCES public.tasks(id) ON DELETE CASCADE,
+  insight_type TEXT NOT NULL CHECK (insight_type IN ('stuck', 'vague', 'needs_deadline', 'pattern')),
+  observation TEXT NOT NULL,
+  suggestion TEXT NOT NULL,
+  shown_at TIMESTAMPTZ DEFAULT NOW(),
+  outcome TEXT CHECK (outcome IN ('acted', 'dismissed', 'ignored', 'task_completed')),
+  outcome_at TIMESTAMPTZ,
+  action_delay_hours INT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Track individual step/task completions for pattern learning
+CREATE TABLE IF NOT EXISTS public.task_completions (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
+  task_id UUID REFERENCES public.tasks(id) ON DELETE CASCADE,
+  step_id TEXT,
+  completed_at TIMESTAMPTZ DEFAULT NOW(),
+  completion_day_of_week INT, -- 0=Sunday, 6=Saturday
+  completion_hour INT, -- 0-23
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- RLS for task intelligence tables
+ALTER TABLE public.task_insights ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.task_completions ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can manage own task insights" ON public.task_insights
+  FOR ALL USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can manage own task completions" ON public.task_completions
+  FOR ALL USING (auth.uid() = user_id);
+
+-- Indexes for task intelligence
+CREATE INDEX IF NOT EXISTS idx_task_insights_user_shown ON public.task_insights(user_id, shown_at DESC);
+CREATE INDEX IF NOT EXISTS idx_task_insights_task ON public.task_insights(task_id, shown_at DESC);
+CREATE INDEX IF NOT EXISTS idx_task_completions_user_time ON public.task_completions(user_id, completed_at DESC);
+CREATE INDEX IF NOT EXISTS idx_task_completions_patterns ON public.task_completions(user_id, completion_day_of_week, completion_hour);

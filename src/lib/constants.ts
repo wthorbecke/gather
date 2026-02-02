@@ -46,3 +46,31 @@ export const HabitCategory = {
 } as const
 
 export type HabitCategory = typeof HabitCategory[keyof typeof HabitCategory]
+
+// Task types - different kinds of items in the system
+export const TaskType = {
+  TASK: 'task',           // One-time actionable items (default)
+  REMINDER: 'reminder',   // Time-triggered notifications, no completion state
+  HABIT: 'habit',         // Recurring items with streak tracking
+  EVENT: 'event',         // Calendar blocks with start/end times
+} as const
+
+export type TaskType = typeof TaskType[keyof typeof TaskType]
+
+// Recurrence frequency for habits
+export const RecurrenceFrequency = {
+  DAILY: 'daily',
+  WEEKLY: 'weekly',
+  MONTHLY: 'monthly',
+} as const
+
+export type RecurrenceFrequency = typeof RecurrenceFrequency[keyof typeof RecurrenceFrequency]
+
+// Integration providers
+export const IntegrationProvider = {
+  GOOGLE: 'google',
+  APPLE: 'apple',
+  GATHER: 'gather',
+} as const
+
+export type IntegrationProvider = typeof IntegrationProvider[keyof typeof IntegrationProvider]

@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase'
 import { content } from '@/config/content'
 import { User } from '@supabase/supabase-js'
 import { safeGetJSON, safeSetJSON, safeRemoveItem } from '@/lib/storage'
-import { TaskCategory, TaskSource, type ActiveTaskCategory } from '@/lib/constants'
+import { TaskCategory, TaskSource, TaskType, RecurrenceFrequency, IntegrationProvider, type ActiveTaskCategory } from '@/lib/constants'
 
 // Starter content for new users
 const STARTER_TASKS: Array<{ title: string; description: string; category: typeof TaskCategory.SOON; badge: string; subtasks: []; notes: null }> = []
@@ -37,6 +37,26 @@ export interface ClarifyingAnswer {
   answer: string
 }
 
+// Recurrence pattern for habits
+export interface Recurrence {
+  frequency: RecurrenceFrequency
+  days?: number[]  // 0-6 for weekly (Sun-Sat), 1-31 for monthly
+}
+
+// Streak tracking for habits
+export interface Streak {
+  current: number
+  best: number
+  lastCompleted?: string  // ISO date string
+}
+
+// External source info for synced items
+export interface ExternalSource {
+  provider: IntegrationProvider
+  externalId?: string
+  readOnly: boolean
+}
+
 export interface Task {
   id: string
   title: string
@@ -55,6 +75,13 @@ export interface Task {
   task_category?: string
   source?: TaskSource
   source_id?: string  // ID in source system (e.g., Gmail message ID)
+  // Task type fields (v18)
+  type?: TaskType                 // task, reminder, habit, event
+  scheduled_at?: string | null    // ISO datetime for when it should happen
+  recurrence?: Recurrence | null  // For habits
+  streak?: Streak | null          // For habits
+  external_source?: ExternalSource | null  // For synced external items
+  duration?: number | null        // Duration in minutes
 }
 
 export interface TaskAction {
@@ -196,7 +223,9 @@ export function useTasks(user: User | null) {
     badge?: string,
     clarifyingAnswers?: ClarifyingAnswer[],
     taskCategory?: string,
-    dueDate?: string | null
+    dueDate?: string | null,
+    taskType?: TaskType,
+    scheduledAt?: string | null
   ) => {
     if (!user) return
 
@@ -216,6 +245,8 @@ export function useTasks(user: User | null) {
         notes: null,
         clarifying_answers: clarifyingAnswers || [],
         task_category: taskCategory || undefined,
+        type: taskType || 'task',
+        scheduled_at: scheduledAt || null,
       }
       setTasks((prev) => {
         const next = [newTask, ...prev]
@@ -239,6 +270,8 @@ export function useTasks(user: User | null) {
         notes: null,
         clarifying_answers: clarifyingAnswers || [],
         task_category: taskCategory || undefined,
+        type: taskType || 'task',
+        scheduled_at: scheduledAt || null,
       })
       .select()
       .single()
@@ -255,7 +288,7 @@ export function useTasks(user: User | null) {
 
   const updateTask = useCallback(async (
     taskId: string,
-    updates: Partial<Pick<Task, 'title' | 'description' | 'subtasks' | 'steps' | 'notes' | 'category' | 'badge' | 'context_text' | 'due_date' | 'snoozed_until'>>
+    updates: Partial<Pick<Task, 'title' | 'description' | 'subtasks' | 'steps' | 'notes' | 'category' | 'badge' | 'context_text' | 'due_date' | 'snoozed_until' | 'type' | 'scheduled_at' | 'streak' | 'recurrence' | 'duration' | 'external_source'>>
   ): Promise<{ success: boolean; error?: string }> => {
     if (!user) return { success: false, error: 'Not authenticated' }
 

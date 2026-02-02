@@ -2,6 +2,9 @@
 
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react'
 import { Task, Step } from '@/hooks/useUserData'
+import { TaskType } from '@/lib/constants'
+import { parseTypePrefix, getTaskTypeLabel, getTaskTypeColor } from '@/lib/taskTypes'
+import { parseTime, formatPreviewTime } from '@/lib/timeParser'
 import { content } from '@/config/content'
 
 // Custom hook for debouncing values
@@ -29,11 +32,17 @@ interface ContextTag {
   step?: Step
 }
 
+// Metadata from parsed input (type prefix and time)
+export interface ParsedInputMetadata {
+  type: string
+  scheduledAt: Date | null
+}
+
 interface UnifiedInputProps {
   tasks: Task[]
   contextTags?: ContextTag[]
-  onSubmit: (value: string) => void
-  onQuickAdd?: (value: string) => void
+  onSubmit: (value: string, metadata?: ParsedInputMetadata) => void
+  onQuickAdd?: (value: string, metadata?: ParsedInputMetadata) => void
   onSelectResult?: (result: SearchResult) => void
   onRemoveTag?: (index: number) => void
   placeholder?: string
@@ -153,18 +162,73 @@ export function UnifiedInput({
     ).slice(0, 4)
   }, [value, suggestions])
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    const submitValue = value.trim() || defaultSubmitValue
-    if (!submitValue) return
-    onSubmit(submitValue)
+  // Parse type prefix and time from input
+  const parsedInput = useMemo(() => {
+    if (!value.trim()) return null
+
+    const { type, cleanText } = parseTypePrefix(value)
+
+    // For reminders and events, also parse time
+    if (type === TaskType.REMINDER || type === TaskType.EVENT) {
+      const { scheduledAt, cleanText: titleText } = parseTime(cleanText)
+      return {
+        type,
+        title: titleText,
+        scheduledAt,
+        previewText: scheduledAt ? formatPreviewTime(scheduledAt) : null,
+        hasPrefix: true, // Always true for reminders and events
+      }
+    }
+
+    return {
+      type,
+      title: cleanText,
+      scheduledAt: null,
+      previewText: null,
+      hasPrefix: type !== TaskType.TASK,
+    }
+  }, [value])
+
+  // Show type badge when prefix detected
+  const showTypeBadge = parsedInput?.hasPrefix && parsedInput.type !== TaskType.TASK
+
+  const handleQuickAdd = () => {
+    if (!value.trim() || !onQuickAdd) return
+
+    // Pass parsed metadata if we have a type prefix
+    const metadata = parsedInput?.hasPrefix ? {
+      type: parsedInput.type,
+      scheduledAt: parsedInput.scheduledAt,
+    } : undefined
+
+    // Use clean title if we parsed a prefix, otherwise use raw value
+    const finalValue = parsedInput?.hasPrefix && parsedInput.title ? parsedInput.title : value.trim()
+    onQuickAdd(finalValue, metadata)
     setValue('')
     setFocused(false)
   }
 
-  const handleQuickAdd = () => {
-    if (!value.trim() || !onQuickAdd) return
-    onQuickAdd(value.trim())
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    const submitValue = value.trim() || defaultSubmitValue
+    if (!submitValue) return
+
+    // If type prefix detected and quick add is available, use quick add instead
+    // This ensures /e, /r, /h prefixes create tasks directly with the right type
+    if (parsedInput?.hasPrefix && onQuickAdd) {
+      handleQuickAdd()
+      return
+    }
+
+    // Pass parsed metadata if we have a type prefix (fallback if no onQuickAdd)
+    const metadata = parsedInput?.hasPrefix ? {
+      type: parsedInput.type,
+      scheduledAt: parsedInput.scheduledAt,
+    } : undefined
+
+    // Use clean title if we parsed a prefix, otherwise use raw value
+    const finalValue = parsedInput?.hasPrefix && parsedInput.title ? parsedInput.title : submitValue
+    onSubmit(finalValue, metadata)
     setValue('')
     setFocused(false)
   }
@@ -327,6 +391,13 @@ export function UnifiedInput({
       const submitValue = value.trim() || defaultSubmitValue
       if (!submitValue) return
       e.preventDefault()
+
+      // If type prefix detected and quick add is available, use quick add
+      if (parsedInput?.hasPrefix && onQuickAdd) {
+        handleQuickAdd()
+        return
+      }
+
       onSubmit(submitValue)
       setValue('')
       setFocused(false)
@@ -440,6 +511,18 @@ export function UnifiedInput({
             </div>
           )}
 
+          {/* Type badge when prefix detected */}
+          {showTypeBadge && parsedInput && (
+            <div className={`
+              px-2 py-0.5 rounded-sm text-xs font-medium flex-shrink-0
+              ${parsedInput.type === TaskType.REMINDER ? 'bg-accent-soft text-accent' : ''}
+              ${parsedInput.type === TaskType.HABIT ? 'bg-success-soft text-success' : ''}
+              ${parsedInput.type === TaskType.EVENT ? 'bg-subtle text-text-soft' : ''}
+            `}>
+              {getTaskTypeLabel(parsedInput.type)}
+            </div>
+          )}
+
           {/* Return icon when focused - show when there's content or a default submit value */}
           {focused && (value.trim() || defaultSubmitValue) && (
             <button
@@ -454,6 +537,17 @@ export function UnifiedInput({
             </button>
           )}
         </div>
+
+        {/* Preview of parsed input when type prefix detected */}
+        {showTypeBadge && parsedInput && parsedInput.title && (
+          <div className="mt-2 px-1 text-xs text-text-muted">
+            <span className={getTaskTypeColor(parsedInput.type)}>{getTaskTypeLabel(parsedInput.type)}:</span>
+            {' '}{parsedInput.title}
+            {parsedInput.previewText && (
+              <span className="text-accent"> · {parsedInput.previewText}</span>
+            )}
+          </div>
+        )}
       </form>
 
       {/* Dropdown */}

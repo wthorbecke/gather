@@ -19,30 +19,34 @@ import {
 } from '@/lib/ai'
 
 export async function GET(request: NextRequest) {
-  const apiKey = process.env.ANTHROPIC_API_KEY
-  if (!apiKey) {
-    return NextResponse.json({ error: 'AI not configured' }, { status: 503 })
-  }
-
-  // Authenticate and get client
-  const auth = await requireAuthWithClient(request)
-  if (auth instanceof NextResponse) {
-    return auth
-  }
-
-  const { user, supabase } = auth
-
   try {
+    const apiKey = process.env.ANTHROPIC_API_KEY
+    if (!apiKey) {
+      return NextResponse.json({ error: 'AI not configured' }, { status: 503 })
+    }
+
+    // Authenticate and get client
+    const auth = await requireAuthWithClient(request)
+    if (auth instanceof NextResponse) {
+      return auth
+    }
+
+    const { user, supabase } = auth
     // Fetch open tasks (not completed)
     const { data: tasks, error: tasksError } = await supabase
       .from('tasks')
-      .select('id, title, created_at, category, due_date, steps, updated_at, notes')
+      .select('id, title, created_at, category, due_date, steps, notes')
       .eq('user_id', user.id)
       .neq('category', 'completed')
       .order('created_at', { ascending: true })
 
     if (tasksError) {
-      return NextResponse.json({ error: 'Failed to fetch tasks' }, { status: 500 })
+      return NextResponse.json({
+        error: 'Failed to fetch tasks',
+        details: tasksError.message,
+        code: tasksError.code,
+        hint: tasksError.hint
+      }, { status: 500 })
     }
 
     // No tasks = no observations
@@ -138,7 +142,8 @@ export async function GET(request: NextRequest) {
       analyzed: tasks.length,
       patterns,
     })
-  } catch {
+  } catch (error) {
+    console.error('[task-intelligence] Error:', error)
     return NextResponse.json({ observations: DEFAULT_TASK_INTELLIGENCE })
   }
 }

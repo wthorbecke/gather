@@ -1,11 +1,11 @@
 'use client'
 
-import { useMemo, useEffect } from 'react'
+import { useMemo, useEffect, useState } from 'react'
 import { Task } from '@/hooks/useUserData'
 import { useDarkMode } from '@/hooks/useDarkMode'
 import { splitStepText } from '@/lib/stepText'
 import { getNextStep } from '@/hooks/useTaskSearch'
-import { UnifiedInput } from './UnifiedInput'
+import { UnifiedInput, ParsedInputMetadata } from './UnifiedInput'
 import { AICard, AICardState } from './AICard'
 import { TaskListItem } from './TaskListItem'
 import { Checkbox } from './Checkbox'
@@ -45,8 +45,8 @@ interface HomeViewProps {
   tasks: Task[]
   aiCard: AICardState | null
   pendingInput: string | null
-  onSubmit: (value: string) => void
-  onQuickAdd: (value: string) => void
+  onSubmit: (value: string, metadata?: ParsedInputMetadata) => void
+  onQuickAdd: (value: string, metadata?: ParsedInputMetadata) => void
   onQuickReply: (reply: string) => void
   onDismissAI: () => void
   onGoToTask: (taskId: string) => void
@@ -76,6 +76,10 @@ export function HomeView({
   canGoBack = false,
   isDemoUser = false,
 }: HomeViewProps) {
+  // State for task list visibility
+  const [showAllTasks, setShowAllTasks] = useState(false)
+  const [showCompletedTasks, setShowCompletedTasks] = useState(false)
+
   // Filter out snoozed tasks
   const activeTasks = useMemo(() => {
     const today = new Date().toISOString().split('T')[0]
@@ -391,6 +395,23 @@ export function HomeView({
 
           if (tasksToShow.length === 0) return null
 
+          // Separate completed tasks (100% progress) from incomplete
+          const isTaskComplete = (task: Task) => {
+            const steps = task.steps || []
+            if (steps.length === 0) return false
+            return steps.every(s => s.done)
+          }
+
+          const incompleteTasks = tasksToShow.filter(t => !isTaskComplete(t))
+          const completedTasks = tasksToShow.filter(t => isTaskComplete(t))
+
+          // Limit visible incomplete tasks to 5 unless expanded
+          const visibleLimit = 5
+          const visibleIncompleteTasks = showAllTasks
+            ? incompleteTasks
+            : incompleteTasks.slice(0, visibleLimit)
+          const hiddenCount = incompleteTasks.length - visibleLimit
+
           return (
             <div>
               <div className="flex items-center justify-between mb-3">
@@ -409,7 +430,8 @@ export function HomeView({
               </div>
 
               <div className="flex flex-col gap-2">
-                {tasksToShow.map((task, index) => (
+                {/* Incomplete tasks */}
+                {visibleIncompleteTasks.map((task, index) => (
                   <div key={task.id} className="animate-rise" style={{ animationDelay: `${index * 40}ms` }}>
                     <TaskListItem
                       task={task}
@@ -418,6 +440,77 @@ export function HomeView({
                     />
                   </div>
                 ))}
+
+                {/* Show more button */}
+                {!showAllTasks && hiddenCount > 0 && (
+                  <button
+                    onClick={() => setShowAllTasks(true)}
+                    className="py-2 text-sm text-text-muted hover:text-text transition-colors duration-150"
+                  >
+                    Show {hiddenCount} more
+                  </button>
+                )}
+
+                {/* Collapsed completed tasks row */}
+                {completedTasks.length > 0 && !showCompletedTasks && (
+                  <button
+                    onClick={() => setShowCompletedTasks(true)}
+                    className="
+                      py-3 px-4
+                      bg-success-soft/50 rounded-md
+                      text-sm text-text-soft
+                      hover:bg-success-soft transition-colors duration-150
+                      flex items-center justify-between
+                    "
+                  >
+                    <div className="flex items-center gap-2">
+                      <svg width={14} height={14} viewBox="0 0 24 24" className="text-success">
+                        <path
+                          d="M5 12l5 5L20 7"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          fill="none"
+                        />
+                      </svg>
+                      {completedTasks.length} completed
+                    </div>
+                    <svg width={14} height={14} viewBox="0 0 16 16" className="text-text-muted">
+                      <path d="M4 6L8 10L12 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" fill="none"/>
+                    </svg>
+                  </button>
+                )}
+
+                {/* Expanded completed tasks */}
+                {showCompletedTasks && completedTasks.length > 0 && (
+                  <>
+                    <button
+                      onClick={() => setShowCompletedTasks(false)}
+                      className="
+                        py-2 px-4
+                        bg-success-soft/30 rounded-md
+                        text-xs text-text-muted
+                        hover:bg-success-soft/50 transition-colors duration-150
+                        flex items-center justify-between
+                      "
+                    >
+                      <span>{completedTasks.length} completed</span>
+                      <svg width={12} height={12} viewBox="0 0 16 16" className="text-text-muted rotate-180">
+                        <path d="M4 6L8 10L12 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" fill="none"/>
+                      </svg>
+                    </button>
+                    {completedTasks.map((task, index) => (
+                      <div key={task.id} className="animate-rise opacity-60" style={{ animationDelay: `${index * 40}ms` }}>
+                        <TaskListItem
+                          task={task}
+                          onClick={() => onGoToTask(task.id)}
+                          onDelete={onDeleteTask ? () => onDeleteTask(task.id) : undefined}
+                        />
+                      </div>
+                    ))}
+                  </>
+                )}
               </div>
             </div>
           )
