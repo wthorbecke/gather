@@ -195,14 +195,28 @@ Several authenticated flow tests are failing - likely environment/credential iss
   - Updated authFetch to send X-Demo-User header
   - Updated 3 API endpoints to accept demo users with rate limiting
 - Added compelling demo starter tasks with pre-generated AI steps
-  - File taxes (5 steps with official sources)
+  - File taxes (5 steps with official sources, 1 pre-completed)
   - Renew passport (4 steps with action links)
   - Get Healthier (5 concrete daily habits)
-- Demo tests pass (3/3)
+- Researched competitive landscape (Tiimo, neurolist, Amazing Marvin, Motion)
+- Verified error handling is solid (graceful fallbacks, retry options)
+- Full test suite: 208 passed, 9 skipped
 
 **Commits:**
 - `28e90bc` Fix demo mode: enable AI features for demo users
 - `b857e60` Add starter tasks for demo mode with pre-generated AI steps
+- `16e7da4` Update STATE.md with session 2 progress
+- `70d3c06` Add competitive landscape research to STATE.md
+
+**What's ready:**
+- Demo mode fully works - AI asks questions, generates steps
+- Starter tasks showcase product value immediately
+- Error handling graceful with retry options
+
+**Next session priorities:**
+1. Improve error message copy (warmer tone per design system)
+2. Consider onboarding flow for new authenticated users
+3. Review test failures in authenticated flows (env setup)
 
 ### Session 1 - Feb 2, 2026
 - Created initial STATE.md, session ended immediately
