@@ -118,6 +118,17 @@ export {
   type SSEEvent,
 } from './streaming'
 
+// Response parsing utilities
+export {
+  parseAIMessage,
+  parseAIResponseFull,
+  parseStreamingMessage,
+  unescapeJsonString,
+  stripCiteTags,
+  cleanAIMessage,
+  type ParsedAIResponse,
+} from './parseResponse'
+
 // Task intelligence utilities
 export {
   calculateAvgCompletionDays,

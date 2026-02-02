@@ -57,3 +57,12 @@ export {
   validationErrorResponse,
   MAX_LENGTHS,
 } from './validation'
+
+// Constants and enums
+export {
+  TaskCategory,
+  TaskSource,
+  CheckinType,
+  HabitCategory,
+} from './constants'
+export type { ActiveTaskCategory } from './constants'

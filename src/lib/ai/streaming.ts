@@ -8,6 +8,7 @@
 
 import { AI_MODELS } from '@/config/ai'
 import { authFetch } from '@/lib/supabase'
+import { parseAIResponseFull } from './parseResponse'
 
 // ============================================================================
 // Types
@@ -389,20 +390,11 @@ export async function streamChat(
 
     const fullText = await consumeStream(response, enhancedCallbacks)
 
-    // Try to parse actions from the response
-    try {
-      const jsonMatch = fullText.match(/\{[\s\S]*\}/)
-      if (jsonMatch) {
-        const parsed = JSON.parse(jsonMatch[0])
-        if (Array.isArray(parsed.actions)) {
-          actions = parsed.actions
-        }
-      }
-    } catch {
-      // No actions in response
-    }
+    // Parse the response to extract message and actions
+    const parsed = parseAIResponseFull(fullText)
+    actions = parsed.actions as unknown[]
 
-    return { response: fullText, sources, actions }
+    return { response: parsed.message, sources, actions }
   }
 
   // Fallback to JSON response

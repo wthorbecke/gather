@@ -249,19 +249,25 @@ export function findMatchingStep(
 }
 
 /**
+ * AI response step item - matches the shape returned by subtasks API
+ */
+export interface AIStepItem {
+  text?: string
+  summary?: string
+  detail?: string
+  alternatives?: string[]
+  examples?: string[]
+  checklist?: string[]
+  time?: string
+  source?: { name: string; url: string }
+  action?: { text: string; url: string }
+}
+
+/**
  * Create a Step object from AI response
  */
 export function createStepFromAIResponse(
-  item: {
-    text?: string
-    summary?: string
-    detail?: string
-    alternatives?: string[]
-    examples?: string[]
-    time?: string
-    source?: { name: string; url: string }
-    action?: { text: string; url: string }
-  } | string,
+  item: AIStepItem | string,
   index: number
 ): Step {
   if (typeof item === 'string') {
@@ -275,10 +281,18 @@ export function createStepFromAIResponse(
     detail: item.detail,
     alternatives: item.alternatives,
     examples: item.examples,
+    checklist: item.checklist,
     time: item.time,
     source: item.source,
     action: item.action,
   }
+}
+
+/**
+ * Map an array of AI step items to Step objects
+ */
+export function mapAIStepsToSteps(items: (AIStepItem | string)[]): Step[] {
+  return items.map((item, index) => createStepFromAIResponse(item, index))
 }
 
 /**

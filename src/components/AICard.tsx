@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { Task } from '@/hooks/useUserData'
 import { hasAuthoritativeSources } from '@/lib/sourceQuality'
 import { RichText } from './RichText'
+import { cleanAIMessage } from '@/lib/ai'
 
 // Conversational, lowercase - like a friend thinking out loud
 const loadingMessages = [
@@ -14,37 +15,6 @@ const loadingMessages = [
   'pulling together the details...',
   'making this doable...',
 ]
-
-// Extract message content from AI responses
-// AI may return raw JSON like {"message":"...", "actions":[...]}
-// We need to extract just the message field for display
-function cleanMessage(message: string): string {
-  if (!message) return ''
-
-  let text = message.trim()
-
-  // Try to parse as JSON and extract message field
-  if (text.startsWith('{') && text.includes('"message"')) {
-    try {
-      const parsed = JSON.parse(text)
-      if (typeof parsed.message === 'string') {
-        text = parsed.message
-      }
-    } catch {
-      // Not valid JSON, try regex extraction ([\s\S]* matches any char including newlines)
-      const match = text.match(/"message"\s*:\s*"((?:[^"\\]|\\[\s\S])*)"/)
-      if (match) {
-        // Unescape the JSON string
-        text = match[1].replace(/\\"/g, '"').replace(/\\n/g, '\n').replace(/\\\\/g, '\\')
-      }
-    }
-  }
-
-  // Strip <cite> tags (they're metadata, not display content)
-  text = text.replace(/<cite[^>]*>.*?<\/cite>/g, '').trim()
-
-  return text
-}
 
 export interface AICardState {
   thinking?: boolean
@@ -215,14 +185,14 @@ export function AICard({
           {/* Show previous message if this is a follow-up */}
           {card.message && !card.streaming && (
             <div className="text-base leading-relaxed mb-4 opacity-60">
-              <RichText>{cleanMessage(card.message)}</RichText>
+              <RichText>{cleanAIMessage(card.message)}</RichText>
             </div>
           )}
 
           {/* Streaming text with cursor */}
           {card.streaming && card.streamingText && (
             <div className="text-base leading-relaxed mb-4">
-              <RichText>{cleanMessage(card.streamingText)}</RichText>
+              <RichText>{cleanAIMessage(card.streamingText)}</RichText>
               <span
                 className="inline-block w-2 h-4 ml-0.5 bg-accent/60 rounded-sm"
                 style={{ animation: 'cursorBlink 1s ease-in-out infinite' }}
@@ -273,7 +243,7 @@ export function AICard({
                 card.quickReplies || card.taskCreated ? 'mb-4' : ''
               }`}
             >
-              <RichText>{cleanMessage(card.message)}</RichText>
+              <RichText>{cleanAIMessage(card.message)}</RichText>
             </div>
           )}
 

@@ -5,45 +5,12 @@ import { supabase } from '@/lib/supabase'
 import { content } from '@/config/content'
 import { User } from '@supabase/supabase-js'
 import { safeGetJSON, safeSetJSON, safeRemoveItem } from '@/lib/storage'
-
-// Get today's date as YYYY-MM-DD
-const getToday = () => new Date().toISOString().split('T')[0]
+import { TaskCategory, TaskSource, type ActiveTaskCategory } from '@/lib/constants'
 
 // Starter content for new users
-const STARTER_HABITS = [
-  { name: 'Make bed', category: 'morning', sort_order: 1 },
-  { name: 'Drink water', category: 'morning', sort_order: 2 },
-  { name: 'Wordle', category: 'games', link: 'https://www.nytimes.com/games/wordle', sort_order: 1 },
-  { name: 'Read for 10 min', category: 'optional', sort_order: 1 },
-]
-
-const STARTER_SOUL_ACTIVITIES = [
-  { name: 'Call someone you love', icon: '📞', icon_color: 'var(--rose-soft)', sort_order: 1 },
-  { name: 'Go outside', icon: '🚶', icon_color: 'var(--sage-soft)', sort_order: 2 },
-  { name: 'Make something', icon: '🎨', icon_color: 'var(--sky-soft)', sort_order: 3 },
-]
-
-const STARTER_TASKS: Array<{ title: string; description: string; category: 'soon'; badge: string; subtasks: []; notes: null }> = []
+const STARTER_TASKS: Array<{ title: string; description: string; category: typeof TaskCategory.SOON; badge: string; subtasks: []; notes: null }> = []
 
 // Types
-export interface Habit {
-  id: string
-  name: string
-  description: string | null
-  category: 'morning' | 'games' | 'optional'
-  link: string | null
-  sort_order: number
-}
-
-export interface SoulActivity {
-  id: string
-  name: string
-  icon: string
-  icon_color: string
-  default_text: string | null
-  sort_order: number
-}
-
 export interface Subtask {
   id: string
   title: string
@@ -74,7 +41,7 @@ export interface Task {
   id: string
   title: string
   description: string | null
-  category: 'urgent' | 'soon' | 'waiting' | 'completed'
+  category: TaskCategory
   badge: string | null
   due_date: string | null
   snoozed_until?: string | null  // Task hidden until this date
@@ -86,7 +53,7 @@ export interface Task {
   notes: string | null
   clarifying_answers?: ClarifyingAnswer[]
   task_category?: string
-  source?: string  // 'manual' | 'email' | 'gmail' | 'calendar'
+  source?: TaskSource
   source_id?: string  // ID in source system (e.g., Gmail message ID)
 }
 
@@ -97,265 +64,6 @@ export interface TaskAction {
   email_key?: string
   ai_context?: string
   primary?: boolean
-}
-
-// ============ HABITS ============
-
-export function useHabits(user: User | null) {
-  const [habits, setHabits] = useState<Habit[]>([])
-  const [completedHabits, setCompletedHabits] = useState<Record<string, boolean>>({})
-  const [loading, setLoading] = useState(true)
-
-  // Load habits and today's completions in parallel
-  useEffect(() => {
-    if (!user) {
-      setLoading(false)
-      return
-    }
-
-    const loadData = async () => {
-      const today = getToday()
-
-      // Parallel fetch: habits and today's completions
-      const [habitsResult, logsResult] = await Promise.all([
-        supabase
-          .from('habits')
-          .select('*')
-          .eq('user_id', user.id)
-          .eq('active', true)
-          .order('sort_order'),
-        supabase
-          .from('habit_logs')
-          .select('habit_id')
-          .eq('user_id', user.id)
-          .eq('date', today)
-      ])
-
-      const { data: habitsData, error: habitsError } = habitsResult
-      const { data: logsData, error: logsError } = logsResult
-
-      if (habitsError) {
-        // Error handled silently('Error loading habits:', habitsError)
-        setLoading(false)
-        return
-      }
-
-      // Seed starter habits for new users
-      if (!habitsData || habitsData.length === 0) {
-        const starterWithUser = STARTER_HABITS.map(h => ({ ...h, user_id: user.id }))
-        const { data: seededData, error: seedError } = await supabase
-          .from('habits')
-          .insert(starterWithUser)
-          .select()
-
-        if (seedError) {
-          // Error handled silently('Error seeding habits:', seedError)
-        } else {
-          setHabits(seededData || [])
-        }
-      } else {
-        setHabits(habitsData)
-      }
-
-      // Process completions
-      if (!logsError && logsData) {
-        const completedMap: Record<string, boolean> = {}
-        logsData.forEach((log) => {
-          completedMap[log.habit_id] = true
-        })
-        setCompletedHabits(completedMap)
-      }
-
-      setLoading(false)
-    }
-
-    loadData()
-  }, [user])
-
-  const toggleHabit = useCallback(async (habitId: string) => {
-    if (!user) return
-
-    const today = getToday()
-    const isCompleted = completedHabits[habitId]
-
-    // Optimistic update
-    setCompletedHabits((prev) => ({ ...prev, [habitId]: !isCompleted }))
-
-    if (isCompleted) {
-      const { error } = await supabase
-        .from('habit_logs')
-        .delete()
-        .eq('user_id', user.id)
-        .eq('habit_id', habitId)
-        .eq('date', today)
-
-      if (error) {
-        // Error handled silently('Error removing habit log:', error)
-        setCompletedHabits((prev) => ({ ...prev, [habitId]: true }))
-      }
-    } else {
-      const { error } = await supabase
-        .from('habit_logs')
-        .insert({
-          user_id: user.id,
-          habit_id: habitId,
-          date: today,
-        })
-
-      if (error) {
-        // Error handled silently('Error adding habit log:', error)
-        setCompletedHabits((prev) => ({ ...prev, [habitId]: false }))
-      }
-    }
-  }, [user, completedHabits])
-
-  const addHabit = useCallback(async (name: string, category: 'morning' | 'games' | 'optional', description?: string, link?: string) => {
-    if (!user) return
-
-    const sortOrder = habits.filter(h => h.category === category).length + 1
-
-    const { data, error } = await supabase
-      .from('habits')
-      .insert({
-        user_id: user.id,
-        name,
-        description: description || null,
-        category,
-        link: link || null,
-        sort_order: sortOrder,
-      })
-      .select()
-      .single()
-
-    if (error) {
-      // Error handled silently('Error adding habit:', error)
-    } else if (data) {
-      setHabits((prev) => [...prev, data])
-    }
-  }, [user, habits])
-
-  return { habits, completedHabits, toggleHabit, addHabit, loading }
-}
-
-// ============ SOUL ACTIVITIES ============
-
-export function useSoulActivities(user: User | null) {
-  const [activities, setActivities] = useState<SoulActivity[]>([])
-  const [lastCompleted, setLastCompleted] = useState<Record<string, number>>({})
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    if (!user) {
-      setLoading(false)
-      return
-    }
-
-    const loadData = async () => {
-      // Parallel fetch: activities and logs
-      const [activitiesResult, logsResult] = await Promise.all([
-        supabase
-          .from('soul_activities')
-          .select('*')
-          .eq('user_id', user.id)
-          .eq('active', true)
-          .order('sort_order'),
-        supabase
-          .from('soul_logs')
-          .select('activity_id, completed_at')
-          .eq('user_id', user.id)
-          .order('completed_at', { ascending: false })
-      ])
-
-      const { data: activitiesData, error: activitiesError } = activitiesResult
-      const { data: logsData, error: logsError } = logsResult
-
-      if (activitiesError) {
-        // Error handled silently('Error loading soul activities:', activitiesError)
-        setLoading(false)
-        return
-      }
-
-      // Seed starter activities for new users
-      if (!activitiesData || activitiesData.length === 0) {
-        const starterWithUser = STARTER_SOUL_ACTIVITIES.map(a => ({ ...a, user_id: user.id }))
-        const { data: seededData, error: seedError } = await supabase
-          .from('soul_activities')
-          .insert(starterWithUser)
-          .select()
-
-        if (seedError) {
-          // Error handled silently('Error seeding soul activities:', seedError)
-        } else {
-          setActivities(seededData || [])
-        }
-      } else {
-        setActivities(activitiesData)
-      }
-
-      // Process logs
-      if (!logsError && logsData) {
-        const lastMap: Record<string, number> = {}
-        logsData.forEach((log) => {
-          if (!lastMap[log.activity_id]) {
-            lastMap[log.activity_id] = new Date(log.completed_at).getTime()
-          }
-        })
-        setLastCompleted(lastMap)
-      }
-
-      setLoading(false)
-    }
-
-    loadData()
-  }, [user])
-
-  const logActivity = useCallback(async (activityId: string) => {
-    if (!user) return
-
-    const now = Date.now()
-    setLastCompleted((prev) => ({ ...prev, [activityId]: now }))
-
-    const { error } = await supabase
-      .from('soul_logs')
-      .insert({
-        user_id: user.id,
-        activity_id: activityId,
-        completed_at: new Date(now).toISOString(),
-      })
-
-    if (error) {
-      // Error handled silently('Error logging soul activity:', error)
-    }
-  }, [user])
-
-  const addActivity = useCallback(async (name: string, icon: string, defaultText?: string) => {
-    if (!user) return
-
-    const sortOrder = activities.length + 1
-    const iconColors = ['var(--rose-soft)', 'var(--sky-soft)', 'var(--sage-soft)']
-    const iconColor = iconColors[sortOrder % iconColors.length]
-
-    const { data, error } = await supabase
-      .from('soul_activities')
-      .insert({
-        user_id: user.id,
-        name,
-        icon,
-        icon_color: iconColor,
-        default_text: defaultText || null,
-        sort_order: sortOrder,
-      })
-      .select()
-      .single()
-
-    if (error) {
-      // Error handled silently('Error adding soul activity:', error)
-    } else if (data) {
-      setActivities((prev) => [...prev, data])
-    }
-  }, [user, activities])
-
-  return { activities, lastCompleted, logActivity, addActivity, loading }
 }
 
 // ============ TASKS ============
@@ -483,7 +191,7 @@ export function useTasks(user: User | null) {
 
   const addTask = useCallback(async (
     title: string,
-    category: 'urgent' | 'soon' | 'waiting',
+    category: ActiveTaskCategory,
     description?: string,
     badge?: string,
     clarifyingAnswers?: ClarifyingAnswer[],
@@ -642,8 +350,11 @@ export function useTasks(user: User | null) {
     }
   }, [user, tasks])
 
-  const deleteTask = useCallback(async (taskId: string) => {
-    if (!user) return
+  const deleteTask = useCallback(async (taskId: string): Promise<Task | null> => {
+    if (!user) return null
+
+    // Find the task before deleting (for undo)
+    const deletedTask = tasks.find(t => t.id === taskId) || null
 
     if (isDemoUser) {
       setTasks((prev) => {
@@ -651,7 +362,7 @@ export function useTasks(user: User | null) {
         safeSetJSON(demoStorageKey, next)
         return next
       })
-      return
+      return deletedTask
     }
 
     // Store previous state for rollback
@@ -670,64 +381,59 @@ export function useTasks(user: User | null) {
       // Error handled silently('Error deleting task:', error)
       // Revert on error
       setTasks(previousTasks)
+      return null
     }
+
+    return deletedTask
   }, [user, tasks, isDemoUser, demoStorageKey])
 
-  return { tasks, completeTask, addTask, updateTask, toggleStep, deleteTask, loading }
-}
+  // Restore a previously deleted task (for undo)
+  const restoreTask = useCallback(async (task: Task): Promise<boolean> => {
+    if (!user) return false
 
-// ============ ZONE TASKS ============
-
-export function useZoneTasks(user: User | null) {
-  const [zoneTasks, setZoneTasks] = useState<Record<string, boolean>>({})
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    if (!user) {
-      setLoading(false)
-      return
+    if (isDemoUser) {
+      setTasks((prev) => {
+        const next = [task, ...prev]
+        safeSetJSON(demoStorageKey, next)
+        return next
+      })
+      return true
     }
 
-    const loadZoneTasks = async () => {
-      // Use maybeSingle() to avoid PGRST116 error when no row exists
-      const { data, error } = await supabase
-        .from('user_data')
-        .select('zone_tasks')
-        .eq('user_id', user.id)
-        .maybeSingle()
-
-      if (error) {
-        // Error handled silently('Error loading zone tasks:', error)
-      } else if (data?.zone_tasks) {
-        setZoneTasks(data.zone_tasks)
-      }
-      setLoading(false)
-    }
-
-    loadZoneTasks()
-  }, [user])
-
-  const toggleZoneTask = useCallback(async (taskId: string) => {
-    if (!user) return
-
-    const newTasks = { ...zoneTasks, [taskId]: !zoneTasks[taskId] }
-    setZoneTasks(newTasks)
+    // Optimistic update
+    setTasks(prev => [task, ...prev])
 
     const { error } = await supabase
-      .from('user_data')
-      .upsert({
+      .from('tasks')
+      .insert({
+        id: task.id,
         user_id: user.id,
-        zone_tasks: newTasks,
-        updated_at: new Date().toISOString(),
-      }, {
-        onConflict: 'user_id',
+        title: task.title,
+        description: task.description,
+        category: task.category,
+        badge: task.badge,
+        due_date: task.due_date,
+        context: task.context,
+        context_text: task.context_text,
+        actions: task.actions,
+        subtasks: task.subtasks,
+        steps: task.steps,
+        notes: task.notes,
+        clarifying_answers: task.clarifying_answers,
+        task_category: task.task_category,
+        source: task.source,
+        source_id: task.source_id,
       })
 
     if (error) {
-      // Error handled silently('Error saving zone tasks:', error)
-      setZoneTasks(zoneTasks)
+      // Error handled silently('Error restoring task:', error)
+      // Revert on error
+      setTasks(prev => prev.filter(t => t.id !== task.id))
+      return false
     }
-  }, [user, zoneTasks])
 
-  return { zoneTasks, toggleZoneTask, loading }
+    return true
+  }, [user, isDemoUser, demoStorageKey])
+
+  return { tasks, completeTask, addTask, updateTask, toggleStep, deleteTask, restoreTask, loading }
 }

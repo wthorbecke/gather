@@ -4,7 +4,10 @@ import { useCallback } from 'react'
 import dynamic from 'next/dynamic'
 import { User } from '@supabase/supabase-js'
 import { useTasks, Task, Step } from '@/hooks/useUserData'
+import { mapAIStepsToSteps } from '@/lib/taskHelpers'
 import { useMemory } from '@/hooks/useMemory'
+import { useUndo, type UndoAction } from '@/hooks/useUndo'
+import { UndoToast } from './UndoToast'
 import { useViewState } from '@/hooks/useViewState'
 import { useTaskNavigation } from '@/hooks/useTaskNavigation'
 import { useCelebration } from '@/hooks/useCelebration'
@@ -36,7 +39,7 @@ interface GatherAppProps {
 
 export function GatherApp({ user, onSignOut }: GatherAppProps) {
   // Data hooks
-  const { tasks, addTask, updateTask, toggleStep, deleteTask, loading } = useTasks(user)
+  const { tasks, addTask, updateTask, toggleStep, deleteTask, restoreTask, loading } = useTasks(user)
   const { addEntry, addToConversation, getMemoryForAI, getRelevantMemory, getPreference, setPreference } = useMemory()
   const isDemoUser = Boolean(user?.id?.startsWith('demo-') || user?.email?.endsWith('@gather.local'))
 
@@ -70,6 +73,17 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
     dismissCelebration,
     checkAndCelebrate,
   } = useCelebration()
+
+  // Undo functionality
+  const handleUndoAction = useCallback(async (action: UndoAction) => {
+    if (action.type === 'delete_task' && action.data.previousState) {
+      await restoreTask(action.data.previousState as Task)
+    } else if (action.type === 'toggle_step' && action.data.stepId !== undefined) {
+      await toggleStep(action.data.taskId, action.data.stepId)
+    }
+  }, [restoreTask, toggleStep])
+
+  const { pendingUndo, pushUndo, executeUndo, dismissUndo } = useUndo(handleUndoAction)
 
   // AI conversation - pass dependencies
   const aiConversation = useAIConversation({
@@ -147,28 +161,7 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
 
         if (response.ok) {
           const data = await response.json()
-          const aiSteps: Step[] = (data.subtasks || []).map((item: string | {
-            text?: string
-            summary?: string
-            detail?: string
-            time?: string
-            source?: { name: string; url: string }
-            action?: { text: string; url: string }
-          }, i: number) => {
-            if (typeof item === 'string') {
-              return { id: `step-${Date.now()}-${i}`, text: item, done: false }
-            }
-            return {
-              id: `step-${Date.now()}-${i}`,
-              text: item.text || String(item),
-              done: false,
-              summary: item.summary,
-              detail: item.detail,
-              time: item.time,
-              source: item.source,
-              action: item.action,
-            }
-          })
+          const aiSteps = mapAIStepsToSteps(data.subtasks || [])
 
           // Update with real AI-generated steps
           if (aiSteps.length > 0) {
@@ -186,7 +179,7 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
     handleSubmit(suggestion)
   }, [handleSubmit])
 
-  // Handle step toggle with celebration
+  // Handle step toggle with celebration and undo
   const handleToggleStep = useCallback(async (taskId: string, stepId: string | number, inFocusMode = false) => {
     const task = tasks.find((t) => t.id === taskId)
     if (!task) {
@@ -204,7 +197,20 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
     if (wasComplete !== undefined) {
       checkAndCelebrate(task, stepId, wasComplete, addEntry)
     }
-  }, [toggleStep, tasks, addEntry, checkAndCelebrate])
+
+    // Offer undo when marking a step complete (not when uncompleting)
+    if (step && !wasComplete) {
+      const stepText = step.text.length > 30 ? step.text.slice(0, 30) + '...' : step.text
+      pushUndo({
+        type: 'toggle_step',
+        description: `Completed "${stepText}"`,
+        data: {
+          taskId,
+          stepId,
+        },
+      })
+    }
+  }, [toggleStep, tasks, addEntry, checkAndCelebrate, pushUndo])
 
   // Handle step edit
   const handleEditStep = useCallback(async (taskId: string, stepId: string | number, newText: string) => {
@@ -218,11 +224,24 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
     await updateTask(taskId, { steps: updatedSteps })
   }, [tasks, updateTask])
 
-  // Delete task
+  // Delete task with undo support
   const handleDeleteTask = useCallback(async (taskId: string) => {
-    await deleteTask(taskId)
+    const task = tasks.find(t => t.id === taskId)
+    const deletedTask = await deleteTask(taskId)
     goHome() // Navigate back home after deletion
-  }, [deleteTask, goHome])
+
+    // Push undo action if we have the deleted task data
+    if (deletedTask) {
+      pushUndo({
+        type: 'delete_task',
+        description: `Deleted "${task?.title || 'task'}"`,
+        data: {
+          taskId,
+          previousState: deletedTask,
+        },
+      })
+    }
+  }, [deleteTask, goHome, tasks, pushUndo])
 
   // Snooze task
   const handleSnoozeTask = useCallback(async (taskId: string, snoozedUntil: string) => {
@@ -416,6 +435,13 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
       <CompletionCelebration
         taskName={completedTaskName}
         onDismiss={dismissCelebration}
+      />
+
+      {/* Undo Toast */}
+      <UndoToast
+        action={pendingUndo}
+        onUndo={executeUndo}
+        onDismiss={dismissUndo}
       />
 
       {/* Integration Settings Modal */}

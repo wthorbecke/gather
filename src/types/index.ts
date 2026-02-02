@@ -1,3 +1,5 @@
+import { TaskCategory, CheckinType } from '@/lib/constants'
+
 export interface User {
   id: string
   phone: string
@@ -5,46 +7,12 @@ export interface User {
   created_at: string
 }
 
-export interface Habit {
-  id: string
-  user_id: string
-  name: string
-  category: 'morning' | 'games' | 'optional'
-  description?: string
-  link?: string
-  created_at: string
-}
-
-export interface HabitLog {
-  id: string
-  user_id: string
-  habit_id: string
-  completed_at: string
-  date: string // YYYY-MM-DD
-}
-
-export interface SoulActivity {
-  id: string
-  user_id: string
-  name: string
-  icon: string
-  description?: string
-  created_at: string
-}
-
-export interface SoulLog {
-  id: string
-  user_id: string
-  activity_id: string
-  completed_at: string
-}
-
 export interface Task {
   id: string
   user_id: string
   title: string
   description?: string
-  category: 'urgent' | 'soon' | 'waiting' | 'completed'
+  category: TaskCategory
   due_date?: string
   context?: Record<string, unknown> // Store member IDs, case numbers, etc.
   actions?: TaskAction[]
@@ -67,21 +35,6 @@ export interface EmailTemplate {
   body: string
 }
 
-export interface SpaceZone {
-  id: string
-  user_id: string
-  name: string
-  icon: string
-  tasks: SpaceTask[]
-}
-
-export interface SpaceTask {
-  id: string
-  zone_id: string
-  name: string
-  completed: boolean
-}
-
 export interface Message {
   id: string
   user_id: string
@@ -94,7 +47,7 @@ export interface Message {
 export interface CheckIn {
   id: string
   user_id: string
-  type: 'morning' | 'evening' | 'alert'
+  type: CheckinType
   content: string
   sent_at: string
   responded_at?: string

@@ -6,6 +6,8 @@
  * Never guilt trip. Never over-celebrate. Just help.
  */
 
+import type { ActiveTaskCategory } from '@/lib/constants'
+
 // ============================================================================
 // CHAT / CONVERSATION
 // ============================================================================
@@ -553,7 +555,7 @@ export interface TaskForIntelligence {
   id: string
   title: string
   createdAt: string
-  category: 'urgent' | 'soon' | 'waiting'
+  category: ActiveTaskCategory
   dueDate?: string | null
   stepsTotal: number
   stepsDone: number

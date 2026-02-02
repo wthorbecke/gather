@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useRef, useEffect } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import { Task, Step } from '@/hooks/useUserData'
 import type { MemoryEntry } from '@/hooks/useMemory'
 import { AICardState } from '@/components/AICard'
@@ -13,91 +13,21 @@ import {
   detectCompletionIntent,
   findMatchingStep,
   createFallbackSteps,
+  mapAIStepsToSteps,
 } from '@/lib/taskHelpers'
 import { OTHER_SPECIFY_OPTION } from '@/config/content'
 import { splitStepText } from '@/lib/stepText'
 import { authFetch } from '@/lib/supabase'
-import { consumeStream } from '@/lib/ai/streaming'
+import { consumeStream, parseAIMessage, parseStreamingMessage } from '@/lib/ai'
 import type { ChatAction, SubtaskItem, AnalyzeIntentStep } from '@/lib/api-types'
 import type { ContextTag } from './useTaskNavigation'
+import type { ActiveTaskCategory } from '@/lib/constants'
+import { useAICardState } from './useAICardState'
+import { useDuplicateDetection, DuplicatePrompt } from './useDuplicateDetection'
+import { useConversationHistory } from './useConversationHistory'
 
-// Helper to extract message from potential JSON response
-// AI may return {"message":"...", "actions":[...]} - we need just the message
-function extractMessageFromJSON(text: string): string {
-  if (!text) return ''
-  const trimmed = text.trim()
-
-  // Try to parse as JSON and extract message field
-  if (trimmed.startsWith('{') && trimmed.includes('"message"')) {
-    try {
-      const parsed = JSON.parse(trimmed)
-      if (typeof parsed.message === 'string') {
-        return parsed.message
-      }
-    } catch {
-      // Not valid JSON, try regex extraction ([\s\S]* matches any char including newlines)
-      const match = trimmed.match(/"message"\s*:\s*"((?:[^"\\]|\\[\s\S])*)"/)
-      if (match) {
-        // Unescape the JSON string
-        return match[1].replace(/\\"/g, '"').replace(/\\n/g, '\n').replace(/\\\\/g, '\\')
-      }
-    }
-  }
-
-  return trimmed
-}
-
-// Helper to extract partial message during streaming
-// During streaming, we may get incomplete JSON like: {"message":"Working on it...
-// We want to show just the message part as it streams
-function extractStreamingMessage(text: string): string {
-  if (!text) return ''
-  const trimmed = text.trim()
-
-  // If it looks like JSON is starting, try to extract the message value
-  if (trimmed.startsWith('{') && trimmed.includes('"message"')) {
-    // Find where the message value starts
-    const messageStart = trimmed.indexOf('"message"')
-    if (messageStart === -1) return ''
-
-    // Find the colon and opening quote
-    const colonIdx = trimmed.indexOf(':', messageStart)
-    if (colonIdx === -1) return ''
-
-    // Find the opening quote of the value
-    let valueStart = trimmed.indexOf('"', colonIdx + 1)
-    if (valueStart === -1) return ''
-    valueStart++ // Move past the opening quote
-
-    // Extract everything after the opening quote
-    // Handle escape sequences as we go
-    let result = ''
-    let i = valueStart
-    while (i < trimmed.length) {
-      const char = trimmed[i]
-      if (char === '\\' && i + 1 < trimmed.length) {
-        // Escape sequence
-        const next = trimmed[i + 1]
-        if (next === '"') result += '"'
-        else if (next === 'n') result += '\n'
-        else if (next === 't') result += '\t'
-        else if (next === '\\') result += '\\'
-        else result += next
-        i += 2
-      } else if (char === '"') {
-        // End of string value
-        break
-      } else {
-        result += char
-        i++
-      }
-    }
-
-    return result
-  }
-
-  return trimmed
-}
+// Re-export DuplicatePrompt from the extracted hook for backward compatibility
+export type { DuplicatePrompt } from './useDuplicateDetection'
 
 // Types for context gathering
 export interface ContextGatheringState {
@@ -106,12 +36,6 @@ export interface ContextGatheringState {
   answers: Record<string, string>
   taskName: string
   awaitingFreeTextFor?: { key: string; prompt: string }
-}
-
-export interface DuplicatePrompt {
-  taskId: string
-  taskTitle: string
-  input: string
 }
 
 export interface AIConversationState {
@@ -129,7 +53,7 @@ export interface AIConversationDeps {
   contextTags: ContextTag[]
   addTask: (
     title: string,
-    category: 'urgent' | 'soon' | 'waiting',
+    category: ActiveTaskCategory,
     description?: string,
     badge?: string,
     clarifyingAnswers?: Array<{ question: string; answer: string }>,
@@ -187,16 +111,16 @@ export function useAIConversation(deps: AIConversationDeps): AIConversationState
     useStackView,
   } = deps
 
-  // AI state
-  const [aiCard, setAiCard] = useState<AICardState | null>(null)
+  // Use extracted hooks for state management
+  const { aiCard, setAiCard, isFollowUp, setIsFollowUp } = useAICardState(useStackView)
+  const { duplicatePrompt, setDuplicatePrompt, bypassDuplicateRef } = useDuplicateDetection()
+  const { conversationHistory, setConversationHistory, clearHistory } = useConversationHistory()
+
+  // Local state that hasn't been extracted
   const [pendingInput, setPendingInput] = useState<string | null>(null)
-  const [conversationHistory, setConversationHistory] = useState<Array<{ role: string; content: string }>>([])
-  const [isFollowUp, setIsFollowUp] = useState(false)
-  const bypassDuplicateRef = useRef(false)
 
   // Context gathering state - stores AI-generated questions and answers
   const [contextGathering, setContextGathering] = useState<ContextGatheringState | null>(null)
-  const [duplicatePrompt, setDuplicatePrompt] = useState<DuplicatePrompt | null>(null)
 
   // Performance: Use refs to avoid recreating callbacks when these values change
   const tasksRef = useRef(tasks)
@@ -215,17 +139,6 @@ export function useAIConversation(deps: AIConversationDeps): AIConversationState
   currentTaskIdRef.current = currentTaskId
 
   const currentTask = tasks.find((t) => t.id === currentTaskId)
-
-  // Auto-dismiss AI card after task creation (in Stack View)
-  useEffect(() => {
-    if (aiCard?.taskCreated && useStackView && !aiCard.thinking && !aiCard.question) {
-      const timer = setTimeout(() => {
-        setAiCard(null)
-        setPendingInput(null)
-      }, 3000) // Dismiss after 3 seconds
-      return () => clearTimeout(timer)
-    }
-  }, [aiCard, useStackView])
 
   // Build context string from context tags
   const buildContextFromTags = useCallback(() => {
@@ -372,7 +285,7 @@ export function useAIConversation(deps: AIConversationDeps): AIConversationState
                   setAiCard(prev => ({
                     ...prev,
                     streaming: true,
-                    streamingText: extractStreamingMessage(fullText),
+                    streamingText: parseStreamingMessage(fullText),
                   }))
                 },
                 onSources: (sources) => {
@@ -419,7 +332,7 @@ export function useAIConversation(deps: AIConversationDeps): AIConversationState
             setAiCard({
               streaming: false,
               streamingText: undefined,
-              message: extractMessageFromJSON(fullText),
+              message: parseAIMessage(fullText),
               sources: streamedSources,
               pendingTaskName: currentAiCard?.pendingTaskName,
               quickReplies: actions.length > 0 ? undefined : (completionPrompt ? [completionPrompt] : currentAiCard?.quickReplies),
@@ -450,34 +363,7 @@ export function useAIConversation(deps: AIConversationDeps): AIConversationState
 
           if (response.ok) {
             const data = await response.json()
-                const newSteps: Step[] = data.subtasks.map((item: {
-              text?: string
-              summary?: string
-              detail?: string
-              alternatives?: string[]
-              examples?: string[]
-              checklist?: string[]
-              time?: string
-              source?: { name: string; url: string }
-              action?: { text: string; url: string }
-            } | string, i: number) => {
-              if (typeof item === 'string') {
-                return { id: `step-${Date.now()}-${i}`, text: item, done: false }
-              }
-              return {
-                id: `step-${Date.now()}-${i}`,
-                text: item.text || String(item),
-                done: false,
-                summary: item.summary,
-                detail: item.detail,
-                alternatives: item.alternatives,
-                examples: item.examples,
-                checklist: item.checklist,
-                time: item.time,
-                source: item.source,
-                action: item.action,
-              }
-            })
+            const newSteps = mapAIStepsToSteps(data.subtasks || [])
 
             await updateTask(currentTaskValue.id, {
               steps: [...(currentTaskValue.steps || []), ...newSteps],
@@ -595,7 +481,7 @@ export function useAIConversation(deps: AIConversationDeps): AIConversationState
                 setAiCard(prev => ({
                   ...prev,
                   streaming: true,
-                  streamingText: extractStreamingMessage(fullText),
+                  streamingText: parseStreamingMessage(fullText),
                 }))
               },
               onSources: (sources) => {
@@ -633,7 +519,7 @@ export function useAIConversation(deps: AIConversationDeps): AIConversationState
 
             // Finalize with streaming complete
             setAiCard({
-              message: extractMessageFromJSON(fullText),
+              message: parseAIMessage(fullText),
               sources: streamedSources,
               streaming: false,
               pendingTaskName: currentAiCard?.pendingTaskName,
@@ -702,35 +588,7 @@ export function useAIConversation(deps: AIConversationDeps): AIConversationState
 
         if (response.ok) {
           const data = await response.json()
-          // Map all rich step fields from the API response
-          const newSteps: Step[] = data.subtasks.map((item: {
-            text?: string
-            summary?: string
-            detail?: string
-            alternatives?: string[]
-            examples?: string[]
-            checklist?: string[]
-            time?: string
-            source?: { name: string; url: string }
-            action?: { text: string; url: string }
-          } | string, i: number) => {
-            if (typeof item === 'string') {
-              return { id: `step-${Date.now()}-${i}`, text: item, done: false }
-            }
-            return {
-              id: `step-${Date.now()}-${i}`,
-              text: item.text || String(item),
-              done: false,
-              summary: item.summary,
-              detail: item.detail,
-              alternatives: item.alternatives,
-              examples: item.examples,
-              checklist: item.checklist,
-              time: item.time,
-              source: item.source,
-              action: item.action,
-            }
-          })
+          const newSteps = mapAIStepsToSteps(data.subtasks || [])
 
           await updateTask(targetTask.id, {
             steps: [...(targetTask.steps || []), ...newSteps],
@@ -1134,34 +992,7 @@ export function useAIConversation(deps: AIConversationDeps): AIConversationState
 
           if (response.ok) {
             const data = await response.json()
-            steps = (data.subtasks || []).map((item: string | {
-              text?: string
-              summary?: string
-              detail?: string
-              alternatives?: string[]
-              examples?: string[]
-              checklist?: string[]
-              time?: string
-              source?: { name: string; url: string }
-              action?: { text: string; url: string }
-            }, i: number) => {
-              if (typeof item === 'string') {
-                return { id: `step-${Date.now()}-${i}`, text: item, done: false }
-              }
-              return {
-                id: `step-${Date.now()}-${i}`,
-                text: item.text || String(item),
-                done: false,
-                summary: item.summary,
-                detail: item.detail,
-                alternatives: item.alternatives,
-                examples: item.examples,
-                checklist: item.checklist,
-                time: item.time,
-                source: item.source,
-                action: item.action,
-              }
-            })
+            steps = mapAIStepsToSteps(data.subtasks || [])
           } else {
             steps = createFallbackSteps(taskName, contextDescription)
           }
@@ -1284,42 +1115,9 @@ export function useAIConversation(deps: AIConversationDeps): AIConversationState
 
         if (response.ok) {
           const data = await response.json()
-          steps = (data.subtasks || []).map((item: string | {
-            text?: string
-            summary?: string
-            detail?: string
-            alternatives?: string[]
-            examples?: string[]
-            checklist?: string[]
-            time?: string
-            source?: { name: string; url: string }
-            action?: { text: string; url: string }
-          }, i: number) => {
-            if (typeof item === 'string') {
-              return { id: `step-${Date.now()}-${i}`, text: item, done: false }
-            }
-            return {
-              id: `step-${Date.now()}-${i}`,
-              text: item.text || String(item),
-              done: false,
-              summary: item.summary,
-              detail: item.detail,
-              alternatives: item.alternatives,
-              examples: item.examples,
-              checklist: item.checklist,
-              time: item.time,
-              source: item.source,
-              action: item.action,
-            }
-          })
+          steps = mapAIStepsToSteps(data.subtasks || [])
         } else {
-          // Fallback - create generic steps but note that more info would help
-          steps = [
-            { id: `step-${Date.now()}-1`, text: `Research how to ${taskName.toLowerCase()}`, done: false, summary: "Find official process for your specific situation" },
-            { id: `step-${Date.now()}-2`, text: `Gather required information (documents, account numbers, etc.)`, done: false, summary: "Based on: " + contextDescription },
-            { id: `step-${Date.now()}-3`, text: `Complete the ${taskName.toLowerCase()} process`, done: false, summary: "Follow the official steps" },
-            { id: `step-${Date.now()}-4`, text: `Keep documentation and confirm completion`, done: false, summary: "Verify it worked" },
-          ]
+          steps = createFallbackSteps(taskName, contextDescription)
         }
 
         // Create the task
@@ -1384,42 +1182,10 @@ export function useAIConversation(deps: AIConversationDeps): AIConversationState
 
       if (response.ok) {
         const data = await response.json()
-        steps = (data.subtasks || []).map((item: string | {
-          text?: string
-          summary?: string
-          detail?: string
-          alternatives?: string[]
-          examples?: string[]
-          checklist?: string[]
-          time?: string
-          source?: { name: string; url: string }
-          action?: { text: string; url: string }
-        }, i: number) => {
-          if (typeof item === 'string') {
-            return { id: `step-${Date.now()}-${i}`, text: item, done: false }
-          }
-          return {
-            id: `step-${Date.now()}-${i}`,
-            text: item.text || String(item),
-            done: false,
-            summary: item.summary,
-            detail: item.detail,
-            alternatives: item.alternatives,
-            examples: item.examples,
-            checklist: item.checklist,
-            time: item.time,
-            source: item.source,
-            action: item.action,
-          }
-        })
+        steps = mapAIStepsToSteps(data.subtasks || [])
         contextText = reply === 'ASAP' ? 'High priority' : undefined
       } else {
-        steps = [
-          { id: `step-${Date.now()}-1`, text: 'Research requirements', done: false, summary: "Understand what's needed." },
-          { id: `step-${Date.now()}-2`, text: 'Gather documents', done: false, summary: 'Collect everything required.' },
-          { id: `step-${Date.now()}-3`, text: 'Submit application', done: false, summary: 'Complete the process.' },
-          { id: `step-${Date.now()}-4`, text: 'Follow up', done: false, summary: 'Confirm completion.' },
-        ]
+        steps = createFallbackSteps(taskName)
       }
 
       const newTask = await addTask(taskName, 'soon')
@@ -1543,20 +1309,20 @@ export function useAIConversation(deps: AIConversationDeps): AIConversationState
   const dismissAI = useCallback(() => {
     setAiCard(null)
     setPendingInput(null)
-    setConversationHistory([])
+    clearHistory()
     setIsFollowUp(false)
     setContextGathering(null)
     setDuplicatePrompt(null)
-  }, [])
+  }, [setAiCard, clearHistory, setIsFollowUp, setDuplicatePrompt])
 
   // Clear conversation state (for navigation)
   const clearConversation = useCallback(() => {
     setAiCard(null)
     setPendingInput(null)
-    setConversationHistory([])
+    clearHistory()
     setIsFollowUp(false)
     setContextGathering(null)
-  }, [])
+  }, [setAiCard, clearHistory, setIsFollowUp])
 
   return {
     // State

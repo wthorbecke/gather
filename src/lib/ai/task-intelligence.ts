@@ -7,6 +7,7 @@
  */
 
 import type { TaskForIntelligence, UserPatterns, InsightHistory } from './prompts'
+import type { ActiveTaskCategory } from '@/lib/constants'
 
 // Database row types
 export interface TaskRow {
@@ -178,7 +179,7 @@ export function transformTask(task: TaskRow): TaskForIntelligence {
     id: task.id,
     title: task.title,
     createdAt: task.created_at,
-    category: task.category as 'urgent' | 'soon' | 'waiting',
+    category: task.category as ActiveTaskCategory,
     dueDate: task.due_date,
     stepsTotal: steps.length,
     stepsDone: steps.filter(s => s.done).length,

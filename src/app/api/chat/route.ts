@@ -18,6 +18,7 @@ import {
   DEFAULT_CHAT_RESPONSE,
   parseAIResponse,
   extractJSON,
+  parseAIResponseFull,
   type ChatResponse,
 } from '@/lib/ai'
 
@@ -323,23 +324,9 @@ Return ONLY JSON.`,
 
             // Parse the response to extract message and actions
             const topSources = prioritizeSources(sources).slice(0, 3)
-            let parsedMessage = fullText
-            let actions: Array<Record<string, unknown>> = []
-
-            try {
-              const jsonMatch = fullText.match(/\{[\s\S]*\}/)
-              if (jsonMatch) {
-                const parsed = JSON.parse(jsonMatch[0])
-                if (typeof parsed.message === 'string') {
-                  parsedMessage = parsed.message
-                }
-                if (Array.isArray(parsed.actions)) {
-                  actions = parsed.actions
-                }
-              }
-            } catch {
-              // Fall back to raw text
-            }
+            const parsedResponse = parseAIResponseFull(fullText)
+            const parsedMessage = parsedResponse.message
+            const actions = parsedResponse.actions
 
             // Send sources
             if (topSources.length > 0) {
@@ -478,22 +465,9 @@ Return ONLY JSON.`,
     }
 
     const topSources = prioritizeSources(sources).slice(0, 3)
-    let parsedMessage = responseText
-    let actions: Array<Record<string, unknown>> = []
-    try {
-      const jsonMatch = responseText.match(/\{[\s\S]*\}/)
-      if (jsonMatch) {
-        const parsed = JSON.parse(jsonMatch[0])
-        if (typeof parsed.message === 'string') {
-          parsedMessage = parsed.message
-        }
-        if (Array.isArray(parsed.actions)) {
-          actions = parsed.actions
-        }
-      }
-    } catch {
-      // Fall back to raw text if JSON parsing fails
-    }
+    const parsedResponse = parseAIResponseFull(responseText)
+    const parsedMessage = parsedResponse.message
+    const actions = parsedResponse.actions
 
     // No caching for AI responses - they should be fresh
     const response = NextResponse.json({
