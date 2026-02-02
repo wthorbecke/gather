@@ -7,7 +7,134 @@ import { User } from '@supabase/supabase-js'
 import { safeGetJSON, safeSetJSON, safeRemoveItem } from '@/lib/storage'
 import { TaskCategory, TaskSource, TaskType, RecurrenceFrequency, IntegrationProvider, type ActiveTaskCategory } from '@/lib/constants'
 
-// Starter content for new users
+// Demo starter tasks with pre-generated AI steps
+// These showcase the app's value without requiring API calls
+const DEMO_STARTER_TASKS: Array<{
+  title: string
+  description: string | null
+  category: typeof TaskCategory.SOON
+  badge: string | null
+  steps: Step[]
+}> = [
+  {
+    title: 'File taxes',
+    description: 'California state + federal',
+    category: TaskCategory.SOON,
+    badge: null,
+    steps: [
+      {
+        id: 'step-1',
+        text: 'Gather your tax documents',
+        done: true, // Show one completed to demonstrate progress
+        summary: 'W-2s, 1099s, and deduction receipts',
+        time: '20 min',
+      },
+      {
+        id: 'step-2',
+        text: 'Go to ftb.ca.gov and click "File Online" to access CalFile',
+        done: false,
+        summary: 'Start the official CA filing system',
+        source: { name: 'California FTB', url: 'https://ftb.ca.gov' },
+      },
+      {
+        id: 'step-3',
+        text: 'Complete your federal return first using the same tax software',
+        done: false,
+        summary: 'Federal must be done before state',
+        source: { name: 'IRS Free File', url: 'https://www.irs.gov/filing/free-file-do-your-federal-taxes-for-free' },
+      },
+      {
+        id: 'step-4',
+        text: 'Enter your federal AGI and wage information into CalFile',
+        done: false,
+        summary: 'Transfer federal data to CA return',
+      },
+      {
+        id: 'step-5',
+        text: 'Review both returns, e-file them, and save confirmation numbers',
+        done: false,
+        summary: 'Double-check and submit everything',
+      },
+    ],
+  },
+  {
+    title: 'Renew passport',
+    description: null,
+    category: TaskCategory.SOON,
+    badge: null,
+    steps: [
+      {
+        id: 'step-1',
+        text: 'Go to travel.state.gov and download Form DS-82',
+        done: false,
+        summary: 'Renewal by mail form for adults',
+        source: { name: 'US State Dept', url: 'https://travel.state.gov/content/travel/en/passports/have-passport/renew.html' },
+        time: '5 min',
+      },
+      {
+        id: 'step-2',
+        text: 'Get a new passport photo at CVS, Walgreens, or USPS',
+        done: false,
+        summary: '2x2 inch photo, white background, taken within 6 months',
+        time: '15 min',
+      },
+      {
+        id: 'step-3',
+        text: 'Write a check for $130 to "U.S. Department of State"',
+        done: false,
+        summary: 'Standard renewal fee (add $60 for expedited)',
+      },
+      {
+        id: 'step-4',
+        text: 'Mail form, old passport, photo, and check via USPS Priority',
+        done: false,
+        summary: 'Use tracking for peace of mind',
+        action: { text: 'Schedule USPS pickup', url: 'https://tools.usps.com/schedule-pickup-steps.htm' },
+      },
+    ],
+  },
+  {
+    title: 'Get Healthier',
+    description: 'Improve energy levels',
+    category: TaskCategory.SOON,
+    badge: null,
+    steps: [
+      {
+        id: 'step-1',
+        text: 'Track your sleep for 3 nights',
+        done: false,
+        summary: 'Identify sleep patterns affecting energy',
+        time: '2 min daily',
+      },
+      {
+        id: 'step-2',
+        text: 'Drink 16oz of water first thing each morning',
+        done: false,
+        summary: 'Rehydrate after 8 hours without water',
+      },
+      {
+        id: 'step-3',
+        text: 'Take a 10-minute walk between 11am and 2pm',
+        done: false,
+        summary: 'Natural light + movement boosts afternoon energy',
+      },
+      {
+        id: 'step-4',
+        text: 'Set a "wind down" alarm for 9pm',
+        done: false,
+        summary: 'Screens off, dim lights, prep for sleep',
+      },
+      {
+        id: 'step-5',
+        text: 'Review how you feel after 1 week',
+        done: false,
+        summary: 'Check in with yourself on energy levels',
+      },
+    ],
+  },
+]
+
+// Starter content for authenticated users (empty - they start fresh)
 const STARTER_TASKS: Array<{ title: string; description: string; category: typeof TaskCategory.SOON; badge: string; subtasks: []; notes: null }> = []
 
 // Types
@@ -122,18 +249,19 @@ export function useTasks(user: User | null) {
         safeRemoveItem(demoStorageKey)
       }
 
-      const seeded = STARTER_TASKS.map((t, i) => ({
+      // Use demo starter tasks with pre-generated steps
+      const seeded: Task[] = DEMO_STARTER_TASKS.map((t, i) => ({
         id: `demo-task-${i + 1}`,
         title: t.title,
-        description: t.description || null,
+        description: t.description,
         category: t.category,
-        badge: t.badge || null,
+        badge: t.badge,
         due_date: null,
         context: {},
         context_text: null,
         actions: [],
         subtasks: [],
-        steps: [],
+        steps: t.steps,
         notes: null,
         clarifying_answers: [],
         task_category: undefined,
