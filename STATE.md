@@ -66,19 +66,17 @@ Gather is an **AI-powered executive function layer** for people with ADHD or exe
 
 ---
 
-## Critical Issues Found
+## Issues Status
 
-### P0 - Demo Mode Broken
-**Bug:** AI features return 401 Unauthorized in demo mode because API endpoints require Supabase auth tokens, but demo users are created client-side without real sessions.
+### ✅ FIXED - Demo Mode AI (was P0)
+**Bug:** AI features returned 401 in demo mode.
+**Fix:** Added `requireAuthOrDemo` helper + X-Demo-User header system.
+**Commit:** `28e90bc`
 
-**Impact:** The CORE VALUE PROP (AI breaking down tasks) doesn't work in demo mode. Users trying the app before signing up see generic fallback steps like "Research how to do X" instead of real AI breakdown.
-
-**Location:** `src/app/api/analyze-intent/route.ts` line 27 uses `requireAuth()` which fails for demo users.
-
-**Fix options:**
-1. Skip auth for demo users (check for demo-user-agent header)
-2. Create a mock AI response for demo mode
-3. Use edge runtime with anonymous rate limiting for demo
+### ✅ FIXED - No Tasks in Demo Mode (was P1)
+**Bug:** Demo users saw empty task list.
+**Fix:** Added 3 starter tasks with pre-generated AI steps.
+**Commit:** `b857e60`
 
 ### P1 - Generic Fallback Steps
 When AI fails, the app shows useless template steps:
@@ -87,12 +85,7 @@ When AI fails, the app shows useless template steps:
 - "Complete the [task] process"
 - "Keep documentation and confirm completion"
 
-These don't help anyone. They should either be specific to the task type OR we should show a message saying "I'll break this down when you sign in".
-
-### P1 - No Tasks in Demo Mode
-`STARTER_TASKS` in `useUserData.ts` is an empty array. New demo users see an empty task list with only suggestion chips. This is a poor first impression.
-
-**Recommendation:** Add 2-3 realistic demo tasks with pre-generated AI steps that showcase the app's value.
+These don't help anyone. Should show better messaging when AI is unavailable.
 
 ### P2 - Test Failures
 Several authenticated flow tests are failing - likely environment/credential issues, not real bugs. Need to verify test environment setup.
@@ -159,22 +152,31 @@ Several authenticated flow tests are failing - likely environment/credential iss
 
 ## What I'll Work On Next
 
-**Priority 1:** Fix demo mode so AI actually works. This is the #1 blocker to users understanding the product's value.
-
-**Approach:** Add demo user detection in API routes - if the request includes a specific header or the "demo-user" identifier, allow the request through with rate limiting.
+**Next priorities:**
+1. Run full test suite to verify nothing is broken
+2. Research competitive landscape
+3. Consider onboarding flow improvements
 
 ---
 
 ## Session Log
 
 ### Session 2 - Feb 2, 2026
-- Ran app locally, clicked through all views (List, Day, Stack)
-- Identified critical demo mode bug (401 on AI calls)
-- Audited visual design - clean, follows design system
-- Found generic fallback steps issue
-- Found empty demo tasks issue
-- Ran test suite - some failures in auth tests (env issue)
-- Created comprehensive STATE.md
+**Accomplished:**
+- Ran app locally, audited all views (List, Day, Stack)
+- Identified and FIXED critical demo mode bug (AI returning 401)
+  - Added `requireAuthOrDemo` helper to api-auth.ts
+  - Updated authFetch to send X-Demo-User header
+  - Updated 3 API endpoints to accept demo users with rate limiting
+- Added compelling demo starter tasks with pre-generated AI steps
+  - File taxes (5 steps with official sources)
+  - Renew passport (4 steps with action links)
+  - Get Healthier (5 concrete daily habits)
+- Demo tests pass (3/3)
+
+**Commits:**
+- `28e90bc` Fix demo mode: enable AI features for demo users
+- `b857e60` Add starter tasks for demo mode with pre-generated AI steps
 
 ### Session 1 - Feb 2, 2026
 - Created initial STATE.md, session ended immediately
