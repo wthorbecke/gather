@@ -168,6 +168,7 @@ All critical issues fixed:
 - ~~Task pinning~~ - Done (Session 11) - Star tasks to keep at top of list
 - ~~Step deletion~~ - Done (Session 11) - Remove individual steps from tasks
 - ~~Step creation~~ - Done (Session 11) - Add custom steps to tasks manually
+- ~~Step reordering~~ - Done (Session 11) - Move steps up/down with buttons
 - Task sharing/delegation - Share tasks with others
 - Mobile PWA enhancements - Offline support, better notifications
 - ~~Keyboard shortcut overlay~~ - Done (Session 11) - Help modal showing all shortcuts
@@ -275,6 +276,10 @@ All critical issues fixed:
   - "Add step" button at bottom of steps list
   - Inline input with Enter to add, Escape to cancel
   - Dashed border button pattern for add affordance
+- **Added step reordering** - Move steps up/down in task
+  - Up/down arrow buttons in step expanded view
+  - Smart visibility: up hidden for first, down hidden for last
+  - Immediate visual feedback on position swap
 - All 173 tests passing, build succeeds
 
 **Commits:**
@@ -296,6 +301,7 @@ All critical issues fixed:
 - `218f00a` Add task pinning feature (star to top)
 - `20b975a` Add step deletion feature
 - `0e1e457` Add manual step creation feature
+- `143909f` Add step reordering with up/down buttons
 
 **Technical notes:**
 - Quick actions feature (from Future Ideas) partially addressed - snooze was the highest-impact quick action
@@ -349,6 +355,8 @@ All critical issues fixed:
 - handleDeleteStep filters out the deleted step from task.steps array
 - Step creation uses inline input at bottom of steps list
 - handleAddStep creates new Step object with timestamp-based ID and appends to steps array
+- Step reordering uses handleMoveStep which swaps adjacent steps in array
+- onMoveUp/onMoveDown conditionally passed based on step index (first/last checks)
 
 ---
 
