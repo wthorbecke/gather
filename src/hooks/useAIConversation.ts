@@ -7,24 +7,20 @@ import { AICardState } from '@/components/AICard'
 import {
   isQuestion,
   isStepRequest,
-  filterActions,
-  sanitizeQuestions,
   findDuplicateTask,
-  detectCompletionIntent,
-  findMatchingStep,
   createFallbackSteps,
   mapAIStepsToSteps,
 } from '@/lib/taskHelpers'
 import { OTHER_SPECIFY_OPTION } from '@/config/content'
-import { splitStepText } from '@/lib/stepText'
 import { authFetch } from '@/lib/supabase'
-import { consumeStream, parseAIMessage, parseStreamingMessage } from '@/lib/ai'
-import type { ChatAction, SubtaskItem, AnalyzeIntentStep } from '@/lib/api-types'
 import type { ContextTag } from './useTaskNavigation'
 import type { ActiveTaskCategory } from '@/lib/constants'
 import { useAICardState } from './useAICardState'
 import { useDuplicateDetection, DuplicatePrompt } from './useDuplicateDetection'
 import { useConversationHistory } from './useConversationHistory'
+import { useAIStreaming } from './useAIStreaming'
+import { useAITaskBreakdown } from './useAITaskBreakdown'
+import { useAIChat } from './useAIChat'
 
 // Re-export DuplicatePrompt from the extracted hook for backward compatibility
 export type { DuplicatePrompt } from './useDuplicateDetection'
@@ -91,7 +87,15 @@ export interface AIConversationActions {
 }
 
 /**
- * Hook for managing AI conversation state - AI chat state, message handling, streaming
+ * Hook for managing AI conversation state - AI chat state, message handling, streaming.
+ *
+ * This hook composes several smaller focused hooks:
+ * - useAICardState: AI card UI state management
+ * - useDuplicateDetection: Duplicate task detection
+ * - useConversationHistory: Conversation history management
+ * - useAIStreaming: Streaming chat responses
+ * - useAITaskBreakdown: Task decomposition and step generation
+ * - useAIChat: Core chat logic and context building
  */
 export function useAIConversation(deps: AIConversationDeps): AIConversationState & AIConversationActions {
   const {
@@ -118,10 +122,8 @@ export function useAIConversation(deps: AIConversationDeps): AIConversationState
   const { duplicatePrompt, setDuplicatePrompt, bypassDuplicateRef } = useDuplicateDetection()
   const { conversationHistory, setConversationHistory, clearHistory } = useConversationHistory()
 
-  // Local state that hasn't been extracted
+  // Local state
   const [pendingInput, setPendingInput] = useState<string | null>(null)
-
-  // Context gathering state - stores AI-generated questions and answers
   const [contextGathering, setContextGathering] = useState<ContextGatheringState | null>(null)
 
   // Performance: Use refs to avoid recreating callbacks when these values change
@@ -131,6 +133,7 @@ export function useAIConversation(deps: AIConversationDeps): AIConversationState
   const contextTagsRef = useRef(contextTags)
   const conversationHistoryRef = useRef(conversationHistory)
   const currentTaskIdRef = useRef(currentTaskId)
+  const contextGatheringRef = useRef(contextGathering)
 
   // Sync refs during render
   tasksRef.current = tasks
@@ -139,38 +142,168 @@ export function useAIConversation(deps: AIConversationDeps): AIConversationState
   contextTagsRef.current = contextTags
   conversationHistoryRef.current = conversationHistory
   currentTaskIdRef.current = currentTaskId
+  contextGatheringRef.current = contextGathering
 
   const currentTask = tasks.find((t) => t.id === currentTaskId)
 
-  // Build context string from context tags
-  const buildContextFromTags = useCallback(() => {
-    const parts: string[] = []
+  // Use extracted hooks for functionality
+  const { streamChatResponse } = useAIStreaming({ setAiCard, onUpgradeRequired })
+  const { addStepsToTask, createTaskFromIntent, createSimpleTask, generateSteps, createTaskWithSteps } = useAITaskBreakdown({
+    addTask,
+    updateTask,
+    addEntry,
+    setAiCard,
+  })
+  const { analyzeIntentAndGather, isQuestionMessage } = useAIChat({
+    setAiCard,
+    setConversationHistory,
+    setIsFollowUp,
+    setContextGathering,
+    getPreference,
+    addToConversation,
+    getMemoryForAI,
+    getRelevantMemory,
+    onUpgradeRequired,
+  })
 
-    for (const tag of contextTags) {
-      if (tag.type === 'task' && tag.task) {
-        const task = tag.task
-        const existingSteps = (task.steps || [])
-          .map((s, i) => `${i + 1}. ${s.text}${s.done ? ' (done)' : ''}`)
-          .join('\n')
+  // Finalize task creation after context gathering (defined before handlers that use it)
+  const finalizeTaskCreation = useCallback(async (taskName: string, answers: Record<string, string>) => {
+    setContextGathering(null)
 
-        parts.push(`Task: ${task.title}`)
-        if (task.description) parts.push(`Description: ${task.description}`)
-        if (task.context_text) parts.push(`Context: ${task.context_text}`)
-        if (existingSteps) parts.push(`Steps:\n${existingSteps}`)
-      } else if (tag.type === 'step' && tag.step) {
-        const step = tag.step
-        parts.push(`\nFocused step: "${step.text}"`)
-        if (step.detail) parts.push(`Detail: ${step.detail}`)
-        if (step.summary) parts.push(`Summary: ${step.summary}`)
+    const contextDescription = Object.entries(answers)
+      .filter(([, value]) => value && !value.toLowerCase().includes(OTHER_SPECIFY_OPTION.toLowerCase()))
+      .map(([key, value]) => `${key}: ${value}`)
+      .join(', ')
+
+    setAiCard({ thinking: true, message: "Got it. Researching specific steps for your situation..." })
+
+    try {
+      addToConversation('user', `Context: ${contextDescription}`)
+
+      const response = await authFetch('/api/suggest-subtasks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: taskName,
+          description: contextDescription,
+          clarifyingAnswers: Object.entries(answers).map(([q, a]) => ({ question: q, answer: a })),
+        }),
+      })
+
+      let steps: Step[] = []
+      if (response.ok) {
+        const data = await response.json()
+        steps = mapAIStepsToSteps(data.subtasks || [])
+      } else {
+        steps = createFallbackSteps(taskName, contextDescription)
       }
+
+      const contextText = Object.entries(answers)
+        .map(([, value]) => value)
+        .filter((value) => value && !value.toLowerCase().includes(OTHER_SPECIFY_OPTION.toLowerCase()))
+        .join(' . ')
+
+      const createdTask = await createTaskWithSteps({
+        taskName,
+        contextSummary: contextText,
+        steps,
+        clarifyingAnswers: answers,
+      })
+
+      if (createdTask) {
+        setAiCard({ message: "Here's your plan.", taskCreated: createdTask })
+      }
+    } catch {
+      setAiCard({
+        message: "I couldn't create the task. Want to try again?",
+        quickReplies: ['Try again', 'Add task without steps'],
+        pendingTaskName: taskName,
+      })
+    }
+  }, [setContextGathering, setAiCard, addToConversation, createTaskWithSteps])
+
+  // Handle context gathering replies (defined before handleQuickReply)
+  const handleContextGatheringReply = useCallback(async (reply: string, taskName: string) => {
+    const gathering = contextGatheringRef.current
+    if (!gathering) return
+
+    const { questions, currentIndex, answers } = gathering
+    const currentQuestion = questions[currentIndex]
+
+    // Handle free text input completion
+    if (gathering.awaitingFreeTextFor) {
+      const updatedAnswers = { ...answers, [gathering.awaitingFreeTextFor.key]: reply }
+      const nextIndex = currentIndex + 1
+
+      if (nextIndex < questions.length) {
+        const nextQuestion = questions[nextIndex]
+        setContextGathering({
+          ...gathering,
+          currentIndex: nextIndex,
+          answers: updatedAnswers,
+          awaitingFreeTextFor: undefined,
+        })
+        setAiCard({
+          question: {
+            text: nextQuestion.question || nextQuestion.text || '',
+            index: nextIndex + 1,
+            total: questions.length,
+          },
+          quickReplies: nextQuestion.options,
+          pendingTaskName: taskName,
+        })
+        return
+      }
+
+      // All questions answered, create task
+      await finalizeTaskCreation(taskName, updatedAnswers)
+      return
     }
 
-    return parts.join('\n') || 'No context provided.'
-  }, [contextTags])
+    // Handle "Other" option
+    if (reply.toLowerCase().includes(OTHER_SPECIFY_OPTION.toLowerCase())) {
+      setContextGathering({
+        ...gathering,
+        awaitingFreeTextFor: { key: currentQuestion.key, prompt: currentQuestion.question || currentQuestion.text || '' },
+      })
+      setAiCard(prev => prev ? { ...prev, autoFocusInput: true, savedAnswer: reply } : prev)
+      return
+    }
 
-  // Handle AI submission
-  const handleSubmit = useCallback(async (value: string) => {
-    // Use refs to get current values without needing them as dependencies
+    // Store answer and save preference
+    const updatedAnswers = { ...answers, [currentQuestion.key]: reply }
+    if (currentQuestion.key && reply) {
+      setPreference(currentQuestion.key, reply)
+    }
+
+    // Check for more questions
+    if (currentIndex < questions.length - 1) {
+      const nextQuestion = questions[currentIndex + 1]
+      const nextSavedAnswer = nextQuestion.key ? getPreference(nextQuestion.key) : undefined
+      setContextGathering({
+        ...gathering,
+        currentIndex: currentIndex + 1,
+        answers: updatedAnswers,
+      })
+      setAiCard({
+        question: {
+          text: nextQuestion.question || nextQuestion.text || '',
+          index: currentIndex + 2,
+          total: questions.length,
+        },
+        quickReplies: nextQuestion.options,
+        pendingTaskName: taskName,
+        savedAnswer: nextSavedAnswer,
+      })
+      return
+    }
+
+    // All questions answered, create task
+    await finalizeTaskCreation(taskName, updatedAnswers)
+  }, [setContextGathering, setAiCard, getPreference, setPreference, finalizeTaskCreation])
+
+  // Core submit handler for new inputs (no circular dependency)
+  const submitNewInput = useCallback(async (value: string): Promise<void> => {
     const currentAiCard = aiCardRef.current
     const currentPendingInput = pendingInputRef.current
     const currentContextTags = contextTagsRef.current
@@ -179,11 +312,6 @@ export function useAIConversation(deps: AIConversationDeps): AIConversationState
     const currentTaskValue = currentTasks.find(t => t.id === currentTaskIdValue)
     const currentConversationHistory = conversationHistoryRef.current
 
-    if (contextGathering && currentAiCard?.question) {
-      await handleQuickReply(value)
-      return
-    }
-    // Check if this is a follow-up to an existing conversation (AI card showing with a message)
     const isFollowUpMessage = currentAiCard !== null && !currentAiCard.thinking && currentAiCard.message
     const isTaskView = Boolean(currentTaskIdValue && currentTaskValue)
 
@@ -217,253 +345,91 @@ export function useAIConversation(deps: AIConversationDeps): AIConversationState
       message: isFollowUpMessage ? currentAiCard?.message : undefined
     })
 
-    // Task view: keep context anchored to the current task (never create a new task)
+    // Task view: keep context anchored to the current task
     if (isTaskView && currentTaskValue) {
       try {
         const focusedStep = currentContextTags.find(t => t.type === 'step')?.step || null
-        const context = {
-          task: {
-            id: currentTaskValue.id,
-            title: currentTaskValue.title,
-            context_text: currentTaskValue.context_text,
-            steps: (currentTaskValue.steps || []).map((step) => ({
-              id: step.id,
-              text: step.text,
-              done: step.done,
-              summary: step.summary,
-            })),
-            focused_step: focusedStep
-              ? {
-                  id: focusedStep.id,
-                  text: focusedStep.text,
-                  done: focusedStep.done,
-                  summary: focusedStep.summary,
-                }
-              : null,
-          },
-          ui: {
-            view: 'task',
-            has_ai_card: Boolean(currentAiCard),
-          },
-          user: { message: value },
-        }
-
         const shouldGenerateSteps = isStepRequest(value)
-        if (!shouldGenerateSteps) {
+
+        if (shouldGenerateSteps) {
+          await addStepsToTask(currentTaskValue, value)
+        } else {
+          const context = {
+            task: {
+              id: currentTaskValue.id,
+              title: currentTaskValue.title,
+              context_text: currentTaskValue.context_text,
+              steps: (currentTaskValue.steps || []).map((step) => ({
+                id: step.id,
+                text: step.text,
+                done: step.done,
+                summary: step.summary,
+              })),
+              focused_step: focusedStep
+                ? { id: focusedStep.id, text: focusedStep.text, done: focusedStep.done, summary: focusedStep.summary }
+                : null,
+            },
+            ui: { view: 'task', has_ai_card: Boolean(currentAiCard) },
+            user: { message: value },
+          }
+
           const history = isFollowUpMessage
             ? [
-                ...conversationHistory,
+                ...currentConversationHistory,
                 ...(currentPendingInput ? [{ role: 'user', content: currentPendingInput }] : []),
                 ...(currentAiCard?.message ? [{ role: 'assistant', content: currentAiCard.message }] : []),
               ]
             : []
 
-          // Use streaming for chat responses
-          setAiCard({ streaming: true, streamingText: '', pendingTaskName: currentAiCard?.pendingTaskName })
-
-          const response = await authFetch('/api/chat', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Accept': 'text/event-stream' },
-            body: JSON.stringify({
-              message: value,
-              context,
-              history,
-              stream: true,
-            }),
+          const result = await streamChatResponse({
+            message: value,
+            context,
+            history,
+            currentTask: currentTaskValue,
+            pendingTaskName: currentAiCard?.pendingTaskName,
+            quickReplies: currentAiCard?.quickReplies,
           })
 
-          if (response.ok) {
-            let streamedSources: { title: string; url: string }[] = []
-            let streamedActions: ChatAction[] = []
-            let fullText = ''
-
-            // Check content type to see if server is streaming
-            const contentType = response.headers.get('content-type')
-            if (contentType?.includes('text/event-stream')) {
-              // Stream the response
-              await consumeStream(response, {
-                onToken: (text) => {
-                  fullText += text
-                  setAiCard(prev => ({
-                    ...prev,
-                    streaming: true,
-                    streamingText: parseStreamingMessage(fullText),
-                  }))
-                },
-                onSources: (sources) => {
-                  streamedSources = sources
-                },
-                onDone: (finalData) => {
-                  // Parse the done event data if it's an object
-                  try {
-                    const parsed = typeof finalData === 'string' ? JSON.parse(finalData) : finalData
-                    if (parsed.actions) streamedActions = parsed.actions
-                    if (parsed.sources) streamedSources = parsed.sources
-                    if (parsed.response) fullText = parsed.response
-                  } catch {
-                    // Use accumulated text
-                  }
-                },
-                onError: (error) => {
-                  setAiCard({ message: error || "Sorry, I couldn't get an answer." })
-                },
-              })
-            } else {
-              // Fallback to non-streaming
-              const data = await response.json()
-              fullText = data.response || ''
-              streamedSources = data.sources || []
-              streamedActions = data.actions || []
-            }
-
-            // Check if user message suggests they completed something
-            let completionPrompt: string | undefined
-            if (detectCompletionIntent(value) && currentTaskValue.steps?.length) {
-              const match = findMatchingStep(value, currentTaskValue.steps)
-              if (match) {
-                completionPrompt = `Mark "${match.text.length > 40 ? match.text.slice(0, 40) + '...' : match.text}" complete`
-              }
-            }
+          if (result.success) {
             setConversationHistory(prev => [
               ...prev,
               ...(isFollowUpMessage && currentPendingInput ? [{ role: 'user', content: currentPendingInput }] : []),
               ...(isFollowUpMessage && currentAiCard?.message ? [{ role: 'assistant', content: currentAiCard.message }] : []),
             ])
             setIsFollowUp(true)
-            const actions = filterActions(Array.isArray(streamedActions) ? streamedActions : [], currentTask) as ChatAction[]
-            setAiCard({
-              streaming: false,
-              streamingText: undefined,
-              message: parseAIMessage(fullText),
-              sources: streamedSources,
-              pendingTaskName: currentAiCard?.pendingTaskName,
-              quickReplies: actions.length > 0 ? undefined : (completionPrompt ? [completionPrompt] : currentAiCard?.quickReplies),
-              actions: actions.map((action) => ({
-                ...action,
-                label: action.label || (action.type === 'mark_step_done' ? `Mark step complete` : action.type === 'focus_step' ? 'Jump to step' : action.type === 'create_task' ? `Create task` : action.type === 'show_sources' ? 'Show sources' : action.type),
-              })),
-              showSources: actions.some((action) => action.type === 'show_sources') ? false : true,
-            })
-          } else {
-            // Check for upgrade required response
-            if (response.status === 429) {
-              try {
-                const errorData = await response.json()
-                if (errorData.upgradeRequired && onUpgradeRequired) {
-                  setAiCard({
-                    streaming: false,
-                    message: errorData.message || "You've reached your daily limit. Upgrade to Pro for unlimited AI assistance.",
-                  })
-                  onUpgradeRequired()
-                  return
-                }
-              } catch {
-                // Continue with default error handling
-              }
-            }
-            setAiCard({
-              streaming: false,
-              message: "Sorry, I couldn't get an answer. Try rephrasing your question.",
-            })
-          }
-        } else {
-          const existingStepTexts = (currentTaskValue.steps || []).map(s => s.text)
-          const response = await authFetch('/api/suggest-subtasks', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              title: currentTaskValue.title,
-              description: currentTaskValue.description,
-              notes: value,
-              existingSubtasks: existingStepTexts,
-            }),
-          })
-
-          if (response.ok) {
-            const data = await response.json()
-            const newSteps = mapAIStepsToSteps(data.subtasks || [])
-
-            await updateTask(currentTaskValue.id, {
-              steps: [...(currentTaskValue.steps || []), ...newSteps],
-            } as Partial<Task>)
-
-            setAiCard({
-              message: `Added ${newSteps.length} more steps.`,
-            })
-          } else {
-            setAiCard({
-              message: "Couldn't generate steps. Try being more specific.",
-            })
           }
         }
       } catch {
-        setAiCard({
-          message: "Something went wrong. Please try again.",
-        })
+        setAiCard({ message: "Something went wrong. Please try again." })
       }
       return
     }
 
-    // If we have an AI card showing (follow-up) OR context tags with a question, use chat API
-    if (isFollowUpMessage || (currentContextTags.length > 0 && isQuestion(value))) {
+    // Home view with follow-up or question
+    if (isFollowUpMessage || (currentContextTags.length > 0 && isQuestionMessage(value))) {
       try {
-        // Build structured context - include pending task name if we're following up on task creation
-        let context: {
-          task: null | {
-            id: string
-            title: string
-            context_text: string | null | undefined
-            steps: Array<{ id: string | number; text: string; done: boolean; summary: string | undefined }>
-            focused_step: { id: string | number; text: string; done: boolean; summary: string | undefined } | null
-          }
-          ui: { view: string; has_ai_card: boolean }
-          user: { message: string; pendingTaskName?: string }
-        } = {
-          task: null,
-          ui: {
-            view: currentTaskIdValue ? 'task' : 'home',
-            has_ai_card: Boolean(currentAiCard),
-          },
-          user: { message: value },
-        }
-        if (currentContextTags.length > 0) {
-          const taskTag = currentContextTags.find((tag) => tag.type === 'task')?.task
-          const stepTag = currentContextTags.find((tag) => tag.type === 'step')?.step
-          if (taskTag) {
-            context = {
-              task: {
-                id: taskTag.id,
-                title: taskTag.title,
-                context_text: taskTag.context_text,
-                steps: (taskTag.steps || []).map((step) => ({
-                  id: step.id,
-                  text: step.text,
-                  done: step.done,
-                  summary: step.summary,
-                })),
-                focused_step: stepTag
-                  ? { id: stepTag.id, text: stepTag.text, done: stepTag.done, summary: stepTag.summary }
-                  : null,
-              },
-              ui: {
-                view: currentTaskIdValue ? 'task' : 'home',
-                has_ai_card: Boolean(currentAiCard),
-              },
-              user: { message: value },
-            }
-          }
-        }
-        if (isFollowUpMessage && currentAiCard?.pendingTaskName) {
-          context = {
-            ...context,
-            user: {
-              message: value,
-              pendingTaskName: currentAiCard?.pendingTaskName,
-            },
-          }
+        const taskTag = currentContextTags.find((tag) => tag.type === 'task')?.task
+        const stepTag = currentContextTags.find((tag) => tag.type === 'step')?.step
+
+        const context = {
+          task: taskTag ? {
+            id: taskTag.id,
+            title: taskTag.title,
+            context_text: taskTag.context_text,
+            steps: (taskTag.steps || []).map((step) => ({
+              id: step.id,
+              text: step.text,
+              done: step.done,
+              summary: step.summary,
+            })),
+            focused_step: stepTag
+              ? { id: stepTag.id, text: stepTag.text, done: stepTag.done, summary: stepTag.summary }
+              : null,
+          } : null,
+          ui: { view: currentTaskIdValue ? 'task' : 'home', has_ai_card: Boolean(currentAiCard) },
+          user: { message: value, pendingTaskName: isFollowUpMessage ? currentAiCard?.pendingTaskName : undefined },
         }
 
-        // Build history including the current exchange if it's a follow-up
         const history = isFollowUpMessage
           ? [
               ...currentConversationHistory,
@@ -472,478 +438,103 @@ export function useAIConversation(deps: AIConversationDeps): AIConversationState
             ]
           : []
 
-        // Use streaming for chat responses
-        setAiCard({ streaming: true, streamingText: '', pendingTaskName: currentAiCard?.pendingTaskName })
-
-        const response = await authFetch('/api/chat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Accept': 'text/event-stream' },
-          body: JSON.stringify({
-            message: value,
-            context,
-            history,
-            stream: true,
-          }),
-        })
-
-        if (response.ok) {
-          let streamedSources: { title: string; url: string }[] = []
-          let streamedActions: ChatAction[] = []
-          let fullText = ''
-
-          const contentType = response.headers.get('content-type')
-          if (contentType?.includes('text/event-stream')) {
-            await consumeStream(response, {
-              onToken: (text) => {
-                fullText += text
-                setAiCard(prev => ({
-                  ...prev,
-                  streaming: true,
-                  streamingText: parseStreamingMessage(fullText),
-                }))
-              },
-              onSources: (sources) => {
-                streamedSources = sources as { title: string; url: string }[]
-              },
-              onDone: (finalText) => {
-                // Try to parse actions from the response
-                try {
-                  const jsonMatch = finalText.match(/\{[\s\S]*\}/)
-                  if (jsonMatch) {
-                    const parsed = JSON.parse(jsonMatch[0])
-                    if (Array.isArray(parsed.actions)) {
-                      streamedActions = filterActions(parsed.actions, currentContextTags.find((tag) => tag.type === 'task')?.task || currentTaskValue) as ChatAction[]
-                    }
-                  }
-                } catch {
-                  // No actions in response
-                }
-              },
-              onError: (error) => {
-                setAiCard({
-                  message: error || "Something went wrong. Please try again.",
-                  streaming: false,
-                })
-              },
-            })
-
-            // Update conversation history
-            setConversationHistory(prev => [
-              ...prev,
-              ...(isFollowUpMessage && currentPendingInput ? [{ role: 'user', content: currentPendingInput }] : []),
-              ...(isFollowUpMessage && currentAiCard?.message ? [{ role: 'assistant', content: currentAiCard.message }] : []),
-            ])
-            setIsFollowUp(true)
-
-            // Finalize with streaming complete
-            setAiCard({
-              message: parseAIMessage(fullText),
-              sources: streamedSources,
-              streaming: false,
-              pendingTaskName: currentAiCard?.pendingTaskName,
-              quickReplies: streamedActions.length > 0 ? undefined : currentAiCard?.quickReplies,
-              actions: streamedActions.map((action) => ({
-                ...action,
-                label: action.label || (action.type === 'mark_step_done' ? `Mark step complete` : action.type === 'focus_step' ? 'Jump to step' : action.type === 'create_task' ? `Create task` : action.type === 'show_sources' ? 'Show sources' : action.type),
-              })),
-              showSources: streamedActions.some((action) => action.type === 'show_sources') ? false : true,
-            })
-          } else {
-            // Fallback to JSON response if not streaming
-            const data = await response.json()
-            setConversationHistory(prev => [
-              ...prev,
-              ...(isFollowUpMessage && currentPendingInput ? [{ role: 'user', content: currentPendingInput }] : []),
-              ...(isFollowUpMessage && currentAiCard?.message ? [{ role: 'assistant', content: currentAiCard.message }] : []),
-            ])
-            setIsFollowUp(true)
-            const actions = filterActions(Array.isArray(data.actions) ? data.actions : [], currentContextTags.find((tag) => tag.type === 'task')?.task || currentTaskValue) as ChatAction[]
-            setAiCard({
-              message: data.response,
-              sources: data.sources || [],
-              streaming: false,
-              pendingTaskName: currentAiCard?.pendingTaskName,
-              quickReplies: actions.length > 0 ? undefined : currentAiCard?.quickReplies,
-              actions: actions.map((action) => ({
-                ...action,
-                label: action.label || (action.type === 'mark_step_done' ? `Mark step complete` : action.type === 'focus_step' ? 'Jump to step' : action.type === 'create_task' ? `Create task` : action.type === 'show_sources' ? 'Show sources' : action.type),
-              })),
-              showSources: actions.some((action) => action.type === 'show_sources') ? false : true,
-            })
-          }
-        } else {
-          // Check for upgrade required response
-          if (response.status === 429) {
-            try {
-              const errorData = await response.json()
-              if (errorData.upgradeRequired && onUpgradeRequired) {
-                setAiCard({
-                  streaming: false,
-                  message: errorData.message || "You've reached your daily limit. Upgrade to Pro for unlimited AI assistance.",
-                })
-                onUpgradeRequired()
-                return
-              }
-            } catch {
-              // Continue with default error handling
-            }
-          }
-          setAiCard({
-            message: "Sorry, I couldn't get an answer. Try rephrasing your question.",
-            streaming: false,
-          })
-        }
-      } catch {
-        setAiCard({
-          message: "Something went wrong. Please try again.",
-        })
-      }
-      return
-    }
-
-    // If we have task context and it's NOT a question, add more steps
-    const taskContext = currentContextTags.find(t => t.type === 'task')
-    if (taskContext?.task && !isQuestion(value)) {
-      const targetTask = taskContext.task
-      try {
-        // Pass existing steps to avoid duplicates
-        const existingStepTexts = (targetTask.steps || []).map(s => s.text)
-
-        const response = await authFetch('/api/suggest-subtasks', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            title: targetTask.title,
-            description: targetTask.description,
-            notes: value,
-            existingSubtasks: existingStepTexts,
-          }),
-        })
-
-        if (response.ok) {
-          const data = await response.json()
-          const newSteps = mapAIStepsToSteps(data.subtasks || [])
-
-          await updateTask(targetTask.id, {
-            steps: [...(targetTask.steps || []), ...newSteps],
-          } as Partial<Task>)
-
-          setAiCard({
-            message: `Added ${newSteps.length} more steps.`,
-          })
-        } else {
-          setAiCard({
-            message: "Couldn't generate steps. Try being more specific.",
-          })
-        }
-      } catch {
-        setAiCard({
-          message: "Something went wrong. Please try again.",
-        })
-      }
-      return
-    }
-
-    // Home view - creating a new task with AI-driven context gathering
-    setAiCard({ thinking: true, message: "Understanding what you need..." })
-
-    // Get relevant memory for this type of task
-    const relevantMemory = getRelevantMemory(value)
-    const memoryContext = getMemoryForAI()
-
-
-    try {
-      // Call general-purpose AI analysis endpoint
-      const response = await authFetch('/api/analyze-intent', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+        const result = await streamChatResponse({
           message: value,
-          memory: [
-            ...memoryContext,
-            ...(relevantMemory ? [{ role: 'system', content: relevantMemory }] : []),
-          ],
-        }),
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to analyze intent')
-      }
-
-      const data = await response.json()
-
-      // Add to conversation history
-      addToConversation('user', value)
-      addToConversation('assistant', data.understanding || 'Asked clarifying questions')
-
-      // ALWAYS ask questions if the task is vague or we need more info
-      const shouldAskQuestions = data.needsMoreInfo !== false || !data.ifComplete?.steps || data.ifComplete.steps.length < 2
-
-      if (shouldAskQuestions && data.questions?.length > 0) {
-        const sanitizedQuestions = sanitizeQuestions(data.taskName || value, data.questions)
-        const firstQuestionText = sanitizedQuestions[0].question || sanitizedQuestions[0].text || ''
-        const firstQuestionKey = sanitizedQuestions[0].key
-        // Check for saved preference
-        const savedAnswer = firstQuestionKey ? getPreference(firstQuestionKey) : undefined
-
-        // AI needs more context - start gathering
-        setContextGathering({
-          questions: sanitizedQuestions,
-          currentIndex: 0,
-          answers: {},
-          taskName: data.taskName || value,
+          context,
+          history,
+          currentTask: taskTag || currentTaskValue,
+          pendingTaskName: currentAiCard?.pendingTaskName,
+          quickReplies: currentAiCard?.quickReplies,
         })
 
-        setAiCard({
-          introMessage: undefined,
-          question: {
-            text: firstQuestionText,
-            index: 1,
-            total: sanitizedQuestions.length,
-          },
-          quickReplies: sanitizedQuestions[0].options,
-          pendingTaskName: data.taskName || value,
-          savedAnswer, // Pass saved preference to highlight
-        })
-      } else if (data.ifComplete?.steps && data.ifComplete.steps.length > 0) {
-        // AI has enough info - but still do web research for better steps with sources
-        const taskName = data.taskName || value
-        const contextSummary = data.ifComplete.contextSummary || ''
-        const detectedDeadline = data.deadline?.date || null
-
-        setAiCard({ thinking: true, message: "Researching the best steps for you..." })
-
-        try {
-          const response = await authFetch('/api/suggest-subtasks', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              title: taskName,
-              description: contextSummary,
-              context: data.extractedContext || {},
-            }),
-          })
-
-          let steps: Step[] = []
-          let sources: { title: string; url: string }[] = []
-
-          if (response.ok) {
-            const result = await response.json()
-            sources = result.sources || []
-            steps = (result.subtasks || []).map((item: SubtaskItem | string, index: number) => {
-              if (typeof item === 'string') {
-                return { id: `step-${Date.now()}-${index}`, text: item, done: false }
-              }
-              const parsed = splitStepText(item.text || '')
-              return {
-                id: `step-${Date.now()}-${index}`,
-                text: item.text || '',
-                done: false,
-                summary: item.summary || parsed.remainder,
-                detail: item.detail,
-                time: item.time,
-                source: item.source,
-                action: item.action,
-              }
-            })
-          } else {
-            steps = data.ifComplete.steps.map((s: AnalyzeIntentStep, i: number) => ({
-              id: `step-${Date.now()}-${i}`,
-              text: s.text,
-              done: false,
-              summary: s.summary,
-              detail: s.detail,
-              time: s.time,
-            }))
-          }
-
-          const newTask = await addTask(
-            taskName,
-            'soon',
-            undefined,
-            undefined,
-            undefined,
-            undefined,
-            detectedDeadline
-          )
-
-          if (newTask) {
-            await updateTask(newTask.id, {
-              steps,
-              context_text: contextSummary,
-              due_date: detectedDeadline,
-            } as Partial<Task>)
-
-            const updatedTask: Task = {
-              ...newTask,
-              steps,
-              context_text: contextSummary || null,
-            }
-
-            addEntry({
-              type: 'task_created',
-              taskTitle: taskName,
-              context: {},
-            })
-
-            setAiCard({
-              message: "Here's your plan.",
-              taskCreated: updatedTask,
-              sources,
-            })
-          }
-        } catch {
-          // Fallback to original ifComplete steps
-          const steps: Step[] = data.ifComplete.steps.map((s: AnalyzeIntentStep, i: number) => ({
-            id: `step-${Date.now()}-${i}`,
-            text: s.text,
-            done: false,
-            summary: s.summary,
-            detail: s.detail,
-            time: s.time,
-          }))
-
-          const newTask = await addTask(taskName, 'soon', undefined, undefined, undefined, undefined, detectedDeadline)
-          if (newTask) {
-            await updateTask(newTask.id, { steps, context_text: contextSummary, due_date: detectedDeadline } as Partial<Task>)
-            const updatedTask: Task = { ...newTask, steps, context_text: contextSummary || null }
-            addEntry({ type: 'task_created', taskTitle: taskName, context: {} })
-            setAiCard({ message: "Here's your plan.", taskCreated: updatedTask })
-          }
+        if (result.success) {
+          setConversationHistory(prev => [
+            ...prev,
+            ...(isFollowUpMessage && currentPendingInput ? [{ role: 'user', content: currentPendingInput }] : []),
+            ...(isFollowUpMessage && currentAiCard?.message ? [{ role: 'assistant', content: currentAiCard.message }] : []),
+          ])
+          setIsFollowUp(true)
         }
-      } else {
-        // AI didn't generate questions or steps - create task and generate steps
-        const taskName = data.taskName || value
-        const detectedDeadline = data.deadline?.date || null
-
-        setAiCard({ thinking: true, message: "Breaking this down for you..." })
-
-        try {
-          // Generate steps even for "simple" tasks
-          const stepResponse = await authFetch('/api/suggest-subtasks', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              title: taskName,
-              description: '',
-            }),
-          })
-
-          let steps: Step[] = []
-          if (stepResponse.ok) {
-            const stepData = await stepResponse.json()
-            steps = (stepData.subtasks || []).map((item: SubtaskItem | string, i: number) => {
-              if (typeof item === 'string') {
-                return { id: `step-${Date.now()}-${i}`, text: item, done: false }
-              }
-              const parsed = splitStepText(item.text || '')
-              return {
-                id: `step-${Date.now()}-${i}`,
-                text: item.text || '',
-                done: false,
-                summary: item.summary || parsed.remainder,
-                detail: item.detail,
-                time: item.time,
-                source: item.source,
-                action: item.action,
-              }
-            })
-          }
-
-          // Fallback if no steps generated
-          if (steps.length === 0) {
-            steps = createFallbackSteps(taskName, '')
-          }
-
-          const newTask = await addTask(
-            taskName,
-            'soon',
-            undefined,
-            undefined,
-            undefined,
-            undefined,
-            detectedDeadline
-          )
-
-          if (newTask) {
-            await updateTask(newTask.id, {
-              steps,
-              due_date: detectedDeadline,
-            } as Partial<Task>)
-
-            const updatedTask: Task = { ...newTask, steps }
-
-            addEntry({
-              type: 'task_created',
-              taskTitle: taskName,
-              context: {},
-            })
-
-            setAiCard({
-              message: "Here's your plan.",
-              taskCreated: updatedTask,
-            })
-          }
-        } catch {
-          // Fallback - still create task with generic steps
-          const steps = createFallbackSteps(taskName, '')
-          const newTask = await addTask(taskName, 'soon', undefined, undefined, undefined, undefined, detectedDeadline)
-          if (newTask) {
-            await updateTask(newTask.id, { steps, due_date: detectedDeadline } as Partial<Task>)
-            const updatedTask: Task = { ...newTask, steps }
-            setAiCard({
-              message: "Here's your plan.",
-              taskCreated: updatedTask,
-            })
-          }
-        }
+      } catch {
+        setAiCard({ message: "Something went wrong. Please try again." })
       }
-    } catch {
-      // AI failed - show friendly error with options
-      setAiCard({
-        message: "I couldn't analyze that right now. You can try again or I'll add it with basic steps.",
-        quickReplies: ['Try again', 'Add with basic steps'],
-        pendingTaskName: value,
-      })
+      return
     }
-  }, [buildContextFromTags, getMemoryForAI, getRelevantMemory, addTask, addEntry, addToConversation, updateTask, contextGathering, getPreference, conversationHistory, currentTask])
+
+    // Add steps to existing task context
+    const taskContext = currentContextTags.find(t => t.type === 'task')
+    if (taskContext?.task && !isQuestionMessage(value)) {
+      await addStepsToTask(taskContext.task, value)
+      return
+    }
+
+    // Home view - new task creation with AI analysis
+    const intentResult = await analyzeIntentAndGather(value)
+
+    if (!intentResult) {
+      return
+    }
+
+    if (intentResult.needsQuestions) {
+      return
+    }
+
+    const taskName = intentResult.taskName || value
+    const intentData = intentResult.intentData
+
+    if (intentData?.ifComplete?.steps && intentData.ifComplete.steps.length > 0) {
+      await createTaskFromIntent(taskName, intentData)
+    } else {
+      await createSimpleTask(taskName, intentData?.deadline?.date)
+    }
+  }, [streamChatResponse, addStepsToTask, analyzeIntentAndGather, isQuestionMessage, createTaskFromIntent, createSimpleTask, setConversationHistory, setIsFollowUp, setAiCard, setDuplicatePrompt, bypassDuplicateRef])
+
+  // Handle AI submission (public API)
+  const handleSubmit = useCallback(async (value: string): Promise<void> => {
+    const currentAiCard = aiCardRef.current
+    const gathering = contextGatheringRef.current
+
+    // If in context gathering mode, delegate to context gathering handler
+    if (gathering && currentAiCard?.question) {
+      const taskName = currentAiCard?.pendingTaskName || pendingInputRef.current || 'New task'
+      await handleContextGatheringReply(value, taskName)
+      return
+    }
+
+    await submitNewInput(value)
+  }, [handleContextGatheringReply, submitNewInput])
 
   // Handle quick reply
-  const handleQuickReply = useCallback(async (reply: string) => {
-    // Use refs to get current values without needing them as dependencies
+  const handleQuickReply = useCallback(async (reply: string): Promise<void> => {
     const currentAiCard = aiCardRef.current
     const currentPendingInput = pendingInputRef.current
     const currentTasks = tasksRef.current
     const currentTaskIdValue = currentTaskIdRef.current
     const currentTaskValue = currentTasks.find(t => t.id === currentTaskIdValue)
+    const gathering = contextGatheringRef.current
 
     const taskName = currentAiCard?.pendingTaskName || currentPendingInput || 'New task'
 
+    // Handle "Try again"
     if (reply === 'Try again' && currentPendingInput) {
       setAiCard(null)
-      await handleSubmit(currentPendingInput)
+      await submitNewInput(currentPendingInput)
       return
     }
 
+    // Handle "Add with basic steps"
     if (reply === 'Add task without steps' || reply === 'Add with basic steps') {
-      // Always add with steps - use fallback steps at minimum
       const steps = createFallbackSteps(taskName, '')
-      const newTask = await addTask(taskName, 'soon')
-      if (newTask) {
-        await updateTask(newTask.id, { steps } as Partial<Task>)
-        const updatedTask: Task = { ...newTask, steps }
-        setAiCard({
-          message: "Here's your plan.",
-          taskCreated: updatedTask,
-        })
+      const createdTask = await createTaskWithSteps({ taskName, steps })
+      if (createdTask) {
+        setAiCard({ message: "Here's your plan.", taskCreated: createdTask })
       } else {
-        setAiCard({
-          message: "I couldn't add the task. Please try again.",
-        })
+        setAiCard({ message: "I couldn't add the task. Please try again." })
       }
       return
     }
 
+    // Handle step completion quick reply
     if (reply.startsWith('Mark "') && reply.endsWith('" complete') && currentTaskValue) {
       const targetText = reply.slice(6, -10)
       const targetStep = (currentTaskValue.steps || []).find((step) => step.text === targetText)
@@ -954,6 +545,7 @@ export function useAIConversation(deps: AIConversationDeps): AIConversationState
       return
     }
 
+    // Handle duplicate prompt responses
     if (duplicatePrompt) {
       if (reply === 'Update existing') {
         setDuplicatePrompt(null)
@@ -968,299 +560,52 @@ export function useAIConversation(deps: AIConversationDeps): AIConversationState
         setDuplicatePrompt(null)
         setAiCard(null)
         bypassDuplicateRef.current = true
-        await handleSubmit(originalInput)
+        await submitNewInput(originalInput)
         return
       }
     }
 
-    // Check if we're in context gathering mode
-    if (contextGathering) {
-      const { questions, currentIndex, answers } = contextGathering
-      const currentQuestion = questions[currentIndex]
-
-      if (contextGathering.awaitingFreeTextFor) {
-        const updatedAnswers = { ...answers, [contextGathering.awaitingFreeTextFor.key]: reply }
-        const nextIndex = currentIndex + 1
-        if (nextIndex < questions.length) {
-          const nextQuestion = questions[nextIndex]
-          const nextQuestionText = nextQuestion.question || nextQuestion.text || ''
-          setContextGathering({
-            ...contextGathering,
-            currentIndex: nextIndex,
-            answers: updatedAnswers,
-            awaitingFreeTextFor: undefined,
-          })
-          setAiCard({
-            question: {
-              text: nextQuestionText,
-              index: nextIndex + 1,
-              total: questions.length,
-            },
-            quickReplies: nextQuestion.options,
-            pendingTaskName: taskName,
-          })
-          return
-        }
-
-        setContextGathering(null)
-        const contextDescription = Object.entries(updatedAnswers)
-          .filter(([, value]) => value && !value.toLowerCase().includes(OTHER_SPECIFY_OPTION.toLowerCase()))
-          .map(([key, value]) => `${key}: ${value}`)
-          .join(', ')
-
-        setAiCard({ thinking: true, message: "Got it. Researching specific steps for your situation..." })
-
-        try {
-          addToConversation('user', `Context: ${contextDescription}`)
-          const response = await authFetch('/api/suggest-subtasks', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              title: taskName,
-              description: contextDescription,
-              clarifyingAnswers: Object.entries(updatedAnswers).map(([q, a]) => ({ question: q, answer: a })),
-            }),
-          })
-
-          let steps: Step[] = []
-
-          if (response.ok) {
-            const data = await response.json()
-            steps = mapAIStepsToSteps(data.subtasks || [])
-          } else {
-            steps = createFallbackSteps(taskName, contextDescription)
-          }
-
-          const newTask = await addTask(taskName, 'soon')
-          if (newTask) {
-            const contextText = Object.entries(updatedAnswers)
-              .map(([_, value]) => value)
-              .filter((value) => value && !value.toLowerCase().includes(OTHER_SPECIFY_OPTION.toLowerCase()))
-              .join(' · ')
-
-            try {
-              await updateTask(newTask.id, {
-                steps,
-                context_text: contextText,
-              } as Partial<Task>)
-            } catch {
-              // Steps column may need migration
-            }
-
-            const updatedTask: Task = {
-              ...newTask,
-              steps,
-              context_text: contextText || null,
-            }
-
-            addEntry({
-              type: 'task_created',
-              taskTitle: taskName,
-              context: updatedAnswers,
-            })
-
-            setAiCard({
-              message: "Here's your plan.",
-              taskCreated: updatedTask,
-            })
-          }
-        } catch {
-          setAiCard({
-            message: "I couldn't create the task. Want to try again?",
-            quickReplies: ['Try again', 'Add task without steps'],
-            pendingTaskName: taskName,
-          })
-        }
-        return
-      }
-
-      // Store the answer
-      const updatedAnswers = { ...answers, [currentQuestion.key]: reply }
-
-      if (reply.toLowerCase().includes(OTHER_SPECIFY_OPTION.toLowerCase())) {
-        // Set free text mode, clear saved answer, mark "Other" as selected
-        setContextGathering({
-          ...contextGathering,
-          awaitingFreeTextFor: { key: currentQuestion.key, prompt: currentQuestion.question || currentQuestion.text || '' },
-        })
-        // Clear savedAnswer but keep quickReplies for autocomplete, mark other as selected
-        setAiCard(prev => prev ? {
-          ...prev,
-          autoFocusInput: true,
-          savedAnswer: reply, // Mark "Other" as selected
-        } : prev)
-        return
-      }
-
-      // Save preference for future use (e.g., state, country)
-      if (currentQuestion.key && reply) {
-        setPreference(currentQuestion.key, reply)
-      }
-
-      // Check if there are more questions
-      if (currentIndex < questions.length - 1) {
-        // Ask the next question
-        const nextQuestion = questions[currentIndex + 1]
-        const nextQuestionText = nextQuestion.question || nextQuestion.text || ''
-        const nextSavedAnswer = nextQuestion.key ? getPreference(nextQuestion.key) : undefined
-        setContextGathering({
-          ...contextGathering,
-          currentIndex: currentIndex + 1,
-          answers: updatedAnswers,
-        })
-        setAiCard({
-          question: {
-            text: nextQuestionText,
-            index: currentIndex + 2,
-            total: questions.length,
-          },
-          quickReplies: nextQuestion.options,
-          pendingTaskName: taskName,
-          savedAnswer: nextSavedAnswer,
-        })
-        return
-      }
-
-      // All questions answered - clear gathering state and create task
-      setContextGathering(null)
-      const contextDescription = Object.entries(updatedAnswers)
-        .filter(([, value]) => value && !value.toLowerCase().includes(OTHER_SPECIFY_OPTION.toLowerCase()))
-        .map(([key, value]) => `${key}: ${value}`)
-        .join(', ')
-
-      // Now create the task with full context
-      setAiCard({ thinking: true, message: "Got it. Researching specific steps for your situation..." })
-
-      try {
-        // Add the gathered context to conversation history
-        addToConversation('user', `Context: ${contextDescription}`)
-
-        const response = await authFetch('/api/suggest-subtasks', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            title: taskName,
-            description: contextDescription,
-            clarifyingAnswers: Object.entries(updatedAnswers).map(([q, a]) => ({ question: q, answer: a })),
-          }),
-        })
-
-        let steps: Step[] = []
-
-        if (response.ok) {
-          const data = await response.json()
-          steps = mapAIStepsToSteps(data.subtasks || [])
-        } else {
-          steps = createFallbackSteps(taskName, contextDescription)
-        }
-
-        // Create the task
-        const newTask = await addTask(taskName, 'soon')
-        if (newTask) {
-          // Build context text from answers
-          const contextText = Object.entries(updatedAnswers)
-            .map(([_, value]) => value)
-            .filter((value) => value && !value.toLowerCase().includes(OTHER_SPECIFY_OPTION.toLowerCase()))
-            .join(' · ')
-
-          try {
-            await updateTask(newTask.id, {
-              steps,
-              context_text: contextText,
-            } as Partial<Task>)
-          } catch {
-            // Steps column may need migration
-          }
-
-          const updatedTask: Task = {
-            ...newTask,
-            steps,
-            context_text: contextText || null,
-          }
-
-          // Add to memory
-          addEntry({
-            type: 'task_created',
-            taskTitle: taskName,
-            context: updatedAnswers,
-          })
-
-          setAiCard({
-            message: "Here's your plan.",
-            taskCreated: updatedTask,
-          })
-        }
-      } catch {
-        setAiCard({
-          message: "I couldn't create the task. Please try again.",
-        })
-      }
+    // Handle context gathering responses
+    if (gathering) {
+      await handleContextGatheringReply(reply, taskName)
       return
     }
 
-    // Legacy flow (no context gathering)
+    // Legacy flow (no context gathering) - create task with reply as description
     setAiCard({ thinking: true })
 
     try {
-      const response = await authFetch('/api/suggest-subtasks', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: taskName,
-          description: reply,
-        }),
+      const { steps } = await generateSteps({ taskTitle: taskName, description: reply })
+      const contextText = reply === 'ASAP' ? 'High priority' : undefined
+      const finalSteps = steps.length > 0 ? steps : createFallbackSteps(taskName)
+
+      const createdTask = await createTaskWithSteps({
+        taskName,
+        contextSummary: contextText,
+        steps: finalSteps,
       })
 
-      let steps: Step[] = []
-      let contextText: string | undefined
-
-      if (response.ok) {
-        const data = await response.json()
-        steps = mapAIStepsToSteps(data.subtasks || [])
-        contextText = reply === 'ASAP' ? 'High priority' : undefined
-      } else {
-        steps = createFallbackSteps(taskName)
-      }
-
-      const newTask = await addTask(taskName, 'soon')
-      if (newTask) {
-        try {
-          await updateTask(newTask.id, {
-            steps,
-            context_text: contextText,
-          } as Partial<Task>)
-        } catch {
-          // Steps column may need migration
-        }
-
-        const updatedTask: Task = {
-          ...newTask,
-          steps,
-          context_text: contextText || null,
-        }
-
-        setAiCard({
-          message: "Here's your plan.",
-          taskCreated: updatedTask,
-        })
+      if (createdTask) {
+        setAiCard({ message: "Here's your plan.", taskCreated: createdTask })
       }
     } catch {
-      setAiCard({
-        message: "I couldn't create the task. Please try again.",
-      })
+      setAiCard({ message: "I couldn't create the task. Please try again." })
     }
-  }, [contextGathering, duplicatePrompt, toggleStep, goToTask, setCurrentTaskId, handleSubmit, addTask, updateTask, addToConversation, addEntry, getPreference, setPreference])
+  }, [duplicatePrompt, toggleStep, goToTask, setCurrentTaskId, submitNewInput, createTaskWithSteps, generateSteps, setAiCard, setDuplicatePrompt, bypassDuplicateRef, handleContextGatheringReply])
 
+  // Handle back button in context gathering
   const handleBackQuestion = useCallback(() => {
-    if (!contextGathering) return
-    const { questions, currentIndex, answers, taskName, awaitingFreeTextFor } = contextGathering
+    const gathering = contextGatheringRef.current
+    if (!gathering) return
+
+    const { questions, currentIndex, answers, taskName, awaitingFreeTextFor } = gathering
 
     if (awaitingFreeTextFor) {
       const updatedAnswers = { ...answers }
       delete updatedAnswers[awaitingFreeTextFor.key]
       const question = questions[currentIndex]
       setContextGathering({
-        ...contextGathering,
+        ...gathering,
         answers: updatedAnswers,
         awaitingFreeTextFor: undefined,
       })
@@ -1277,6 +622,7 @@ export function useAIConversation(deps: AIConversationDeps): AIConversationState
     }
 
     if (currentIndex === 0) return
+
     const prevIndex = currentIndex - 1
     const prevQuestion = questions[prevIndex]
     const updatedAnswers = { ...answers }
@@ -1286,7 +632,7 @@ export function useAIConversation(deps: AIConversationDeps): AIConversationState
     }
 
     setContextGathering({
-      ...contextGathering,
+      ...gathering,
       currentIndex: prevIndex,
       answers: updatedAnswers,
     })
@@ -1299,10 +645,12 @@ export function useAIConversation(deps: AIConversationDeps): AIConversationState
       quickReplies: prevQuestion.options,
       pendingTaskName: taskName,
     })
-  }, [contextGathering])
+  }, [setContextGathering, setAiCard])
 
+  // Handle AI card actions
   const handleAICardAction = useCallback(async (action: { type: string; stepId?: string | number; title?: string; context?: string }) => {
     if (!action) return
+
     if (action.type === 'mark_step_done' && currentTask && action.stepId !== undefined) {
       const target = (currentTask.steps || []).find((step) => step.id === action.stepId)
       if (target) {
@@ -1312,27 +660,20 @@ export function useAIConversation(deps: AIConversationDeps): AIConversationState
     }
 
     if (action.type === 'focus_step' && action.stepId !== undefined) {
-      // This will be handled by the parent component through the focusStepId callback
-      // For now, we don't handle it here - return void
       return
     }
 
     if (action.type === 'create_task' && action.title) {
-      const newTask = await addTask(action.title, 'soon')
-      if (newTask) {
-        // Generate steps for the new task using fallback steps
-        const steps = createFallbackSteps(action.title, action.context || '')
-        await updateTask(newTask.id, {
-          steps,
-          context_text: action.context || undefined,
-        } as Partial<Task>)
+      const steps = createFallbackSteps(action.title, action.context || '')
+      const createdTask = await createTaskWithSteps({
+        taskName: action.title,
+        contextSummary: action.context,
+        steps,
+      })
+      if (createdTask) {
         setAiCard({
           message: `Created "${action.title}".`,
-          taskCreated: {
-            ...newTask,
-            steps,
-            context_text: action.context || null,
-          },
+          taskCreated: createdTask,
         })
       }
       return
@@ -1341,7 +682,7 @@ export function useAIConversation(deps: AIConversationDeps): AIConversationState
     if (action.type === 'show_sources') {
       setAiCard((prev) => (prev ? { ...prev, showSources: true } : prev))
     }
-  }, [addTask, currentTask, toggleStep, updateTask])
+  }, [currentTask, toggleStep, createTaskWithSteps, setAiCard])
 
   // Dismiss AI card
   const dismissAI = useCallback(() => {
