@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 
 interface SnoozeMenuProps {
   onSnooze: (date: string) => void
@@ -8,7 +8,7 @@ interface SnoozeMenuProps {
 }
 
 /**
- * Menu for snoozing a task to a later date
+ * Menu for snoozing a task to a later date or time
  */
 export function SnoozeMenu({ onSnooze, onCancel }: SnoozeMenuProps) {
   const [showCustom, setShowCustom] = useState(false)
@@ -20,11 +20,66 @@ export function SnoozeMenu({ onSnooze, onCancel }: SnoozeMenuProps) {
     return date.toISOString().split('T')[0]
   }
 
+  const getDateTimeString = (hoursFromNow: number): string => {
+    const date = new Date()
+    date.setHours(date.getHours() + hoursFromNow)
+    return date.toISOString()
+  }
+
   const formatDate = (daysFromNow: number): string => {
     const date = new Date()
     date.setDate(date.getDate() + daysFromNow)
     return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
   }
+
+  const formatTime = (hoursFromNow: number): string => {
+    const date = new Date()
+    date.setHours(date.getHours() + hoursFromNow)
+    return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+  }
+
+  // Calculate quick snooze options based on current time
+  const quickOptions = useMemo(() => {
+    const now = new Date()
+    const currentHour = now.getHours()
+    const options: { label: string; datetime: string; time: string; isToday: boolean }[] = []
+
+    // "Later today" options (before 9 PM)
+    if (currentHour < 21) {
+      // In 1 hour
+      options.push({
+        label: 'In 1 hour',
+        datetime: getDateTimeString(1),
+        time: formatTime(1),
+        isToday: true
+      })
+
+      // In 2 hours (if before 8 PM)
+      if (currentHour < 20) {
+        options.push({
+          label: 'In 2 hours',
+          datetime: getDateTimeString(2),
+          time: formatTime(2),
+          isToday: true
+        })
+      }
+    }
+
+    // "Tomorrow morning" (9 AM) - always show as a quick option
+    const tomorrowMorning = new Date()
+    tomorrowMorning.setDate(tomorrowMorning.getDate() + 1)
+    tomorrowMorning.setHours(9, 0, 0, 0)
+    options.push({
+      label: 'Tomorrow morning',
+      datetime: tomorrowMorning.toISOString(),
+      time: '9:00 AM',
+      isToday: false
+    })
+
+    return options
+  }, [])
+
+  const hasTodayOptions = quickOptions.some(o => o.isToday)
 
   const snoozeOptions = [
     { label: 'Tomorrow', days: 1 },
@@ -66,6 +121,52 @@ export function SnoozeMenu({ onSnooze, onCancel }: SnoozeMenuProps) {
         {!showCustom ? (
           <>
             <div className="space-y-2">
+              {/* Quick options (today + tomorrow morning) */}
+              {quickOptions.length > 0 && (
+                <>
+                  {hasTodayOptions && (
+                    <div className="text-xs text-text-muted font-medium uppercase tracking-wide mb-1">
+                      Later today
+                    </div>
+                  )}
+                  {quickOptions.filter(o => o.isToday).map((option) => (
+                    <button
+                      key={option.label}
+                      onClick={() => onSnooze(option.datetime)}
+                      className="
+                        w-full flex items-center justify-between
+                        p-3 rounded-lg
+                        bg-accent/10 hover:bg-accent/20
+                        transition-all duration-150 ease-out
+                        btn-press
+                      "
+                    >
+                      <span className="font-medium text-accent">{option.label}</span>
+                      <span className="text-sm text-accent/70">{option.time}</span>
+                    </button>
+                  ))}
+                  {/* Tomorrow morning as featured option */}
+                  {quickOptions.filter(o => !o.isToday).map((option) => (
+                    <button
+                      key={option.label}
+                      onClick={() => onSnooze(option.datetime)}
+                      className="
+                        w-full flex items-center justify-between
+                        p-3 rounded-lg
+                        bg-success/10 hover:bg-success/20
+                        transition-all duration-150 ease-out
+                        btn-press
+                      "
+                    >
+                      <span className="font-medium text-success">{option.label}</span>
+                      <span className="text-sm text-success/70">{option.time}</span>
+                    </button>
+                  ))}
+                  <div className="text-xs text-text-muted font-medium uppercase tracking-wide mt-3 mb-1">
+                    Later this week
+                  </div>
+                </>
+              )}
               {snoozeOptions.map((option) => (
                 <button
                   key={option.days}
