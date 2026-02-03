@@ -425,7 +425,10 @@ export async function GET(request: NextRequest) {
 
     if (!listResponse.ok) {
       const errorText = await listResponse.text()
-      // Error handled silently('Gmail API error:', listResponse.status, errorText)
+      // Log Gmail API errors for debugging
+      if (listResponse.status !== 401) {
+        console.error('[EmailScan] Gmail API error:', listResponse.status, errorText)
+      }
 
       if (listResponse.status === 401) {
         return NextResponse.json({
@@ -507,7 +510,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(responseData)
 
   } catch (error) {
-    // Error handled silently('Error scanning emails:', error)
+    console.error('[EmailScan] Unexpected error:', error)
     return NextResponse.json({ error: 'Failed to scan emails' }, { status: 500 })
   }
 }
