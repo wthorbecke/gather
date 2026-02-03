@@ -1,7 +1,7 @@
 # Gather Product State
 
-**Last Updated:** Mon Feb 3 2026, 00:00 PST
-**Session:** 15
+**Last Updated:** Mon Feb 3 2026, 00:30 PST
+**Session:** 16
 
 ---
 
@@ -186,7 +186,13 @@ All critical issues fixed:
 - ~~Completion Insights~~ - Done (Session 15) - Peak productivity patterns in StatsCard
 - ~~Body doubling / virtual coworking~~ - Done (Session 15) - Work-along mode with spoken check-ins
 - ~~Context preservation notes~~ - Done (Session 15) - "Where I left off" notes for task resumption
-- Mood tracking with productivity correlation
+- ~~Mood tracking with productivity correlation~~ - Done (Session 16) - MoodPicker with correlation insights
+- ~~Search/filter by energy level~~ - Done (Session 16) - EnergyFilter in StackView
+
+**Refactoring Opportunities (GatherApp.tsx - started at 1093 lines, now 978 lines):**
+- ~~Extract keyboard shortcuts hook~~ - Done (Session 16) - Created useGlobalKeyboardShortcuts.ts
+- ~~Extract step handlers hook~~ - Done (Session 16) - Created useStepHandlers.ts
+- ~~Extract skeleton component~~ - Done (Session 16) - Created GatherAppSkeleton.tsx
 
 **Refactoring Opportunities (StackView.tsx - started at 1054 lines, now 957 lines):**
 - ~~Extract dismiss count utilities~~ - Done (Session 15) - Created dismissCounts.ts
@@ -197,6 +203,38 @@ All critical issues fixed:
 ---
 
 ## Session Log
+
+### Session 16 - Feb 3, 2026
+**Accomplished:**
+- **Energy Level Filter** - Quick filter buttons to filter tasks by energy
+  - `/src/components/EnergyFilter.tsx` - Pill-style buttons (All/🔋High/⚡Medium/🪫Low)
+  - Integrated into StackView above task list
+  - Tasks without energy only show in "All" filter
+  - Full accessibility support (radiogroup, aria-checked)
+  - E2E tests at `/e2e/energy-filter.spec.ts`
+- **Mood Tracking with Productivity Correlation**
+  - `/src/components/MoodPicker.tsx` - 5-emoji scale (😤 to 😊)
+  - Shows once per session as subtle inline banner
+  - `useMoodEntries` hook stores last 30 entries in localStorage
+  - Correlation insights in StatsCard: "You complete X% more when starting in 🙂 mood"
+  - Only shows insights with 10+ entries (statistical relevance)
+  - E2E tests at `/e2e/mood-tracking.spec.ts`
+- **GatherApp.tsx Refactoring** - Reduced from 1093 to 978 lines (-115 lines)
+  - `/src/hooks/useGlobalKeyboardShortcuts.ts` - Extracted keyboard handler (~60 lines)
+  - `/src/hooks/useStepHandlers.ts` - Extracted step toggle/edit/delete/add/move (~85 lines)
+  - `/src/components/GatherAppSkeleton.tsx` - Extracted loading skeleton (~35 lines)
+
+**Commits:**
+- `7ed7b1f` Add Energy Filter, Mood Tracking, and refactor GatherApp
+
+**Technical notes:**
+- EnergyFilter uses CSS variables for design system consistency
+- MoodPicker uses sessionStorage for once-per-session display
+- Mood correlation uses non-judgmental language per CLAUDE.md guidelines
+- Step handlers hook consolidates 5 related functions into single import
+- Global keyboard shortcuts hook handles all modal toggle shortcuts (F, H, D, ?)
+
+---
 
 ### Session 15 - Feb 2, 2026
 **Accomplished:**
