@@ -170,12 +170,26 @@ All critical issues fixed:
 - ~~Step creation~~ - Done (Session 11) - Add custom steps to tasks manually
 - ~~Step reordering~~ - Done (Session 11) - Move steps up/down with buttons
 - ~~Energy levels~~ - Done (Session 12) - Match tasks to energy state (🌿 Low, ⚡ Med, 🔥 High)
+- ~~Energy-based task suggestions~~ - Done (Session 13) - "Low energy? Try these tasks..."
 - Task sharing/delegation - Share tasks with others
 - Mobile PWA enhancements - Offline support, better notifications
 - ~~Keyboard shortcut overlay~~ - Done (Session 11) - Help modal showing all shortcuts
-- Energy-based task suggestions - "Low energy? Try these tasks..."
 - Search/filter by energy level
 - Daily energy pattern tracking
+
+**Gap Analysis (from competitive research - Session 14):**
+- Visual timeline view - Tiimo's winning feature for time blindness
+- One-task-at-a-time mode - neurolist's focus mode reduces overwhelm
+- Brain dump import - AI organization of unstructured thoughts
+- "Help me pick" / task randomizer - Decision support for paralysis
+- Voice notifications - Audio guidance during focus sessions
+- Mood tracking with productivity correlation
+
+**Refactoring Opportunities (StackView.tsx - 1054 lines):**
+- Extract empty state component (~100 lines) - HIGH priority
+- Extract main card component (~160 lines) - HIGH priority
+- Extract dismiss count utilities - HIGH priority, quick win
+- Could reduce to ~700 lines with top 3 extractions
 
 ---
 
