@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase'
 import { content } from '@/config/content'
 import { User } from '@supabase/supabase-js'
 import { safeGetJSON, safeSetJSON, safeRemoveItem } from '@/lib/storage'
-import { TaskCategory, TaskSource, TaskType, RecurrenceFrequency, IntegrationProvider, type ActiveTaskCategory } from '@/lib/constants'
+import { TaskCategory, TaskSource, TaskType, RecurrenceFrequency, IntegrationProvider, EnergyLevel, type ActiveTaskCategory } from '@/lib/constants'
 
 // Demo starter tasks with pre-generated AI steps
 // These showcase the app's value without requiring API calls
@@ -19,6 +19,7 @@ const DEMO_STARTER_TASKS: Array<{
   streak?: Streak
   recurrence?: Recurrence
   due_date?: string
+  energy?: EnergyLevel
 }> = [
   {
     title: 'File taxes',
@@ -26,6 +27,7 @@ const DEMO_STARTER_TASKS: Array<{
     category: TaskCategory.SOON,
     badge: null,
     due_date: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 3 days from now
+    energy: EnergyLevel.HIGH, // Requires focus and attention
     steps: [
       {
         id: 'step-1',
@@ -67,6 +69,7 @@ const DEMO_STARTER_TASKS: Array<{
     description: null,
     category: TaskCategory.SOON,
     badge: null,
+    energy: EnergyLevel.LOW, // Simple steps, just follow the process
     steps: [
       {
         id: 'step-1',
@@ -103,6 +106,7 @@ const DEMO_STARTER_TASKS: Array<{
     description: 'Improve energy levels',
     category: TaskCategory.SOON,
     badge: null,
+    energy: EnergyLevel.MEDIUM, // Requires some motivation
     steps: [
       {
         id: 'step-1',
@@ -143,6 +147,7 @@ const DEMO_STARTER_TASKS: Array<{
     category: TaskCategory.SOON,
     badge: null,
     type: TaskType.HABIT,
+    energy: EnergyLevel.LOW, // Easy to do even when tired
     streak: {
       current: 5,
       best: 12,
@@ -261,6 +266,7 @@ export interface Task {
   duration?: number | null        // Duration in minutes
   calendar_event_id?: string | null  // Google Calendar event ID if added to calendar
   pinned?: boolean                 // Keep at top of list
+  energy?: EnergyLevel | null     // Energy level required (low/medium/high)
 }
 
 export interface TaskAction {
@@ -320,6 +326,7 @@ export function useTasks(user: User | null) {
         type: t.type,
         streak: t.streak,
         recurrence: t.recurrence,
+        energy: t.energy,
       }))
       setTasks(seeded)
       safeSetJSON(demoStorageKey, seeded)
@@ -471,7 +478,7 @@ export function useTasks(user: User | null) {
 
   const updateTask = useCallback(async (
     taskId: string,
-    updates: Partial<Pick<Task, 'title' | 'description' | 'subtasks' | 'steps' | 'notes' | 'category' | 'badge' | 'context_text' | 'due_date' | 'snoozed_until' | 'type' | 'scheduled_at' | 'streak' | 'recurrence' | 'duration' | 'external_source'>>
+    updates: Partial<Pick<Task, 'title' | 'description' | 'subtasks' | 'steps' | 'notes' | 'category' | 'badge' | 'context_text' | 'due_date' | 'snoozed_until' | 'type' | 'scheduled_at' | 'streak' | 'recurrence' | 'duration' | 'external_source' | 'pinned' | 'calendar_event_id' | 'energy'>>
   ): Promise<{ success: boolean; error?: string }> => {
     if (!user) return { success: false, error: 'Not authenticated' }
 

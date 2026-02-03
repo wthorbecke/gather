@@ -74,3 +74,12 @@ export const IntegrationProvider = {
 } as const
 
 export type IntegrationProvider = typeof IntegrationProvider[keyof typeof IntegrationProvider]
+
+// Energy levels for tasks - helps users match tasks to their current energy
+export const EnergyLevel = {
+  LOW: 'low',       // Can do when tired/drained
+  MEDIUM: 'medium', // Moderate focus required
+  HIGH: 'high',     // Need peak energy/focus
+} as const
+
+export type EnergyLevel = typeof EnergyLevel[keyof typeof EnergyLevel]

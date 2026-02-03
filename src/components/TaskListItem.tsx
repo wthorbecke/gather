@@ -6,6 +6,7 @@ import { TaskType } from '@/lib/constants'
 import { getTaskTypeColor, isCompletable, formatScheduledTime, isOverdue } from '@/lib/taskTypes'
 import { DeadlineBadge } from './DeadlineBadge'
 import { SnoozeMenu } from './SnoozeMenu'
+import { EnergyBadge } from './EnergyBadge'
 
 interface TaskListItemProps {
   task: Task
@@ -218,6 +219,10 @@ export const TaskListItem = memo(function TaskListItem({ task, onClick, onDelete
             <div className={`text-base font-medium text-text truncate ${overdue && isReminder ? 'text-danger' : ''}`}>
               {task.title}
             </div>
+            {/* Energy level indicator */}
+            {task.energy && (
+              <EnergyBadge energy={task.energy} size="sm" />
+            )}
             {/* Recurrence indicator - show for tasks/reminders with recurrence (habits already show repeat icon) */}
             {task.recurrence && !isHabit && (
               <RecurrenceIcon />

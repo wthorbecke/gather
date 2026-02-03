@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import dynamic from 'next/dynamic'
 import { Task, Step } from '@/hooks/useUserData'
-import { IntegrationProvider, TaskType } from '@/lib/constants'
+import { IntegrationProvider, TaskType, EnergyLevel } from '@/lib/constants'
 import { UnifiedInput } from './UnifiedInput'
 import { useTheme } from './ThemeProvider'
 import { AICard, AICardState } from './AICard'
@@ -15,6 +15,7 @@ import { SnoozeMenu } from './SnoozeMenu'
 import { SchedulePicker } from './SchedulePicker'
 import { RecurrencePickerModal } from './RecurrencePickerModal'
 import { Recurrence } from '@/hooks/useUserData'
+import { EnergyBadge, EnergyPicker } from './EnergyBadge'
 
 // Lazy load FocusMode - only needed when user enters focus mode
 const FocusMode = dynamic(() => import('./FocusMode').then(mod => ({ default: mod.FocusMode })), {
@@ -57,6 +58,7 @@ interface TaskViewProps {
   onAddToCalendar?: () => Promise<{ success: boolean; error?: string }>
   onRemoveFromCalendar?: () => Promise<{ success: boolean; error?: string }>
   onDuplicateTask?: () => void
+  onSetEnergy?: (energy: EnergyLevel | null) => void
   focusStepId?: string | number | null
   onStuckOnStep?: (step: Step) => void
 }
@@ -85,6 +87,7 @@ export function TaskView({
   onAddToCalendar,
   onRemoveFromCalendar,
   onDuplicateTask,
+  onSetEnergy,
   focusStepId,
   onStuckOnStep,
 }: TaskViewProps) {
@@ -96,6 +99,7 @@ export function TaskView({
   const [showSnoozeMenu, setShowSnoozeMenu] = useState(false)
   const [showSchedulePicker, setShowSchedulePicker] = useState(false)
   const [showRecurrencePicker, setShowRecurrencePicker] = useState(false)
+  const [showEnergyPicker, setShowEnergyPicker] = useState(false)
   const [focusStepIndex, setFocusStepIndex] = useState<number | null>(null)
   const [addingToCalendar, setAddingToCalendar] = useState(false)
   const [calendarAdded, setCalendarAdded] = useState(false)
@@ -327,6 +331,21 @@ export function TaskView({
                         <path d="M21 13v2a4 4 0 01-4 4H3" />
                       </svg>
                       {task.recurrence ? 'Edit repeat' : 'Set repeat'}
+                    </button>
+                  )}
+                  {/* Energy level - helps users match tasks to their current energy */}
+                  {onSetEnergy && (
+                    <button
+                      onClick={() => {
+                        setShowMenu(false)
+                        setShowEnergyPicker(true)
+                      }}
+                      className="w-full px-3 py-3 min-h-[44px] text-left text-sm text-text hover:bg-subtle flex items-center gap-2.5 transition-colors duration-150 ease-out"
+                    >
+                      <span className="text-sm w-4 text-center">
+                        {task.energy === 'low' ? '🌿' : task.energy === 'medium' ? '⚡' : task.energy === 'high' ? '🔥' : '⚪'}
+                      </span>
+                      {task.energy ? 'Change energy' : 'Set energy'}
                     </button>
                   )}
                   {/* Calendar options - only show if task has due date and is not from Google */}
@@ -671,6 +690,38 @@ export function TaskView({
           }}
           onCancel={() => setShowRecurrencePicker(false)}
         />
+      )}
+
+      {/* Energy Picker */}
+      {showEnergyPicker && onSetEnergy && (
+        <div
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
+          onClick={() => setShowEnergyPicker(false)}
+        >
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-backdrop-in" />
+          <div
+            className="relative z-10 bg-card border border-border rounded-t-2xl sm:rounded-2xl w-full sm:max-w-sm mx-0 sm:mx-4 p-6 shadow-modal animate-rise"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-lg font-semibold text-text mb-2">Energy level</h3>
+            <p className="text-sm text-text-muted mb-4">
+              How much focus does this task require?
+            </p>
+            <EnergyPicker
+              value={task.energy}
+              onChange={(energy) => {
+                onSetEnergy(energy)
+                setShowEnergyPicker(false)
+              }}
+            />
+            <button
+              onClick={() => setShowEnergyPicker(false)}
+              className="w-full mt-4 py-3 text-text-soft hover:text-text text-sm font-medium transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
       )}
 
       {/* Focus Mode */}

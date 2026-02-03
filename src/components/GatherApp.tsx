@@ -22,6 +22,7 @@ import { ChatModal } from './ChatModal'
 import { ViewToggle } from './ViewToggle'
 import { calculateNewStreak, isHabitCompletedToday } from '@/lib/taskTypes'
 import { authFetch } from '@/lib/supabase'
+import { EnergyLevel } from '@/lib/constants'
 
 // Lazy load heavy components that are not needed immediately
 const Confetti = dynamic(() => import('./Confetti').then(mod => ({ default: mod.Confetti })), {
@@ -415,6 +416,11 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
     await updateTask(taskId, { recurrence } as Partial<Task>)
   }, [updateTask])
 
+  // Set energy level on a task
+  const handleSetEnergy = useCallback(async (taskId: string, energy: EnergyLevel | null) => {
+    await updateTask(taskId, { energy } as Partial<Task>)
+  }, [updateTask])
+
   // Duplicate a task
   const handleDuplicateTask = useCallback(async (task: Task) => {
     // Create a new task with the same properties
@@ -759,6 +765,7 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
             onSnoozeTask={(date) => handleSnoozeTask(currentTask.id, date)}
             onScheduleTask={(datetime) => handleScheduleTask(currentTask.id, datetime)}
             onSetRecurrence={(recurrence) => handleSetRecurrence(currentTask.id, recurrence)}
+            onSetEnergy={(energy) => handleSetEnergy(currentTask.id, energy)}
             onAddToCalendar={!isDemoUser ? () => handleAddToCalendar(currentTask) : undefined}
             onRemoveFromCalendar={!isDemoUser ? () => handleRemoveFromCalendar(currentTask) : undefined}
             onDuplicateTask={() => handleDuplicateTask(currentTask)}
