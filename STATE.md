@@ -1,6 +1,6 @@
 # Gather Product State
 
-**Last Updated:** Mon Feb 2 2026, 23:45 PST
+**Last Updated:** Mon Feb 3 2026, 00:00 PST
 **Session:** 15
 
 ---
@@ -178,9 +178,9 @@ All critical issues fixed:
 - Daily energy pattern tracking
 
 **Gap Analysis (from competitive research - Session 14):**
-- Visual timeline view - Tiimo's winning feature for time blindness
+- ~~Visual timeline view~~ - Done (Session 15) - HourTimeline component with task blocks and current time indicator
 - ~~One-task-at-a-time mode~~ - Done (Session 15) - Focus Launcher with smart task selection
-- Brain dump import - AI organization of unstructured thoughts
+- ~~Brain dump import~~ - Done (Session 15) - /dump command opens modal for freeform thought capture with AI extraction
 - ~~"Help me pick" / task randomizer~~ - Done (Session 15) - Shuffle-based selection with limited re-picks
 - Voice notifications - Audio guidance during focus sessions
 - Mood tracking with productivity correlation
@@ -234,6 +234,30 @@ All critical issues fixed:
   - Encouraging messages tailored to reason (deadline, quick win, etc.)
   - Expandable "why this one?" explanation
   - Keyboard shortcut 'H' to trigger from anywhere
+- **Implemented Brain Dump Mode** - Freeform thought capture with AI extraction
+  - `/src/components/BrainDumpModal.tsx` - Modal with input -> processing -> results flow
+  - `/src/app/api/brain-dump/route.ts` - API for AI task extraction from unstructured text
+  - `/dump` command in UnifiedInput triggers the modal
+  - AI extracts discrete actionable tasks from brain dump text
+  - Tasks grouped by related topics with suggested first steps
+  - Select all/none toggles, keyboard shortcut Cmd+Enter to process
+  - Keyboard shortcut 'B' documented in shortcuts modal
+- **Implemented Hour Timeline** - Visual hour-block visualization for time blindness
+  - `/src/components/HourTimeline.tsx` - Horizontal scrollable timeline (6am-11pm)
+  - Task blocks positioned by scheduled_at with energy-level coloring
+  - Current time indicator (red line with dot) for time awareness
+  - Auto-scrolls to current time on today's view
+  - Integrated into DayView above timeline sections
+  - E2E test coverage at `/e2e/hour-timeline.spec.ts`
+
+**Commits:**
+- `6b6be09` Extract dismiss count utilities from StackView.tsx
+- `9839189` Add Focus Launcher and refactor StackView component
+- `9b01db4` Refactor taskPicker: fix typo and extract helper
+- `69b6351` Extract shared NoTasksEmptyState component
+- `e2926c8` Update STATE.md with session 15 refactoring notes
+- `e0a1ea3` Add "Help Me Pick" feature for decision paralysis
+- `debc625` Add Brain Dump mode and Hour Timeline features
 
 ---
 
