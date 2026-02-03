@@ -88,6 +88,7 @@ export function HomeView({
   // State for task list visibility
   const [showAllTasks, setShowAllTasks] = useState(false)
   const [showCompletedTasks, setShowCompletedTasks] = useState(false)
+  const [showClearConfirm, setShowClearConfirm] = useState(false)
 
   // Filter out snoozed tasks
   const activeTasks = useMemo(() => {
@@ -521,9 +522,9 @@ export function HomeView({
                           <path d="M4 6L8 10L12 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" fill="none"/>
                         </svg>
                       </button>
-                      {onClearCompleted && (
+                      {onClearCompleted && !showClearConfirm && (
                         <button
-                          onClick={onClearCompleted}
+                          onClick={() => setShowClearConfirm(true)}
                           className="
                             py-2 px-3
                             rounded-md
@@ -537,6 +538,32 @@ export function HomeView({
                         </button>
                       )}
                     </div>
+                    {/* Clear confirmation */}
+                    {showClearConfirm && onClearCompleted && (
+                      <div className="bg-danger-soft/30 border border-danger/30 rounded-md p-3 animate-rise">
+                        <p className="text-sm text-text mb-3">
+                          Delete {completedTasks.length} completed task{completedTasks.length !== 1 ? 's' : ''}?
+                        </p>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => {
+                              onClearCompleted()
+                              setShowClearConfirm(false)
+                              setShowCompletedTasks(false)
+                            }}
+                            className="px-3 py-1.5 bg-danger text-white rounded-md text-sm font-medium hover:bg-danger/90 transition-colors"
+                          >
+                            Delete all
+                          </button>
+                          <button
+                            onClick={() => setShowClearConfirm(false)}
+                            className="px-3 py-1.5 bg-subtle text-text rounded-md text-sm font-medium hover:bg-card-hover transition-colors"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    )}
                     {completedTasks.map((task, index) => (
                       <div key={task.id} className="animate-rise opacity-60" style={{ animationDelay: `${index * 40}ms` }}>
                         <TaskListItem
