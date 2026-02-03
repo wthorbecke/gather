@@ -47,6 +47,7 @@ interface TaskViewProps {
   onDeleteTask: () => void
   onSnoozeTask?: (date: string) => void
   onAddToCalendar?: () => Promise<{ success: boolean; error?: string }>
+  onRemoveFromCalendar?: () => Promise<{ success: boolean; error?: string }>
   focusStepId?: string | number | null
   onStuckOnStep?: (step: Step) => void
 }
@@ -68,6 +69,7 @@ export function TaskView({
   onDeleteTask,
   onSnoozeTask,
   onAddToCalendar,
+  onRemoveFromCalendar,
   focusStepId,
   onStuckOnStep,
 }: TaskViewProps) {
@@ -80,6 +82,8 @@ export function TaskView({
   const [focusStepIndex, setFocusStepIndex] = useState<number | null>(null)
   const [addingToCalendar, setAddingToCalendar] = useState(false)
   const [calendarAdded, setCalendarAdded] = useState(false)
+  const [removingFromCalendar, setRemovingFromCalendar] = useState(false)
+  const [calendarRemoved, setCalendarRemoved] = useState(false)
 
   // Handle step expansion
   const handleStepExpand = (step: Step) => {
@@ -271,29 +275,58 @@ export function TaskView({
                       Snooze
                     </button>
                   )}
-                  {/* Add to Calendar - only show if task has due date and is not from Google */}
-                  {onAddToCalendar && task.due_date && task.external_source?.provider !== IntegrationProvider.GOOGLE && (
-                    <button
-                      onClick={async () => {
-                        setShowMenu(false)
-                        setAddingToCalendar(true)
-                        const result = await onAddToCalendar()
-                        setAddingToCalendar(false)
-                        if (result.success) {
-                          setCalendarAdded(true)
-                          setTimeout(() => setCalendarAdded(false), 3000)
-                        }
-                      }}
-                      disabled={addingToCalendar || calendarAdded}
-                      className="w-full px-3 py-3 min-h-[44px] text-left text-sm text-text hover:bg-subtle flex items-center gap-2.5 transition-colors duration-150 ease-out disabled:opacity-50"
-                    >
-                      <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-text-muted">
-                        <rect x="3" y="4" width="18" height="18" rx="2" />
-                        <path d="M16 2v4M8 2v4M3 10h18" />
-                        <path d="M12 14v4M10 16h4" strokeLinecap="round" />
-                      </svg>
-                      {addingToCalendar ? 'Adding...' : calendarAdded ? 'Added to Calendar' : 'Add to Calendar'}
-                    </button>
+                  {/* Calendar options - only show if task has due date and is not from Google */}
+                  {task.due_date && task.external_source?.provider !== IntegrationProvider.GOOGLE && (
+                    <>
+                      {/* Add to Calendar - show if not already added */}
+                      {onAddToCalendar && !task.calendar_event_id && (
+                        <button
+                          onClick={async () => {
+                            setShowMenu(false)
+                            setAddingToCalendar(true)
+                            const result = await onAddToCalendar()
+                            setAddingToCalendar(false)
+                            if (result.success) {
+                              setCalendarAdded(true)
+                              setTimeout(() => setCalendarAdded(false), 3000)
+                            }
+                          }}
+                          disabled={addingToCalendar || calendarAdded}
+                          className="w-full px-3 py-3 min-h-[44px] text-left text-sm text-text hover:bg-subtle flex items-center gap-2.5 transition-colors duration-150 ease-out disabled:opacity-50"
+                        >
+                          <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-text-muted">
+                            <rect x="3" y="4" width="18" height="18" rx="2" />
+                            <path d="M16 2v4M8 2v4M3 10h18" />
+                            <path d="M12 14v4M10 16h4" strokeLinecap="round" />
+                          </svg>
+                          {addingToCalendar ? 'Adding...' : calendarAdded ? 'Added to Calendar' : 'Add to Calendar'}
+                        </button>
+                      )}
+                      {/* Remove from Calendar - show if already added */}
+                      {onRemoveFromCalendar && task.calendar_event_id && (
+                        <button
+                          onClick={async () => {
+                            setShowMenu(false)
+                            setRemovingFromCalendar(true)
+                            const result = await onRemoveFromCalendar()
+                            setRemovingFromCalendar(false)
+                            if (result.success) {
+                              setCalendarRemoved(true)
+                              setTimeout(() => setCalendarRemoved(false), 3000)
+                            }
+                          }}
+                          disabled={removingFromCalendar || calendarRemoved}
+                          className="w-full px-3 py-3 min-h-[44px] text-left text-sm text-text hover:bg-subtle flex items-center gap-2.5 transition-colors duration-150 ease-out disabled:opacity-50"
+                        >
+                          <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-text-muted">
+                            <rect x="3" y="4" width="18" height="18" rx="2" />
+                            <path d="M16 2v4M8 2v4M3 10h18" />
+                            <path d="M9 15l6-6M9 9l6 6" strokeLinecap="round" />
+                          </svg>
+                          {removingFromCalendar ? 'Removing...' : calendarRemoved ? 'Removed' : 'Remove from Calendar'}
+                        </button>
+                      )}
+                    </>
                   )}
                   <div className="h-px bg-border my-1" />
                   <button

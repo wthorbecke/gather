@@ -259,6 +259,7 @@ export interface Task {
   streak?: Streak | null          // For habits
   external_source?: ExternalSource | null  // For synced external items
   duration?: number | null        // Duration in minutes
+  calendar_event_id?: string | null  // Google Calendar event ID if added to calendar
 }
 
 export interface TaskAction {

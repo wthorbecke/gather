@@ -311,11 +311,42 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
         return { success: false, error: data.error || 'Failed to add to calendar' }
       }
 
+      const data = await response.json()
+      // Save the calendar event ID to the task
+      if (data.event?.id) {
+        await updateTask(task.id, { calendar_event_id: data.event.id } as Partial<Task>)
+      }
+
       return { success: true }
     } catch {
       return { success: false, error: 'Network error' }
     }
-  }, [])
+  }, [updateTask])
+
+  // Remove task from Google Calendar
+  const handleRemoveFromCalendar = useCallback(async (task: Task): Promise<{ success: boolean; error?: string }> => {
+    if (!task.calendar_event_id) {
+      return { success: false, error: 'Task has no calendar event' }
+    }
+
+    try {
+      const response = await authFetch(`/api/calendar/create-event?googleEventId=${task.calendar_event_id}`, {
+        method: 'DELETE',
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        return { success: false, error: data.error || 'Failed to remove from calendar' }
+      }
+
+      // Clear the calendar event ID from the task
+      await updateTask(task.id, { calendar_event_id: null } as Partial<Task>)
+
+      return { success: true }
+    } catch {
+      return { success: false, error: 'Network error' }
+    }
+  }, [updateTask])
 
   // Toggle habit completion for today
   const handleToggleHabit = useCallback(async (taskId: string) => {
@@ -534,6 +565,7 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
             onDeleteTask={() => handleDeleteTask(currentTask.id)}
             onSnoozeTask={(date) => handleSnoozeTask(currentTask.id, date)}
             onAddToCalendar={!isDemoUser ? () => handleAddToCalendar(currentTask) : undefined}
+            onRemoveFromCalendar={!isDemoUser ? () => handleRemoveFromCalendar(currentTask) : undefined}
             focusStepId={focusStepId}
             onStuckOnStep={handleStuckOnStep}
           />
