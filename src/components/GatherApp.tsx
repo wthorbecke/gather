@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useState } from 'react'
+import { useCallback, useState, useEffect } from 'react'
 import dynamic from 'next/dynamic'
 import { User } from '@supabase/supabase-js'
 import { useTasks, Task, Step } from '@/hooks/useUserData'
@@ -40,6 +40,10 @@ const UpgradeModal = dynamic(() => import('./UpgradeModal').then(mod => ({ defau
   ssr: false,
   loading: () => null,
 })
+const KeyboardShortcutsModal = dynamic(() => import('./KeyboardShortcutsModal').then(mod => ({ default: mod.KeyboardShortcutsModal })), {
+  ssr: false,
+  loading: () => null,
+})
 
 interface GatherAppProps {
   user: User
@@ -57,6 +61,35 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
 
   // Upgrade modal state
   const [showUpgradeModal, setShowUpgradeModal] = useState(false)
+
+  // Keyboard shortcuts modal state
+  const [showKeyboardShortcuts, setShowKeyboardShortcuts] = useState(false)
+
+  // Global keyboard shortcut for '?' to show help
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't trigger when typing in inputs
+      const target = e.target as HTMLElement
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
+        return
+      }
+
+      // '?' to show keyboard shortcuts (Shift + /)
+      if (e.key === '?' || (e.shiftKey && e.key === '/')) {
+        e.preventDefault()
+        setShowKeyboardShortcuts(true)
+      }
+
+      // Escape to close keyboard shortcuts
+      if (e.key === 'Escape' && showKeyboardShortcuts) {
+        e.preventDefault()
+        setShowKeyboardShortcuts(false)
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [showKeyboardShortcuts])
 
   // View state
   const {
@@ -614,6 +647,11 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
         isOpen={showUpgradeModal}
         onClose={() => setShowUpgradeModal(false)}
       />
+
+      {/* Keyboard Shortcuts Modal */}
+      {showKeyboardShortcuts && (
+        <KeyboardShortcutsModal onClose={() => setShowKeyboardShortcuts(false)} />
+      )}
 
       {/* Chat FAB - floating action button */}
       <button
