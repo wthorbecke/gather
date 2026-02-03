@@ -1,7 +1,7 @@
 # Gather Product State
 
-**Last Updated:** Mon Feb 2 2026, 23:15 PST
-**Session:** 11
+**Last Updated:** Mon Feb 2 2026, 22:57 PST
+**Session:** 12
 
 ---
 
@@ -169,13 +169,42 @@ All critical issues fixed:
 - ~~Step deletion~~ - Done (Session 11) - Remove individual steps from tasks
 - ~~Step creation~~ - Done (Session 11) - Add custom steps to tasks manually
 - ~~Step reordering~~ - Done (Session 11) - Move steps up/down with buttons
+- ~~Energy levels~~ - Done (Session 12) - Match tasks to energy state (🌿 Low, ⚡ Med, 🔥 High)
 - Task sharing/delegation - Share tasks with others
 - Mobile PWA enhancements - Offline support, better notifications
 - ~~Keyboard shortcut overlay~~ - Done (Session 11) - Help modal showing all shortcuts
+- Energy-based task suggestions - "Low energy? Try these tasks..."
+- Search/filter by energy level
+- Daily energy pattern tracking
 
 ---
 
 ## Session Log
+
+### Session 12 - Feb 2, 2026
+**Accomplished:**
+- **Added task energy levels** - Helps ADHD users match tasks to their current energy state
+  - EnergyLevel constant: low (🌿), medium (⚡), high (🔥)
+  - EnergyBadge component with color-coded visual indicators
+  - EnergyPicker modal for setting energy in task view
+  - Energy badges shown in task list items
+  - Demo starter tasks have sample energy levels set
+  - Question prompt: "How much focus does this task require?"
+- All 189 tests passing, build succeeds
+
+**Commits:**
+- `ca1b4e9` Add task energy levels feature
+
+**Technical notes:**
+- EnergyLevel uses const object pattern like TaskType (LOW/MEDIUM/HIGH)
+- energyConfig maps each level to icon, colors, and labels
+- EnergyPicker shows 4 options: None, Low, Medium, High
+- Task interface extended with `energy?: EnergyLevel | null`
+- Demo tasks: File taxes = HIGH, Renew passport = LOW, Get healthier = MEDIUM, Meditation = LOW
+- Energy badges are compact in list view (icon only, no label)
+- "Energy level" menu option opens picker modal from task view
+
+---
 
 ### Session 11 - Feb 2, 2026
 **Accomplished:**
