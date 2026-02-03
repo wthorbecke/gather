@@ -1,7 +1,7 @@
 # Gather Product State
 
-**Last Updated:** Mon Feb 2 2026, 20:15 PST
-**Session:** 10
+**Last Updated:** Mon Feb 2 2026, 20:45 PST
+**Session:** 11
 
 ---
 
@@ -155,12 +155,33 @@ All critical issues fixed:
 **Future Ideas:**
 - Time blocking - Schedule tasks into calendar time blocks
 - Statistics/insights - Show users their productivity patterns
-- Quick actions - One-tap common actions (snooze 1hr, etc.)
 - Focus mode enhancements - Pomodoro timer, ambient sounds
+- Quick reschedule - One-tap postpone options (later today, tomorrow)
 
 ---
 
 ## Session Log
+
+### Session 11 - Feb 2, 2026
+**Accomplished:**
+- **Added snooze option to list view task menu** - Users can now snooze tasks directly from the list without opening task detail view
+  - Added `onSnooze` prop to TaskListItem component
+  - Integrated SnoozeMenu modal into task dropdown menu
+  - Shows for all non-habit tasks (habits have "Done for today" instead)
+  - Options: Tomorrow, In 3 days, Next week, In 2 weeks, Next month, or custom date
+- Fixed click propagation issues with stopPropagation in SnoozeMenu
+- Added z-index fixes for modal overlay interactions
+- All 173 tests passing, build succeeds
+
+**Commits:**
+- `d83cc42` Add snooze option to task list view menu
+
+**Technical notes:**
+- Quick actions feature (from Future Ideas) partially addressed - snooze was the highest-impact quick action
+- SnoozeMenu now includes `stopPropagation` and `z-10` on menu content to prevent click issues
+- Snooze filters tasks from list view (shows "X snoozed" indicator in Other tasks header)
+
+---
 
 ### Session 10 - Feb 2, 2026
 **Accomplished:**
