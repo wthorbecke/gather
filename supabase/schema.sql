@@ -85,6 +85,9 @@ CREATE TABLE IF NOT EXISTS public.tasks (
   streak JSONB, -- For habits: { current, best, lastCompleted }
   external_source JSONB, -- For synced items: { provider, externalId, readOnly }
   duration INT, -- Duration in minutes
+  energy TEXT CHECK (energy IS NULL OR energy IN ('low', 'medium', 'high')), -- Energy level: low/medium/high
+  pinned BOOLEAN DEFAULT FALSE, -- Pinned tasks appear at top of list
+  calendar_event_id TEXT, -- Google Calendar event ID if synced
   created_at TIMESTAMPTZ DEFAULT NOW(),
   completed_at TIMESTAMPTZ
 );
