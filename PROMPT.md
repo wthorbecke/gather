@@ -63,7 +63,7 @@ This allows the automation loop to continue to the next session.
 
 ## When are you done?
 
-Write `PRODUCT_COMPLETE` in STATE.md when:
+Write `# SHIP_IT` (exactly, on its own line) in STATE.md when:
 - No critical bugs remaining
 - Core user flows work completely
 - Google integration works (Calendar, Gmail, Tasks)
