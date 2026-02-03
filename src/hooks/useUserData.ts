@@ -18,12 +18,14 @@ const DEMO_STARTER_TASKS: Array<{
   type?: TaskType
   streak?: Streak
   recurrence?: Recurrence
+  due_date?: string
 }> = [
   {
     title: 'File taxes',
     description: 'California state + federal',
     category: TaskCategory.SOON,
     badge: null,
+    due_date: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 3 days from now
     steps: [
       {
         id: 'step-1',
@@ -295,7 +297,7 @@ export function useTasks(user: User | null) {
         description: t.description,
         category: t.category,
         badge: t.badge,
-        due_date: null,
+        due_date: t.due_date || null,
         context: {},
         context_text: null,
         actions: [],
