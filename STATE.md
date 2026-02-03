@@ -155,7 +155,7 @@ All critical issues fixed:
 **Future Ideas:**
 - Time blocking - Schedule tasks into calendar time blocks
 - ~~Statistics/insights~~ - Done (Session 11) - StatsCard shows progress
-- Focus mode enhancements - Pomodoro timer, ambient sounds
+- ~~Focus mode enhancements~~ - Pomodoro timer done (Session 11), ambient sounds remaining
 - Quick reschedule - One-tap postpone options (later today, tomorrow)
 - Advanced stats - Completion trends over time, productivity hours analysis
 
@@ -177,17 +177,27 @@ All critical issues fixed:
   - Tasks finished count
   - Best active habit streak
   - Only displays when there's meaningful progress (non-intrusive)
-- All 183 tests passing, build succeeds
+- **Added Pomodoro timer to Focus Mode** - Timeboxing helps ADHD users start tasks
+  - Toggle between stopwatch (count up) and pomodoro (countdown) modes
+  - Press 'P' keyboard shortcut to toggle timer mode
+  - 25-minute work sessions with visual countdown
+  - Break prompts after each pomodoro (5 min short break, 15 min long break after 4 pomodoros)
+  - Visual pulse animation when timer completes
+  - Pomodoro count tracked during focus session
+- All 189 tests passing, build succeeds
 
 **Commits:**
 - `d83cc42` Add snooze option to task list view menu
 - `abf8c7b` Add progress statistics card to home view
+- `d83b440` Add Pomodoro timer to Focus Mode
 
 **Technical notes:**
 - Quick actions feature (from Future Ideas) partially addressed - snooze was the highest-impact quick action
 - SnoozeMenu now includes `stopPropagation` and `z-10` on menu content to prevent click issues
 - Snooze filters tasks from list view (shows "X snoozed" indicator in Other tasks header)
 - StatsCard uses local task data, no additional API calls needed
+- Pomodoro uses existing FocusMode component, no new components needed
+- Timer mode persists during focus session but resets when exiting
 
 ---
 
