@@ -6,7 +6,7 @@ import {
   rateLimitResponse,
   RATE_LIMITS,
 } from '@/lib/rateLimit'
-import { requireAuth } from '@/lib/api-auth'
+import { requireAuthOrDemo } from '@/lib/api-auth'
 
 const CHAT_ASSISTANT_SYSTEM_PROMPT = `You are a helpful assistant for Gather, a task management app for people who struggle with executive function.
 
@@ -42,8 +42,8 @@ Examples of when NOT to include the action block:
 Keep the task title concise but clear. The context should capture the why behind the task.`
 
 export async function POST(request: NextRequest) {
-  // Require authentication
-  const auth = await requireAuth(request)
+  // Require authentication (or demo mode)
+  const auth = await requireAuthOrDemo(request)
   if (auth instanceof NextResponse) {
     return auth
   }

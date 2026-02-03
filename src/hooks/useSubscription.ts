@@ -30,8 +30,9 @@ interface SubscriptionState {
   error: string | null
 }
 
-// Initialize Stripe client-side
-const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || '')
+// Initialize Stripe client-side (only if key is configured)
+const stripePublishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
+const stripePromise = stripePublishableKey ? loadStripe(stripePublishableKey) : null
 
 export function useSubscription() {
   const [state, setState] = useState<SubscriptionState>({
