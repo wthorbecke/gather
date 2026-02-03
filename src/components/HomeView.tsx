@@ -101,7 +101,8 @@ export function HomeView({
   }, [activeTasks])
 
   const snoozedCount = tasks.length - activeTasks.length
-  const nextStep = getNextStep(activeTasks)
+  // Use sortedTasks so "Do this now" shows the most urgent task's next step
+  const nextStep = getNextStep(sortedTasks)
   const shouldAutoFocus = Boolean(aiCard?.autoFocusInput) || Boolean(aiCard?.question && (!aiCard.quickReplies || aiCard.quickReplies.length === 0))
   const isQuestionFlow = Boolean(aiCard?.question)
   const inputPlaceholder = isQuestionFlow ? content.placeholders.aiFreeText : content.placeholders.homeInput
