@@ -182,6 +182,8 @@ All critical issues fixed:
 - ~~One-task-at-a-time mode~~ - Done (Session 15) - Focus Launcher with smart task selection
 - ~~Brain dump import~~ - Done (Session 15) - /dump command opens modal for freeform thought capture with AI extraction
 - ~~"Help me pick" / task randomizer~~ - Done (Session 15) - Shuffle-based selection with limited re-picks
+- ~~Quick Voice Input~~ - Done (Session 15) - Microphone button in UnifiedInput using Web Speech API
+- ~~Completion Insights~~ - Done (Session 15) - Peak productivity patterns in StatsCard
 - Voice notifications - Audio guidance during focus sessions
 - Mood tracking with productivity correlation
 
@@ -250,6 +252,19 @@ All critical issues fixed:
   - Integrated into DayView above timeline sections
   - E2E test coverage at `/e2e/hour-timeline.spec.ts`
 
+- **Implemented Completion Insights** - Pattern recognition for productivity awareness
+  - Enhanced StatsCard.tsx with completion pattern analysis
+  - Shows insights like "You're most productive late morning, especially on Tuesdays"
+  - Collapsible detail showing completion count and scheduling suggestion
+  - Only shows when 5+ completions ensure meaningful patterns
+  - ADHD-friendly: observational tone, no guilt-tripping
+- **Implemented Quick Voice Input** - Zero-friction voice capture on mobile
+  - Microphone button in UnifiedInput using Web Speech API
+  - useSpeechRecognition hook handles browser compatibility
+  - Only shows if browser supports SpeechRecognition API
+  - Visual feedback: accent color and pulse animation while listening
+  - 44px touch target for mobile accessibility
+
 **Commits:**
 - `6b6be09` Extract dismiss count utilities from StackView.tsx
 - `9839189` Add Focus Launcher and refactor StackView component
@@ -258,6 +273,9 @@ All critical issues fixed:
 - `e2926c8` Update STATE.md with session 15 refactoring notes
 - `e0a1ea3` Add "Help Me Pick" feature for decision paralysis
 - `debc625` Add Brain Dump mode and Hour Timeline features
+- `928d2c1` Update STATE.md with Brain Dump and Hour Timeline features
+- `7f16482` Add Completion Insights to StatsCard
+- `bb686ba` Add Quick Voice Input to UnifiedInput
 
 ---
 
