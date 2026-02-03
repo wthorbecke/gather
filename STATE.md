@@ -1,6 +1,6 @@
 # Gather Product State
 
-**Last Updated:** Mon Feb 3 2026, 00:30 PST
+**Last Updated:** Mon Feb 3 2026, 00:40 PST
 **Session:** 16
 
 ---
@@ -224,8 +224,20 @@ All critical issues fixed:
   - `/src/hooks/useStepHandlers.ts` - Extracted step toggle/edit/delete/add/move (~85 lines)
   - `/src/components/GatherAppSkeleton.tsx` - Extracted loading skeleton (~35 lines)
 
+- **useAIConversation.ts Refactoring** - Reduced from 1386 to 727 lines (-659 lines, 47%)
+  - `/src/hooks/useAIStreaming.ts` - Streaming utilities and SSE handling (199 lines)
+  - `/src/hooks/useAITaskBreakdown.ts` - Task decomposition and step generation (350 lines)
+  - `/src/hooks/useAIChat.ts` - Core chat logic and context building (327 lines)
+  - Maintains backward compatibility with same public API
+- **QA Testing Completed** - Comprehensive Session 15 feature testing
+  - Brain Dump, Help Me Pick, Day View Timeline, Step Management all PASSED
+  - Focus Mode works but Sound/Work-Along buttons not visible in UI (code exists)
+  - Found hydration error: nested `<button>` in Checkbox/FocusMode
+  - 172 e2e tests passed, 94 failed (many environment-specific)
+
 **Commits:**
 - `7ed7b1f` Add Energy Filter, Mood Tracking, and refactor GatherApp
+- `4c72593` Refactor useAIConversation into focused hooks
 
 **Technical notes:**
 - EnergyFilter uses CSS variables for design system consistency
@@ -233,6 +245,13 @@ All critical issues fixed:
 - Mood correlation uses non-judgmental language per CLAUDE.md guidelines
 - Step handlers hook consolidates 5 related functions into single import
 - Global keyboard shortcuts hook handles all modal toggle shortcuts (F, H, D, ?)
+- useAIStreaming handles SSE parsing, action extraction, upgrade prompts
+- useAITaskBreakdown contains generateSteps, addStepsToTask, createTaskWithSteps
+- useAIChat contains buildContextForAI, handleFollowUpChat, analyzeIntentAndGather
+
+**QA Issues to Address:**
+- Focus Mode Sound/Work-Along buttons not rendering (code exists at lines 273-312)
+- Hydration error: `<button>` nested inside `<button>` in Checkbox within FocusMode
 
 ---
 
