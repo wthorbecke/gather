@@ -326,18 +326,21 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
     const currentStreak = task.streak?.current || 0
     const bestStreak = task.streak?.best || 0
     const lastCompleted = task.streak?.lastCompleted
+    const completions = task.streak?.completions || []
+    const todayStr = new Date().toISOString().split('T')[0]
 
     if (wasCompleted) {
-      // Uncompleting - just remove today's completion
+      // Uncompleting - remove today from completions
       await updateTask(taskId, {
         streak: {
           current: Math.max(0, currentStreak - 1),
           best: bestStreak,
           lastCompleted: undefined,
+          completions: completions.filter(d => d !== todayStr),
         },
       } as Partial<Task>)
     } else {
-      // Completing - calculate new streak
+      // Completing - calculate new streak and add to completions
       const result = calculateNewStreak(currentStreak, lastCompleted)
       const newCurrent = result.shouldIncrement ? result.current : currentStreak
 
@@ -346,6 +349,7 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
           current: newCurrent,
           best: Math.max(bestStreak, newCurrent),
           lastCompleted: new Date().toISOString(),
+          completions: completions.includes(todayStr) ? completions : [todayStr, ...completions],
         },
       } as Partial<Task>)
     }

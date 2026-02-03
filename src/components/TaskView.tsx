@@ -9,6 +9,7 @@ import { useTheme } from './ThemeProvider'
 import { AICard, AICardState } from './AICard'
 import { StepItem } from './StepItem'
 import { SegmentedProgress } from './SegmentedProgress'
+import { HabitCalendar } from './HabitCalendar'
 import { content } from '@/config/content'
 import { SnoozeMenu } from './SnoozeMenu'
 
@@ -412,6 +413,14 @@ export function TaskView({
             {task.streak.current > 0 && task.streak.current === task.streak.best && (
               <div className="mt-3 pt-3 border-t border-border text-sm text-success text-center">
                 You&apos;re on your best streak! Keep it going!
+              </div>
+            )}
+
+            {/* Habit completion calendar */}
+            {task.streak.completions && task.streak.completions.length > 0 && (
+              <div className="mt-4 pt-4 border-t border-border">
+                <div className="text-xs font-medium text-text-muted mb-3 text-center">Last 4 weeks</div>
+                <HabitCalendar completions={task.streak.completions} />
               </div>
             )}
           </div>

@@ -147,6 +147,14 @@ const DEMO_STARTER_TASKS: Array<{
       current: 5,
       best: 12,
       lastCompleted: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0], // Yesterday
+      // Generate completion history for the calendar view
+      completions: Array.from({ length: 15 }, (_, i) => {
+        const date = new Date()
+        date.setDate(date.getDate() - i - 1) // Start from yesterday
+        // Skip some days to show gaps (missed days 6, 10, 14)
+        if (i === 5 || i === 9 || i === 13) return null
+        return date.toISOString().split('T')[0]
+      }).filter(Boolean) as string[],
     },
     recurrence: {
       frequency: 'daily',
@@ -216,6 +224,7 @@ export interface Streak {
   current: number
   best: number
   lastCompleted?: string  // ISO date string
+  completions?: string[]  // Array of ISO date strings for calendar view
 }
 
 // External source info for synced items
