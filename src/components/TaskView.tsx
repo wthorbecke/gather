@@ -713,6 +713,7 @@ export function TaskView({
                 onSetEnergy(energy)
                 setShowEnergyPicker(false)
               }}
+              taskTitle={task.title}
             />
             <button
               onClick={() => setShowEnergyPicker(false)}
