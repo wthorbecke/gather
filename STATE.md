@@ -152,9 +152,12 @@ The product is **ready for users**. Payment integration would be next for actual
 
 ---
 
-# PRODUCT_COMPLETE
+## Next Session Priorities
 
-✅ All criteria met. Ship it.
+1. **Add Stripe payment integration** - Enable actual monetization
+2. **Onboarding flow** - Brief 2-3 screen intro for new users
+3. **PWA offline support** - Cache for offline use
+4. **Verify SMS/Twilio** - Confirm proactive notifications actually send
 
 ---
 
