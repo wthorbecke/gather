@@ -141,9 +141,10 @@ All critical issues fixed:
 1. ~~**Integrate UpgradeModal into app**~~ - Done (Session 7)
 2. ~~**Add upgrade modal trigger**~~ - Done (Session 8)
 3. ~~**Fix calendar stale data**~~ - Done (Session 8) - auto-refresh if cache >30 min old
-4. **Create Stripe products** - Set up products/prices in Stripe Dashboard
-5. **Add calendar event create/edit** - Allow users to add events from Gather
-6. **Email scanning improvements** - Better actionability detection, snooze option
+4. ~~**Email snooze & persistent dismiss**~~ - Done (Session 8)
+5. **Create Stripe products** - Set up products/prices in Stripe Dashboard
+6. **Add calendar event create/edit** - Allow users to add events from Gather
+7. **Habit tracking improvements** - Streak visualization, habit completion history
 
 ---
 
@@ -156,11 +157,13 @@ All critical issues fixed:
 - Check for 429 responses with `upgradeRequired` flag in AI chat handlers
 - Show UpgradeModal automatically when free users hit rate limit
 - Fixed calendar stale events bug (auto-refresh if cache >30 min old)
+- Added email snooze and persistent dismiss functionality
 - All tests passing, build succeeds
 
 **Commits:**
 - `0f32dd9` Add upgrade modal trigger when hitting rate limits
 - `69a07a9` Fix calendar showing stale events
+- `662e5e4` Add snooze and persistent dismiss for email tasks
 
 ---
 
