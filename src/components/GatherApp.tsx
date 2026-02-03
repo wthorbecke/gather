@@ -21,6 +21,7 @@ import { ErrorBoundary } from './ErrorBoundary'
 import { ChatModal } from './ChatModal'
 import { ViewToggle } from './ViewToggle'
 import { calculateNewStreak, isHabitCompletedToday } from '@/lib/taskTypes'
+import { authFetch } from '@/lib/supabase'
 
 // Lazy load heavy components that are not needed immediately
 const Confetti = dynamic(() => import('./Confetti').then(mod => ({ default: mod.Confetti })), {
@@ -287,6 +288,35 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
     goHome() // Navigate back home after snoozing
   }, [updateTask, goHome])
 
+  // Add task to Google Calendar
+  const handleAddToCalendar = useCallback(async (task: Task): Promise<{ success: boolean; error?: string }> => {
+    if (!task.due_date) {
+      return { success: false, error: 'Task has no due date' }
+    }
+
+    try {
+      const response = await authFetch('/api/calendar/create-event', {
+        method: 'POST',
+        body: JSON.stringify({
+          taskId: task.id,
+          title: task.title,
+          description: task.description || `Task from Gather: ${task.title}`,
+          date: task.due_date,
+          allDay: true,
+        }),
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        return { success: false, error: data.error || 'Failed to add to calendar' }
+      }
+
+      return { success: true }
+    } catch {
+      return { success: false, error: 'Network error' }
+    }
+  }, [])
+
   // Toggle habit completion for today
   const handleToggleHabit = useCallback(async (taskId: string) => {
     const task = tasks.find(t => t.id === taskId)
@@ -499,6 +529,7 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
             onRemoveTag={removeTag}
             onDeleteTask={() => handleDeleteTask(currentTask.id)}
             onSnoozeTask={(date) => handleSnoozeTask(currentTask.id, date)}
+            onAddToCalendar={!isDemoUser ? () => handleAddToCalendar(currentTask) : undefined}
             focusStepId={focusStepId}
             onStuckOnStep={handleStuckOnStep}
           />

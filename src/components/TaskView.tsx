@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import dynamic from 'next/dynamic'
 import { Task, Step } from '@/hooks/useUserData'
+import { IntegrationProvider } from '@/lib/constants'
 import { UnifiedInput } from './UnifiedInput'
 import { useTheme } from './ThemeProvider'
 import { AICard, AICardState } from './AICard'
@@ -44,6 +45,7 @@ interface TaskViewProps {
   onRemoveTag: (index: number) => void
   onDeleteTask: () => void
   onSnoozeTask?: (date: string) => void
+  onAddToCalendar?: () => Promise<{ success: boolean; error?: string }>
   focusStepId?: string | number | null
   onStuckOnStep?: (step: Step) => void
 }
@@ -64,6 +66,7 @@ export function TaskView({
   onRemoveTag,
   onDeleteTask,
   onSnoozeTask,
+  onAddToCalendar,
   focusStepId,
   onStuckOnStep,
 }: TaskViewProps) {
@@ -74,6 +77,8 @@ export function TaskView({
   const [showFullContext, setShowFullContext] = useState(false)
   const [showSnoozeMenu, setShowSnoozeMenu] = useState(false)
   const [focusStepIndex, setFocusStepIndex] = useState<number | null>(null)
+  const [addingToCalendar, setAddingToCalendar] = useState(false)
+  const [calendarAdded, setCalendarAdded] = useState(false)
 
   // Handle step expansion
   const handleStepExpand = (step: Step) => {
@@ -263,6 +268,30 @@ export function TaskView({
                         <path d="M12 6v6l4 2" strokeLinecap="round" />
                       </svg>
                       Snooze
+                    </button>
+                  )}
+                  {/* Add to Calendar - only show if task has due date and is not from Google */}
+                  {onAddToCalendar && task.due_date && task.external_source?.provider !== IntegrationProvider.GOOGLE && (
+                    <button
+                      onClick={async () => {
+                        setShowMenu(false)
+                        setAddingToCalendar(true)
+                        const result = await onAddToCalendar()
+                        setAddingToCalendar(false)
+                        if (result.success) {
+                          setCalendarAdded(true)
+                          setTimeout(() => setCalendarAdded(false), 3000)
+                        }
+                      }}
+                      disabled={addingToCalendar || calendarAdded}
+                      className="w-full px-3 py-3 min-h-[44px] text-left text-sm text-text hover:bg-subtle flex items-center gap-2.5 transition-colors duration-150 ease-out disabled:opacity-50"
+                    >
+                      <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-text-muted">
+                        <rect x="3" y="4" width="18" height="18" rx="2" />
+                        <path d="M16 2v4M8 2v4M3 10h18" />
+                        <path d="M12 14v4M10 16h4" strokeLinecap="round" />
+                      </svg>
+                      {addingToCalendar ? 'Adding...' : calendarAdded ? 'Added to Calendar' : 'Add to Calendar'}
                     </button>
                   )}
                   <div className="h-px bg-border my-1" />
