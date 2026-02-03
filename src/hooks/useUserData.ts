@@ -15,6 +15,9 @@ const DEMO_STARTER_TASKS: Array<{
   category: typeof TaskCategory.SOON
   badge: string | null
   steps: Step[]
+  type?: TaskType
+  streak?: Streak
+  recurrence?: Recurrence
 }> = [
   {
     title: 'File taxes',
@@ -129,6 +132,42 @@ const DEMO_STARTER_TASKS: Array<{
         text: 'Review how you feel after 1 week',
         done: false,
         summary: 'Check in with yourself on energy levels',
+      },
+    ],
+  },
+  {
+    title: 'Morning meditation',
+    description: '10 minutes of calm to start the day',
+    category: TaskCategory.SOON,
+    badge: null,
+    type: TaskType.HABIT,
+    streak: {
+      current: 5,
+      best: 12,
+      lastCompleted: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0], // Yesterday
+    },
+    recurrence: {
+      frequency: 'daily',
+    },
+    steps: [
+      {
+        id: 'habit-step-1',
+        text: 'Find a quiet spot and sit comfortably',
+        done: false,
+        summary: 'No special equipment needed',
+        time: '1 min',
+      },
+      {
+        id: 'habit-step-2',
+        text: 'Set a 10-minute timer on your phone',
+        done: false,
+        summary: 'So you can fully relax without watching the clock',
+      },
+      {
+        id: 'habit-step-3',
+        text: 'Close your eyes and focus on your breath',
+        done: false,
+        summary: 'In through nose, out through mouth',
       },
     ],
   },
@@ -265,6 +304,9 @@ export function useTasks(user: User | null) {
         notes: null,
         clarifying_answers: [],
         task_category: undefined,
+        type: t.type,
+        streak: t.streak,
+        recurrence: t.recurrence,
       }))
       setTasks(seeded)
       safeSetJSON(demoStorageKey, seeded)
