@@ -155,9 +155,10 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
   }, [setCurrentTaskId, navGoHome, clearConversation, clearContextTags])
 
   // Handle quick add - creates task immediately, then generates AI steps in background
-  const handleQuickAdd = useCallback(async (value: string, metadata?: { type?: string; scheduledAt?: Date | null }) => {
+  const handleQuickAdd = useCallback(async (value: string, metadata?: { type?: string; scheduledAt?: Date | null; dueDate?: Date | null }) => {
     const taskType = (metadata?.type as import('@/lib/constants').TaskType) || undefined
     const scheduledAt = metadata?.scheduledAt?.toISOString() || null
+    const dueDate = metadata?.dueDate?.toISOString() || null
 
     const newTask = await addTask(
       value,
@@ -166,7 +167,7 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
       undefined, // badge
       undefined, // clarifyingAnswers
       undefined, // taskCategory
-      null,      // dueDate
+      dueDate,   // dueDate - extracted from natural language
       taskType,
       scheduledAt
     )

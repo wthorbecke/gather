@@ -5,6 +5,7 @@ import { Task, Step } from '@/hooks/useUserData'
 import { TaskType } from '@/lib/constants'
 import { parseTypePrefix, getTaskTypeLabel, getTaskTypeColor } from '@/lib/taskTypes'
 import { parseTime, formatPreviewTime } from '@/lib/timeParser'
+import { parseNaturalDate, formatParsedDate } from '@/lib/dateParser'
 import { content } from '@/config/content'
 
 // Custom hook for debouncing values
@@ -32,10 +33,11 @@ interface ContextTag {
   step?: Step
 }
 
-// Metadata from parsed input (type prefix and time)
+// Metadata from parsed input (type prefix, time, and due date)
 export interface ParsedInputMetadata {
   type: string
   scheduledAt: Date | null
+  dueDate: Date | null  // For tasks with "by tomorrow", "due Friday", etc.
 }
 
 interface UnifiedInputProps {
@@ -162,7 +164,7 @@ export function UnifiedInput({
     ).slice(0, 4)
   }, [value, suggestions])
 
-  // Parse type prefix and time from input
+  // Parse type prefix, time, and due date from input
   const parsedInput = useMemo(() => {
     if (!value.trim()) return null
 
@@ -175,33 +177,43 @@ export function UnifiedInput({
         type,
         title: titleText,
         scheduledAt,
+        dueDate: null,
         previewText: scheduledAt ? formatPreviewTime(scheduledAt) : null,
+        dueDateText: null,
         hasPrefix: true, // Always true for reminders and events
       }
     }
 
+    // For regular tasks and habits, try to parse due date
+    const { date: dueDate, cleanedText: titleText, matchedText } = parseNaturalDate(cleanText)
     return {
       type,
-      title: cleanText,
+      title: titleText,
       scheduledAt: null,
+      dueDate,
       previewText: null,
-      hasPrefix: type !== TaskType.TASK,
+      dueDateText: dueDate ? `Due ${formatParsedDate(dueDate)}` : null,
+      hasPrefix: type !== TaskType.TASK || dueDate !== null, // True if type prefix or date detected
     }
   }, [value])
 
-  // Show type badge when prefix detected
+  // Show type badge when prefix detected (not for regular tasks)
   const showTypeBadge = parsedInput?.hasPrefix && parsedInput.type !== TaskType.TASK
+
+  // Show due date badge when date detected in regular tasks
+  const showDueDateBadge = parsedInput?.dueDate && parsedInput.type === TaskType.TASK
 
   const handleQuickAdd = () => {
     if (!value.trim() || !onQuickAdd) return
 
-    // Pass parsed metadata if we have a type prefix
+    // Pass parsed metadata if we have a type prefix or detected date
     const metadata = parsedInput?.hasPrefix ? {
       type: parsedInput.type,
       scheduledAt: parsedInput.scheduledAt,
+      dueDate: parsedInput.dueDate,
     } : undefined
 
-    // Use clean title if we parsed a prefix, otherwise use raw value
+    // Use clean title if we parsed a prefix or date, otherwise use raw value
     const finalValue = parsedInput?.hasPrefix && parsedInput.title ? parsedInput.title : value.trim()
     onQuickAdd(finalValue, metadata)
     setValue('')
@@ -220,10 +232,11 @@ export function UnifiedInput({
       return
     }
 
-    // Pass parsed metadata if we have a type prefix (fallback if no onQuickAdd)
+    // Pass parsed metadata if we have a type prefix or date (fallback if no onQuickAdd)
     const metadata = parsedInput?.hasPrefix ? {
       type: parsedInput.type,
       scheduledAt: parsedInput.scheduledAt,
+      dueDate: parsedInput.dueDate,
     } : undefined
 
     // Use clean title if we parsed a prefix, otherwise use raw value
@@ -520,6 +533,19 @@ export function UnifiedInput({
               ${parsedInput.type === TaskType.EVENT ? 'bg-subtle text-text-soft' : ''}
             `}>
               {getTaskTypeLabel(parsedInput.type)}
+            </div>
+          )}
+
+          {/* Due date badge when date detected in input */}
+          {showDueDateBadge && parsedInput?.dueDateText && (
+            <div className="px-2 py-0.5 rounded-sm text-xs font-medium flex-shrink-0 bg-accent/10 text-accent flex items-center gap-1">
+              <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <rect x="3" y="4" width="18" height="18" rx="2" />
+                <line x1="16" y1="2" x2="16" y2="6" />
+                <line x1="8" y1="2" x2="8" y2="6" />
+                <line x1="3" y1="10" x2="21" y2="10" />
+              </svg>
+              {parsedInput.dueDateText}
             </div>
           )}
 
