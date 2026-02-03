@@ -32,6 +32,7 @@ const shortcutSections: ShortcutSection[] = [
       { keys: ['/r'], description: 'Create reminder' },
       { keys: ['/h'], description: 'Create habit' },
       { keys: ['/e'], description: 'Create event' },
+      { keys: ['/t'], description: 'Browse templates' },
     ],
   },
   {

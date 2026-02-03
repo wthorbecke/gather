@@ -47,6 +47,7 @@ interface UnifiedInputProps {
   onQuickAdd?: (value: string, metadata?: ParsedInputMetadata) => void
   onSelectResult?: (result: SearchResult) => void
   onRemoveTag?: (index: number) => void
+  onOpenTemplates?: () => void // Open template picker (/t command)
   placeholder?: string
   allowDropdown?: boolean
   autoFocus?: boolean
@@ -65,6 +66,7 @@ export function UnifiedInput({
   onQuickAdd,
   onSelectResult,
   onRemoveTag,
+  onOpenTemplates,
   placeholder = content.placeholders.homeInput,
   allowDropdown = true,
   autoFocus = false,
@@ -224,6 +226,13 @@ export function UnifiedInput({
     e.preventDefault()
     const submitValue = value.trim() || defaultSubmitValue
     if (!submitValue) return
+
+    // Handle /t command to open template picker
+    if (onOpenTemplates && (submitValue === '/t' || submitValue.toLowerCase().startsWith('/t '))) {
+      setValue('')
+      onOpenTemplates()
+      return
+    }
 
     // If type prefix detected and quick add is available, use quick add instead
     // This ensures /e, /r, /h prefixes create tasks directly with the right type
@@ -404,6 +413,14 @@ export function UnifiedInput({
       const submitValue = value.trim() || defaultSubmitValue
       if (!submitValue) return
       e.preventDefault()
+
+      // Handle /t command to open template picker
+      if (onOpenTemplates && (submitValue === '/t' || submitValue.toLowerCase().startsWith('/t '))) {
+        setValue('')
+        setFocused(false)
+        onOpenTemplates()
+        return
+      }
 
       // If type prefix detected and quick add is available, use quick add
       if (parsedInput?.hasPrefix && onQuickAdd) {

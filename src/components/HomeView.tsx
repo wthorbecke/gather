@@ -60,6 +60,7 @@ interface HomeViewProps {
   onBackQuestion?: () => void
   canGoBack?: boolean
   isDemoUser?: boolean
+  onOpenTemplates?: () => void
 }
 
 export function HomeView({
@@ -80,6 +81,7 @@ export function HomeView({
   onBackQuestion,
   canGoBack = false,
   isDemoUser = false,
+  onOpenTemplates,
 }: HomeViewProps) {
   // State for task list visibility
   const [showAllTasks, setShowAllTasks] = useState(false)
@@ -209,6 +211,7 @@ export function HomeView({
               tasks={tasks}
               onSubmit={onSubmit}
               onQuickAdd={onQuickAdd}
+              onOpenTemplates={onOpenTemplates}
               placeholder={isQuestionFlow ? (confirmableSavedAnswer ? `Press enter to confirm "${confirmableSavedAnswer}"` : 'Type your answer...') : inputPlaceholder}
               animatedPlaceholders={isQuestionFlow || aiCard ? [] : content.animatedPlaceholders}
               autoFocus={shouldAutoFocus}

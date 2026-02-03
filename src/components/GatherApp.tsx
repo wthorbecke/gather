@@ -44,6 +44,10 @@ const KeyboardShortcutsModal = dynamic(() => import('./KeyboardShortcutsModal').
   ssr: false,
   loading: () => null,
 })
+const TaskTemplateModal = dynamic(() => import('./TaskTemplateModal').then(mod => ({ default: mod.TaskTemplateModal })), {
+  ssr: false,
+  loading: () => null,
+})
 
 interface GatherAppProps {
   user: User
@@ -64,6 +68,9 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
 
   // Keyboard shortcuts modal state
   const [showKeyboardShortcuts, setShowKeyboardShortcuts] = useState(false)
+
+  // Task template modal state
+  const [showTemplateModal, setShowTemplateModal] = useState(false)
 
   // Global keyboard shortcut for '?' to show help
   useEffect(() => {
@@ -246,6 +253,38 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
       }
     }
   }, [addTask, updateTask])
+
+  // Handle template selection
+  const handleSelectTemplate = useCallback(async (template: { title: string; steps: Step[] }) => {
+    setShowTemplateModal(false)
+
+    // Create the task
+    const newTask = await addTask(
+      template.title,
+      'soon',
+      undefined, // description
+      undefined, // badge
+      undefined, // clarifyingAnswers
+      undefined, // taskCategory
+      null,      // dueDate
+      'task',    // taskType
+      null       // scheduledAt
+    )
+
+    if (newTask) {
+      // Update with template steps (re-generate IDs to ensure uniqueness)
+      const stepsWithNewIds = template.steps.map((step, idx) => ({
+        ...step,
+        id: `step-${Date.now()}-${idx}`,
+        done: false, // Reset done state for new task
+      }))
+
+      await updateTask(newTask.id, { steps: stepsWithNewIds } as Partial<Task>)
+
+      // Navigate to the task to show it
+      goToTask(newTask.id)
+    }
+  }, [addTask, updateTask, goToTask])
 
   // Handle suggestion click
   const handleSuggestionClick = useCallback((suggestion: string) => {
@@ -569,6 +608,7 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
                 onBackQuestion={handleBackQuestion}
                 canGoBack={Boolean(contextGathering && contextGathering.currentIndex > 0)}
                 isDemoUser={isDemoUser}
+                onOpenTemplates={() => setShowTemplateModal(true)}
               />
             </ErrorBoundary>
           )}
@@ -651,6 +691,14 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
       {/* Keyboard Shortcuts Modal */}
       {showKeyboardShortcuts && (
         <KeyboardShortcutsModal onClose={() => setShowKeyboardShortcuts(false)} />
+      )}
+
+      {/* Task Template Modal */}
+      {showTemplateModal && (
+        <TaskTemplateModal
+          onSelect={handleSelectTemplate}
+          onClose={() => setShowTemplateModal(false)}
+        />
       )}
 
       {/* Chat FAB - floating action button */}
