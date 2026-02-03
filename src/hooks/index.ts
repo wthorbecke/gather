@@ -39,3 +39,7 @@ export type { ConversationMessage, ConversationHistoryReturn } from './useConver
 // Undo hook
 export { useUndo } from './useUndo'
 export type { UndoAction, UndoActionType, UseUndoReturn } from './useUndo'
+
+// Subscription hook
+export { useSubscription } from './useSubscription'
+export type { Subscription, SubscriptionStatus } from './useSubscription'

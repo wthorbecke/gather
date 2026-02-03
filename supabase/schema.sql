@@ -348,3 +348,8 @@ CREATE INDEX IF NOT EXISTS idx_task_insights_user_shown ON public.task_insights(
 CREATE INDEX IF NOT EXISTS idx_task_insights_task ON public.task_insights(task_id, shown_at DESC);
 CREATE INDEX IF NOT EXISTS idx_task_completions_user_time ON public.task_completions(user_id, completed_at DESC);
 CREATE INDEX IF NOT EXISTS idx_task_completions_patterns ON public.task_completions(user_id, completion_day_of_week, completion_hour);
+
+-- ================================================
+-- Stripe Subscription Tables
+-- (See migrations/012_stripe_subscriptions.sql for full implementation)
+-- ================================================
