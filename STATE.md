@@ -142,7 +142,7 @@ All critical issues fixed:
 2. **Fix test user credentials** - Update TEST_USER_PASSWORD in Supabase
 3. ~~**PWA offline support**~~ - Already implemented (service worker, manifest, icons)
 4. **Create Stripe products** - Set up products/prices in Stripe Dashboard
-5. **Add subscription gating** - Lock premium features for non-subscribers
+5. ~~**Add subscription gating**~~ - Done (Session 7) - tier-based rate limits
 
 ---
 
@@ -161,14 +161,15 @@ All critical issues fixed:
 
 **Commits:**
 - `d5ec2c8` Add Stripe subscription integration
-- `4111733` Update STATE.md for session 7
 - `6dbf045` Add subscription management to settings modal
 - `85081f9` Improve error logging in email scan endpoint
+- `4705f31` Add subscription-based rate limiting for AI features
 
 **Technical notes:**
 - Using Stripe API version 2026-01-28.clover
 - Subscription period dates now on SubscriptionItem, not Subscription (Stripe API change)
 - Lazy Stripe initialization to avoid build-time errors
+- Tier-based rate limits: demo (10/hr), free (5/day), pro (100/hr)
 
 ---
 
