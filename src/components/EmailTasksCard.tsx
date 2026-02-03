@@ -36,11 +36,18 @@ const BASE_DELAY_MS = 1000
 
 // Cache configuration - don't re-scan more than once per 5 minutes
 const SCAN_CACHE_KEY = 'gather_email_scan_cache'
+const DISMISSED_EMAILS_KEY = 'gather_dismissed_emails'
+const SNOOZED_EMAILS_KEY = 'gather_snoozed_emails'
 const SCAN_COOLDOWN_MS = 5 * 60 * 1000 // 5 minutes
 
 interface ScanCache {
   timestamp: number
   results: PotentialTask[]
+}
+
+interface SnoozedEmail {
+  id: string
+  until: number // timestamp
 }
 
 function getCachedScan(): ScanCache | null {
@@ -69,6 +76,62 @@ function setCachedScan(results: PotentialTask[]) {
   }
 }
 
+// Persistent dismissed emails (localStorage)
+function getDismissedEmails(): Set<string> {
+  if (typeof window === 'undefined') return new Set()
+  try {
+    const stored = localStorage.getItem(DISMISSED_EMAILS_KEY)
+    if (!stored) return new Set()
+    const ids = JSON.parse(stored) as string[]
+    return new Set(ids)
+  } catch {
+    return new Set()
+  }
+}
+
+function setDismissedEmails(ids: Set<string>) {
+  if (typeof window === 'undefined') return
+  try {
+    // Keep only the most recent 100 dismissed emails to avoid storage bloat
+    const arr = Array.from(ids).slice(-100)
+    localStorage.setItem(DISMISSED_EMAILS_KEY, JSON.stringify(arr))
+  } catch {
+    // Storage full - ignore
+  }
+}
+
+// Snoozed emails with expiration
+function getSnoozedEmails(): Map<string, number> {
+  if (typeof window === 'undefined') return new Map()
+  try {
+    const stored = localStorage.getItem(SNOOZED_EMAILS_KEY)
+    if (!stored) return new Map()
+    const snoozed = JSON.parse(stored) as SnoozedEmail[]
+    const now = Date.now()
+    // Filter out expired snoozes and return active ones
+    const active = snoozed.filter(s => s.until > now)
+    return new Map(active.map(s => [s.id, s.until]))
+  } catch {
+    return new Map()
+  }
+}
+
+function setSnoozedEmail(id: string, until: number) {
+  if (typeof window === 'undefined') return
+  try {
+    const stored = localStorage.getItem(SNOOZED_EMAILS_KEY)
+    const snoozed: SnoozedEmail[] = stored ? JSON.parse(stored) : []
+    // Remove existing entry for this id
+    const filtered = snoozed.filter(s => s.id !== id && s.until > Date.now())
+    filtered.push({ id, until })
+    // Keep only the most recent 50 snoozed emails
+    const trimmed = filtered.slice(-50)
+    localStorage.setItem(SNOOZED_EMAILS_KEY, JSON.stringify(trimmed))
+  } catch {
+    // Storage full - ignore
+  }
+}
+
 // Category display names and colors
 const CATEGORY_INFO: Record<string, { label: string; color: string }> = {
   BILL_DUE: { label: 'Bill', color: 'text-danger' },
@@ -82,10 +145,12 @@ export function EmailTasksCard({ onAddTask, onIgnoreSender, isDemoUser }: EmailT
   const [potentialTasks, setPotentialTasks] = useState<PotentialTask[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [dismissed, setDismissed] = useState<Set<string>>(new Set())
+  const [dismissed, setDismissed] = useState<Set<string>>(() => getDismissedEmails())
+  const [snoozed, setSnoozed] = useState<Map<string, number>>(() => getSnoozedEmails())
   const [hasScanned, setHasScanned] = useState(false)
   const [needsReauth, setNeedsReauth] = useState(false)
   const [isExpanded, setIsExpanded] = useState(false)
+  const [showSnoozeMenu, setShowSnoozeMenu] = useState<string | null>(null)
   const retryCountRef = useRef(0)
   const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
@@ -122,6 +187,20 @@ export function EmailTasksCard({ onAddTask, onIgnoreSender, isDemoUser }: EmailT
       }
     }
   }, [])
+
+  // Close snooze menu when clicking outside
+  useEffect(() => {
+    if (!showSnoozeMenu) return
+    const handleClick = () => setShowSnoozeMenu(null)
+    // Delay to avoid closing immediately on the click that opened it
+    const timeout = setTimeout(() => {
+      document.addEventListener('click', handleClick)
+    }, 0)
+    return () => {
+      clearTimeout(timeout)
+      document.removeEventListener('click', handleClick)
+    }
+  }, [showSnoozeMenu])
 
   const scanEmails = useCallback(async (isRetry = false) => {
     if (!session?.access_token) return
@@ -217,7 +296,19 @@ export function EmailTasksCard({ onAddTask, onIgnoreSender, isDemoUser }: EmailT
   }
 
   const handleDismiss = (taskId: string) => {
-    setDismissed((prev) => new Set(prev).add(taskId))
+    setDismissed((prev) => {
+      const newDismissed = new Set(prev).add(taskId)
+      setDismissedEmails(newDismissed)
+      return newDismissed
+    })
+    setShowSnoozeMenu(null)
+  }
+
+  const handleSnooze = (taskId: string, hours: number) => {
+    const until = Date.now() + hours * 60 * 60 * 1000
+    setSnoozedEmail(taskId, until)
+    setSnoozed((prev) => new Map(prev).set(taskId, until))
+    setShowSnoozeMenu(null)
   }
 
   const handleIgnoreSender = (task: PotentialTask) => {
@@ -229,17 +320,29 @@ export function EmailTasksCard({ onAddTask, onIgnoreSender, isDemoUser }: EmailT
     setDismissed(prev => {
       const newDismissed = new Set(prev)
       senderTasks.forEach(t => newDismissed.add(t.id))
+      setDismissedEmails(newDismissed)
       return newDismissed
     })
+    setShowSnoozeMenu(null)
   }
 
   const handleDismissAll = () => {
     const allIds = new Set(potentialTasks.map((t) => t.id))
-    setDismissed(allIds)
+    setDismissed(prev => {
+      const newDismissed = new Set([...prev, ...allIds])
+      setDismissedEmails(newDismissed)
+      return newDismissed
+    })
   }
 
-  // Filter out dismissed tasks
-  const visibleTasks = potentialTasks.filter((t) => !dismissed.has(t.id))
+  // Filter out dismissed and currently snoozed tasks
+  const now = Date.now()
+  const visibleTasks = potentialTasks.filter((t) => {
+    if (dismissed.has(t.id)) return false
+    const snoozeUntil = snoozed.get(t.id)
+    if (snoozeUntil && snoozeUntil > now) return false
+    return true
+  })
 
   // Don't render anything if no session, no tasks, or all dismissed
   if (!session || visibleTasks.length === 0) {
@@ -375,7 +478,7 @@ export function EmailTasksCard({ onAddTask, onIgnoreSender, isDemoUser }: EmailT
                 </div>
 
                 {/* Actions - show on hover */}
-                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 relative">
                   <button
                     onClick={(e) => {
                       e.stopPropagation()
@@ -388,14 +491,55 @@ export function EmailTasksCard({ onAddTask, onIgnoreSender, isDemoUser }: EmailT
                   <button
                     onClick={(e) => {
                       e.stopPropagation()
-                      handleDismiss(task.id)
+                      setShowSnoozeMenu(showSnoozeMenu === task.id ? null : task.id)
                     }}
                     className="p-2 min-w-[44px] min-h-[44px] flex items-center justify-center text-text-muted hover:text-text transition-colors duration-150 ease-out"
+                    title="Snooze or dismiss"
                   >
-                    <svg width={14} height={14} viewBox="0 0 16 16">
-                      <path d="M4 4L12 12M12 4L4 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                    <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <circle cx="12" cy="12" r="10"/>
+                      <polyline points="12 6 12 12 16 14"/>
                     </svg>
                   </button>
+                  {/* Snooze menu dropdown */}
+                  {showSnoozeMenu === task.id && (
+                    <div
+                      className="absolute right-0 top-full mt-1 z-20 bg-card rounded-lg shadow-lg border border-border py-1 min-w-[140px]"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <button
+                        onClick={() => handleSnooze(task.id, 3)}
+                        className="w-full px-3 py-2 text-left text-xs hover:bg-subtle transition-colors"
+                      >
+                        Snooze 3 hours
+                      </button>
+                      <button
+                        onClick={() => handleSnooze(task.id, 24)}
+                        className="w-full px-3 py-2 text-left text-xs hover:bg-subtle transition-colors"
+                      >
+                        Snooze until tomorrow
+                      </button>
+                      <button
+                        onClick={() => handleSnooze(task.id, 168)}
+                        className="w-full px-3 py-2 text-left text-xs hover:bg-subtle transition-colors"
+                      >
+                        Snooze 1 week
+                      </button>
+                      <div className="border-t border-border my-1" />
+                      <button
+                        onClick={() => handleDismiss(task.id)}
+                        className="w-full px-3 py-2 text-left text-xs text-text-muted hover:bg-subtle hover:text-text transition-colors"
+                      >
+                        Dismiss forever
+                      </button>
+                      <button
+                        onClick={() => handleIgnoreSender(task)}
+                        className="w-full px-3 py-2 text-left text-xs text-text-muted hover:bg-subtle hover:text-text transition-colors"
+                      >
+                        Ignore sender
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 {/* Touch-friendly indicator for mobile */}
