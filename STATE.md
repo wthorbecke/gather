@@ -166,6 +166,7 @@ All critical issues fixed:
 - ~~Task duplication~~ - Done (Session 11) - Copy tasks with steps via "Duplicate" menu option
 - ~~Clear completed tasks~~ - Done (Session 11) - Batch delete all finished tasks
 - ~~Task pinning~~ - Done (Session 11) - Star tasks to keep at top of list
+- ~~Step deletion~~ - Done (Session 11) - Remove individual steps from tasks
 - Task sharing/delegation - Share tasks with others
 - Mobile PWA enhancements - Offline support, better notifications
 - ~~Keyboard shortcut overlay~~ - Done (Session 11) - Help modal showing all shortcuts
@@ -265,6 +266,10 @@ All critical issues fixed:
   - "Pin to top" / "Unpin" in task menu
   - Pinned tasks sort before deadline urgency
   - Works in demo and production modes
+- **Added step deletion** - Remove unwanted steps from tasks
+  - "Delete" button in step expanded view
+  - Red styling matches danger action pattern
+  - Removes step from task's steps array
 - All 173 tests passing, build succeeds
 
 **Commits:**
@@ -284,6 +289,7 @@ All critical issues fixed:
 - `838ff55` Add "Clear all" button for completed tasks
 - `93bb9ab` Add confirmation dialog before clearing completed tasks
 - `218f00a` Add task pinning feature (star to top)
+- `20b975a` Add step deletion feature
 
 **Technical notes:**
 - Quick actions feature (from Future Ideas) partially addressed - snooze was the highest-impact quick action
@@ -333,6 +339,8 @@ All critical issues fixed:
 - Task pinning adds `pinned?: boolean` field to Task interface
 - sortedTasks in HomeView puts pinned tasks first (before deadline sort)
 - handleTogglePin in GatherApp toggles the pinned state via updateTask
+- Step deletion adds `onDelete` prop chain: StepItem -> TaskView -> GatherApp
+- handleDeleteStep filters out the deleted step from task.steps array
 
 ---
 
