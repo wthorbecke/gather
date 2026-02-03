@@ -58,6 +58,30 @@ const TypeIcon = memo(function TypeIcon({ type, className = '' }: { type: TaskTy
   return null
 })
 
+// Recurrence indicator icon (small, shows task repeats)
+const RecurrenceIcon = memo(function RecurrenceIcon({ className = '' }: { className?: string }) {
+  return (
+    <span title="This task repeats" className={`inline-flex ${className}`}>
+      <svg
+        width={12}
+        height={12}
+        viewBox="0 0 24 24"
+        className="text-text-muted flex-shrink-0"
+        aria-label="Repeats"
+      >
+        <path
+          d="M17 1l4 4-4 4M3 11V9a4 4 0 014-4h14M7 23l-4-4 4-4M21 13v2a4 4 0 01-4 4H3"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          fill="none"
+        />
+      </svg>
+    </span>
+  )
+})
+
 // Streak indicator for habits (flame icon + number)
 const StreakIndicator = memo(function StreakIndicator({ streak }: { streak: number }) {
   if (streak <= 0) return null
@@ -187,6 +211,10 @@ export const TaskListItem = memo(function TaskListItem({ task, onClick, onDelete
             <div className={`text-base font-medium text-text truncate ${overdue && isReminder ? 'text-danger' : ''}`}>
               {task.title}
             </div>
+            {/* Recurrence indicator - show for tasks/reminders with recurrence (habits already show repeat icon) */}
+            {task.recurrence && !isHabit && (
+              <RecurrenceIcon />
+            )}
             {task.due_date && !isReminder && !isEvent && (
               <DeadlineBadge dueDate={task.due_date} compact />
             )}
