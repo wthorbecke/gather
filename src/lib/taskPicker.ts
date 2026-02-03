@@ -24,8 +24,8 @@ function scoreTask(task: Task, userEnergy?: EnergyLevel | null): TaskScore {
   const reasons: string[] = []
 
   // Skip completed tasks
-  const incompletesteps = task.steps?.filter(s => !s.done) || []
-  if (incompletesteps.length === 0) {
+  const incompleteSteps = task.steps?.filter(s => !s.done) || []
+  if (incompleteSteps.length === 0) {
     return { task, score: -1000, reasons: ['Completed'] }
   }
 
@@ -81,7 +81,7 @@ function scoreTask(task: Task, userEnergy?: EnergyLevel | null): TaskScore {
 
   // 4. Task progress - tasks that are started get slight boost
   const totalSteps = task.steps?.length || 0
-  const completedSteps = totalSteps - incompletesteps.length
+  const completedSteps = totalSteps - incompleteSteps.length
   if (completedSteps > 0 && totalSteps > 1) {
     score += 15
     reasons.push(`${completedSteps}/${totalSteps} steps done`)
@@ -98,7 +98,7 @@ function scoreTask(task: Task, userEnergy?: EnergyLevel | null): TaskScore {
   }
 
   // 6. Quick wins - tasks with short time estimates get small boost
-  const firstStep = incompletesteps[0]
+  const firstStep = incompleteSteps[0]
   if (firstStep?.time) {
     const timeMatch = firstStep.time.match(/(\d+)/)
     if (timeMatch) {
@@ -116,6 +116,17 @@ function scoreTask(task: Task, userEnergy?: EnergyLevel | null): TaskScore {
 }
 
 /**
+ * Filter tasks to only those with incomplete steps (workable tasks).
+ * Optionally excludes a specific task by ID.
+ */
+function getWorkableTasks(tasks: Task[], excludeId?: string | null): Task[] {
+  return tasks.filter(t => {
+    if (excludeId && t.id === excludeId) return false
+    return t.steps?.some(s => !s.done)
+  })
+}
+
+/**
  * Pick the best task for the user to work on right now.
  * Returns null if no tasks are available.
  */
@@ -125,12 +136,7 @@ export function pickBestTask(
 ): Task | null {
   if (!tasks.length) return null
 
-  // Filter to only tasks with incomplete steps
-  const workableTasks = tasks.filter(t => {
-    const hasIncompleteSteps = t.steps?.some(s => !s.done)
-    return hasIncompleteSteps
-  })
-
+  const workableTasks = getWorkableTasks(tasks)
   if (!workableTasks.length) return null
 
   // Score all tasks
@@ -154,13 +160,7 @@ export function getAlternativeTasks(
 ): Task[] {
   if (!tasks.length) return []
 
-  // Filter to only tasks with incomplete steps, excluding current
-  const workableTasks = tasks.filter(t => {
-    if (t.id === currentTaskId) return false
-    const hasIncompleteSteps = t.steps?.some(s => !s.done)
-    return hasIncompleteSteps
-  })
-
+  const workableTasks = getWorkableTasks(tasks, currentTaskId)
   if (!workableTasks.length) return []
 
   // Score all tasks
