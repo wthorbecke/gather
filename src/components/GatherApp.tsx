@@ -15,6 +15,7 @@ import { useCelebration } from '@/hooks/useCelebration'
 import { useAIConversation } from '@/hooks/useAIConversation'
 import { useGlobalKeyboardShortcuts } from '@/hooks/useGlobalKeyboardShortcuts'
 import { useStepHandlers } from '@/hooks/useStepHandlers'
+import { useRewards } from '@/hooks/useRewards'
 import { GatherAppSkeleton } from './GatherAppSkeleton'
 import { ThemeToggle } from './ThemeProvider'
 import { HomeView } from './HomeView'
@@ -84,6 +85,9 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
   const { addEntry, addToConversation, getMemoryForAI, getRelevantMemory, getPreference, setPreference } = useMemory()
   const { moodEntries, addMoodEntry } = useMoodEntries()
   const isDemoUser = Boolean(user?.id?.startsWith('demo-') || user?.email?.endsWith('@gather.local'))
+
+  // Gamification - rewards and points system
+  const rewards = useRewards(isDemoUser ? null : user.id, isDemoUser)
 
   // Mood picker state - only show once per session
   const [showMoodPicker, setShowMoodPicker] = useState(false)
@@ -211,6 +215,9 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
     checkAndCelebrate,
     pushUndo,
     addEntry,
+    onEarnPoints: (amount, actionType, taskId) => {
+      rewards.earnPoints(amount, actionType, taskId)
+    },
   })
 
   // AI conversation - pass dependencies

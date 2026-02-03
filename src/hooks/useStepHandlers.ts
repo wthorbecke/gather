@@ -17,6 +17,8 @@ interface StepHandlersOptions {
   ) => void
   pushUndo: (action: Omit<UndoAction, 'id' | 'timestamp'>) => void
   addEntry: (entry: Omit<MemoryEntry, 'id' | 'timestamp'>) => void
+  // Optional gamification callback
+  onEarnPoints?: (amount: number, actionType: string, taskId?: string) => void
 }
 
 export interface StepHandlers {
@@ -38,6 +40,7 @@ export function useStepHandlers({
   checkAndCelebrate,
   pushUndo,
   addEntry,
+  onEarnPoints,
 }: StepHandlersOptions): StepHandlers {
   // Handle step toggle with celebration and undo
   const handleToggleStep = useCallback(async (taskId: string, stepId: string | number, inFocusMode = false) => {
@@ -69,8 +72,21 @@ export function useStepHandlers({
           stepId,
         },
       })
+
+      // Award points for completing a step (gamification)
+      if (onEarnPoints) {
+        onEarnPoints(5, 'step_complete', taskId)
+
+        // Check if this completes all steps (task complete bonus)
+        const otherSteps = task.steps?.filter(s => s.id !== stepId) || []
+        const allOthersDone = otherSteps.every(s => s.done)
+        if (allOthersDone && task.steps && task.steps.length > 0) {
+          // Small delay so animations don't overlap
+          setTimeout(() => onEarnPoints(25, 'task_complete', taskId), 300)
+        }
+      }
     }
-  }, [toggleStep, tasks, addEntry, checkAndCelebrate, pushUndo])
+  }, [toggleStep, tasks, addEntry, checkAndCelebrate, pushUndo, onEarnPoints])
 
   // Handle step edit
   const handleEditStep = useCallback(async (taskId: string, stepId: string | number, newText: string) => {
