@@ -140,9 +140,10 @@ All critical issues fixed:
 
 1. ~~**Integrate UpgradeModal into app**~~ - Done (Session 7)
 2. ~~**Add upgrade modal trigger**~~ - Done (Session 8)
-3. **Fix calendar stale data** - Auto-refresh when cached events are stale, or show "No events" properly
+3. ~~**Fix calendar stale data**~~ - Done (Session 8) - auto-refresh if cache >30 min old
 4. **Create Stripe products** - Set up products/prices in Stripe Dashboard
 5. **Add calendar event create/edit** - Allow users to add events from Gather
+6. **Email scanning improvements** - Better actionability detection, snooze option
 
 ---
 
@@ -154,13 +155,12 @@ All critical issues fixed:
 - Added `onUpgradeRequired` callback to `useAIConversation` hook
 - Check for 429 responses with `upgradeRequired` flag in AI chat handlers
 - Show UpgradeModal automatically when free users hit rate limit
-- All 189 tests passing
+- Fixed calendar stale events bug (auto-refresh if cache >30 min old)
+- All tests passing, build succeeds
 
 **Commits:**
 - `0f32dd9` Add upgrade modal trigger when hitting rate limits
-
-**Known Issues Identified:**
-- Calendar showing stale cached events: If a user previously synced their calendar and later removes events from Google Calendar, the cached events still show in Gather. To clear, disable/re-enable calendar integration.
+- `69a07a9` Fix calendar showing stale events
 
 ---
 
