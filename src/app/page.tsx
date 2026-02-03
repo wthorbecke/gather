@@ -4,14 +4,18 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '@/components/AuthProvider'
 import { LoginPage } from '@/components/LoginPage'
 import { GatherApp } from '@/components/GatherApp'
+import { Onboarding } from '@/components/Onboarding'
 import { User } from '@supabase/supabase-js'
 import { content } from '@/config/content'
-import { safeRemoveItem } from '@/lib/storage'
+import { safeRemoveItem, safeGetItem, safeSetItem } from '@/lib/storage'
+
+const ONBOARDING_COMPLETE_KEY = 'gather-onboarding-complete'
 
 export default function Home() {
   const { user, loading: authLoading, signOut } = useAuth()
   const [demoMode, setDemoMode] = useState(false)
   const [showLogin, setShowLogin] = useState(false)
+  const [showOnboarding, setShowOnboarding] = useState(false)
 
   // Show login page immediately, don't wait for auth check
   // This prevents loading spinner from blocking the UI
@@ -47,13 +51,29 @@ export default function Home() {
   // Not logged in - show login page
   if (shouldShowLogin) {
     return (
-      <LoginPage
-        onTryDemo={() => {
-          // Clear only legacy v1 storage format, preserve current demo data
-          safeRemoveItem('gather-demo-tasks-v1')
-          setDemoMode(true)
-        }}
-      />
+      <>
+        <LoginPage
+          onTryDemo={() => {
+            // Clear only legacy v1 storage format, preserve current demo data
+            safeRemoveItem('gather-demo-tasks-v1')
+            // Check if user has completed onboarding before
+            const hasCompletedOnboarding = safeGetItem(ONBOARDING_COMPLETE_KEY) === 'true'
+            if (hasCompletedOnboarding) {
+              setDemoMode(true)
+            } else {
+              setShowOnboarding(true)
+            }
+          }}
+        />
+        <Onboarding
+          isOpen={showOnboarding}
+          onComplete={() => {
+            safeSetItem(ONBOARDING_COMPLETE_KEY, 'true')
+            setShowOnboarding(false)
+            setDemoMode(true)
+          }}
+        />
+      </>
     )
   }
 
