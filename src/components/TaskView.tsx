@@ -53,6 +53,7 @@ interface TaskViewProps {
   onSetRecurrence?: (recurrence: Recurrence | null) => void
   onAddToCalendar?: () => Promise<{ success: boolean; error?: string }>
   onRemoveFromCalendar?: () => Promise<{ success: boolean; error?: string }>
+  onDuplicateTask?: () => void
   focusStepId?: string | number | null
   onStuckOnStep?: (step: Step) => void
 }
@@ -77,6 +78,7 @@ export function TaskView({
   onSetRecurrence,
   onAddToCalendar,
   onRemoveFromCalendar,
+  onDuplicateTask,
   focusStepId,
   onStuckOnStep,
 }: TaskViewProps) {
@@ -371,6 +373,22 @@ export function TaskView({
                         </button>
                       )}
                     </>
+                  )}
+                  {/* Duplicate task */}
+                  {onDuplicateTask && (
+                    <button
+                      onClick={() => {
+                        setShowMenu(false)
+                        onDuplicateTask()
+                      }}
+                      className="w-full px-3 py-3 min-h-[44px] text-left text-sm text-text hover:bg-subtle flex items-center gap-2.5 transition-colors duration-150 ease-out"
+                    >
+                      <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-text-muted">
+                        <rect x="9" y="9" width="13" height="13" rx="2" />
+                        <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
+                      </svg>
+                      Duplicate
+                    </button>
                   )}
                   <div className="h-px bg-border my-1" />
                   <button

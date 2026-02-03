@@ -58,7 +58,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       clearTimeout(timeout)
       subscription.unsubscribe()
     }
-  }, [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []) // Intentionally empty - we only want to set up auth listeners once on mount
 
   const signInWithGoogle = async () => {
     const { error } = await supabase.auth.signInWithOAuth({

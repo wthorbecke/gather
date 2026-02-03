@@ -160,7 +160,7 @@ export function TaskTemplateModal({ onSelect, onClose }: TaskTemplateModalProps)
         {!selectedTemplate && (
           <div className="p-3 border-t border-border">
             <p className="text-xs text-text-muted text-center">
-              Tap a template to preview, then tap again or press "Use this template"
+              Tap a template to preview, then tap again or press &ldquo;Use this template&rdquo;
             </p>
           </div>
         )}

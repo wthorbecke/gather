@@ -371,6 +371,43 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
     await updateTask(taskId, { recurrence } as Partial<Task>)
   }, [updateTask])
 
+  // Duplicate a task
+  const handleDuplicateTask = useCallback(async (task: Task) => {
+    // Create a new task with the same properties
+    // Convert null values to undefined to match addTask signature
+    const newTask = await addTask(
+      task.title,
+      'soon',
+      task.description ?? undefined,
+      task.badge ?? undefined,
+      task.clarifying_answers || [],
+      task.category ?? undefined,
+      task.due_date,
+      task.type,
+      task.scheduled_at
+    )
+
+    if (newTask) {
+      // Copy steps with new IDs (reset done state)
+      if (task.steps && task.steps.length > 0) {
+        const duplicatedSteps = task.steps.map((step, idx) => ({
+          ...step,
+          id: `step-${Date.now()}-${idx}`,
+          done: false, // Reset completion
+        }))
+        await updateTask(newTask.id, { steps: duplicatedSteps } as Partial<Task>)
+      }
+
+      // Copy context_text if present
+      if (task.context_text) {
+        await updateTask(newTask.id, { context_text: task.context_text } as Partial<Task>)
+      }
+
+      // Navigate to the new task
+      goToTask(newTask.id)
+    }
+  }, [addTask, updateTask, goToTask])
+
   // Add task to Google Calendar
   const handleAddToCalendar = useCallback(async (task: Task): Promise<{ success: boolean; error?: string }> => {
     if (!task.due_date) {
@@ -653,6 +690,7 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
             onSetRecurrence={(recurrence) => handleSetRecurrence(currentTask.id, recurrence)}
             onAddToCalendar={!isDemoUser ? () => handleAddToCalendar(currentTask) : undefined}
             onRemoveFromCalendar={!isDemoUser ? () => handleRemoveFromCalendar(currentTask) : undefined}
+            onDuplicateTask={() => handleDuplicateTask(currentTask)}
             focusStepId={focusStepId}
             onStuckOnStep={handleStuckOnStep}
           />
