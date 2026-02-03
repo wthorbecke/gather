@@ -296,33 +296,98 @@ export function mapAIStepsToSteps(items: (AIStepItem | string)[]): Step[] {
 }
 
 /**
- * Create fallback steps when AI fails
+ * Create fallback steps when AI fails - uses keyword matching for relevant steps
  */
-export function createFallbackSteps(taskName: string, contextDescription?: string): Step[] {
+export function createFallbackSteps(taskName: string, _contextDescription?: string): Step[] {
+  const taskLower = taskName.toLowerCase()
+  const baseId = Date.now()
+
+  // Keyword-based fallbacks - provide actionable steps for common task types
+
+  if (taskLower.includes('cancel')) {
+    return [
+      { id: `step-${baseId}-1`, text: 'Find contact info for cancellation', done: false, summary: 'Locate cancellation method', time: '5 min' },
+      { id: `step-${baseId}-2`, text: 'Call or use online chat - say "I want to cancel my account"', done: false, summary: 'Direct request works best', time: '10 min' },
+      { id: `step-${baseId}-3`, text: 'Get confirmation number or email and save it', done: false, summary: 'Proof of cancellation', time: '2 min' },
+    ]
+  }
+
+  if (taskLower.includes('pay') || taskLower.includes('bill')) {
+    return [
+      { id: `step-${baseId}-1`, text: 'Find the bill or invoice (email, mail, or account portal)', done: false, summary: 'Locate what you owe', time: '3 min' },
+      { id: `step-${baseId}-2`, text: 'Check the amount and due date', done: false, summary: 'Know the deadline', time: '2 min' },
+      { id: `step-${baseId}-3`, text: 'Make the payment and save confirmation', done: false, summary: 'Done + proof', time: '5 min' },
+    ]
+  }
+
+  if (taskLower.includes('clean') || taskLower.includes('organize') || taskLower.includes('tidy')) {
+    return [
+      { id: `step-${baseId}-1`, text: 'Set a timer for 15 minutes', done: false, summary: 'Time-boxing prevents overwhelm', time: '1 min' },
+      { id: `step-${baseId}-2`, text: 'Pick ONE area to focus on (not the whole space)', done: false, summary: 'Start small', time: '2 min' },
+      { id: `step-${baseId}-3`, text: 'Work until the timer goes off, then reassess', done: false, summary: 'Progress over perfection', time: '15 min' },
+    ]
+  }
+
+  if (taskLower.includes('call') || taskLower.includes('phone')) {
+    return [
+      { id: `step-${baseId}-1`, text: 'Write down what you need to say or ask (2-3 bullet points)', done: false, summary: 'Preparation reduces anxiety', time: '3 min' },
+      { id: `step-${baseId}-2`, text: 'Make the call now (waiting makes it harder)', done: false, summary: 'Just dial', time: '10 min' },
+      { id: `step-${baseId}-3`, text: 'Write down any follow-up actions immediately', done: false, summary: 'Capture next steps', time: '2 min' },
+    ]
+  }
+
+  if (taskLower.includes('buy') || taskLower.includes('shop') || taskLower.includes('order')) {
+    return [
+      { id: `step-${baseId}-1`, text: 'Decide exactly what you need (be specific)', done: false, summary: 'Avoid decision paralysis', time: '5 min' },
+      { id: `step-${baseId}-2`, text: 'Find 1-2 options and pick the first good-enough one', done: false, summary: 'Done beats perfect', time: '10 min' },
+      { id: `step-${baseId}-3`, text: 'Order it right now', done: false, summary: 'Lock it in', time: '5 min' },
+    ]
+  }
+
+  if (taskLower.includes('fix') || taskLower.includes('repair')) {
+    return [
+      { id: `step-${baseId}-1`, text: 'Search the specific problem + "how to fix"', done: false, summary: 'Find the solution', time: '10 min' },
+      { id: `step-${baseId}-2`, text: 'Gather what you need (tools, parts, info)', done: false, summary: 'Prep before starting', time: '10 min' },
+      { id: `step-${baseId}-3`, text: 'Follow the fix step by step', done: false, summary: 'One thing at a time', time: '30 min' },
+    ]
+  }
+
+  if (taskLower.includes('learn') || taskLower.includes('practice') || taskLower.includes('study')) {
+    return [
+      { id: `step-${baseId}-1`, text: 'Decide on one specific thing to focus on', done: false, summary: 'Narrow focus = faster progress', time: '5 min' },
+      { id: `step-${baseId}-2`, text: 'Do 20 minutes of focused practice', done: false, summary: 'Quality over quantity', time: '20 min' },
+      { id: `step-${baseId}-3`, text: 'Note what felt hard and what clicked', done: false, summary: 'Builds self-awareness', time: '5 min' },
+    ]
+  }
+
+  if (taskLower.includes('write') || taskLower.includes('draft') || taskLower.includes('create')) {
+    return [
+      { id: `step-${baseId}-1`, text: 'Write down 5 bullet points of what you want to say', done: false, summary: 'Raw material first', time: '10 min' },
+      { id: `step-${baseId}-2`, text: 'Turn 2-3 bullets into full sentences', done: false, summary: 'Just get words down', time: '15 min' },
+      { id: `step-${baseId}-3`, text: 'Read it out loud and fix anything that sounds weird', done: false, summary: 'Your ear catches what eyes miss', time: '10 min' },
+    ]
+  }
+
+  if (taskLower.includes('appointment') || taskLower.includes('schedule') || taskLower.includes('book')) {
+    return [
+      { id: `step-${baseId}-1`, text: 'Search for online booking or phone number', done: false, summary: 'Find booking method', time: '5 min' },
+      { id: `step-${baseId}-2`, text: 'Check your calendar for 2-3 possible times', done: false, summary: 'Be ready with options', time: '3 min' },
+      { id: `step-${baseId}-3`, text: 'Book and add to your calendar immediately', done: false, summary: 'Lock it in', time: '5 min' },
+    ]
+  }
+
+  if (taskLower.includes('email') || taskLower.includes('message') || taskLower.includes('contact') || taskLower.includes('reply')) {
+    return [
+      { id: `step-${baseId}-1`, text: 'Write the main point in one sentence', done: false, summary: 'Clarity first', time: '3 min' },
+      { id: `step-${baseId}-2`, text: 'Add any necessary context (keep it short)', done: false, summary: 'Respect their time', time: '5 min' },
+      { id: `step-${baseId}-3`, text: 'Read once, fix obvious issues, then send', done: false, summary: 'Done beats perfect', time: '3 min' },
+    ]
+  }
+
+  // Generic fallback - still actionable, not bureaucratic nonsense
   return [
-    {
-      id: `step-${Date.now()}-1`,
-      text: `Research how to ${taskName.toLowerCase()}`,
-      done: false,
-      summary: "Find official process for your specific situation"
-    },
-    {
-      id: `step-${Date.now()}-2`,
-      text: `Gather required information (documents, account numbers, etc.)`,
-      done: false,
-      summary: contextDescription ? `Based on: ${contextDescription}` : 'Collect everything needed'
-    },
-    {
-      id: `step-${Date.now()}-3`,
-      text: `Complete the ${taskName.toLowerCase()} process`,
-      done: false,
-      summary: "Follow the official steps"
-    },
-    {
-      id: `step-${Date.now()}-4`,
-      text: `Keep documentation and confirm completion`,
-      done: false,
-      summary: "Verify it worked"
-    },
+    { id: `step-${baseId}-1`, text: `Search for how to "${taskName}"`, done: false, summary: 'Find the actual process', time: '5 min' },
+    { id: `step-${baseId}-2`, text: 'Write down the 3 main things you need to do', done: false, summary: 'Capture the key steps', time: '5 min' },
+    { id: `step-${baseId}-3`, text: 'Do the first thing on your list right now', done: false, summary: 'Momentum matters most', time: '15 min' },
   ]
 }

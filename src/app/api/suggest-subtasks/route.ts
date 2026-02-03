@@ -118,7 +118,7 @@ export async function POST(request: NextRequest) {
     : getRequestIdentifier(request, auth.userId)
 
   // Demo users get fewer requests per hour (task breakdown is expensive)
-  const rateLimit = isDemo ? { maxRequests: 5, windowMs: 60 * 60 * 1000 } : RATE_LIMITS.aiTaskBreakdown
+  const rateLimit = isDemo ? { limit: 5, windowSeconds: 3600, name: 'demo-ai-breakdown' as const } : RATE_LIMITS.aiTaskBreakdown
   const rateCheck = await checkRateLimitAsync(identifier, rateLimit)
   if (!rateCheck.allowed) {
     return rateLimitResponse(rateCheck)

@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
     : getRequestIdentifier(request, auth.userId)
 
   // Demo users get fewer requests per hour
-  const rateLimit = isDemo ? { maxRequests: 10, windowMs: 60 * 60 * 1000 } : RATE_LIMITS.aiChat
+  const rateLimit = isDemo ? { limit: 10, windowSeconds: 3600, name: 'demo-ai-chat' as const } : RATE_LIMITS.aiChat
   const rateCheck = await checkRateLimitAsync(identifier, rateLimit)
   if (!rateCheck.allowed) {
     return rateLimitResponse(rateCheck)
