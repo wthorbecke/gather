@@ -169,12 +169,14 @@ All critical issues fixed:
 - `3b65521` Prioritize "Do this now" by deadline urgency
 - `7fcece7` Add "Add to Calendar" option in task menu
 - `ca0aade` Add habit streak visualization in task view
+- `01cc696` Add demo habit task to showcase streak visualization
 
 **Technical notes:**
 - Chat modal now works properly in demo mode with AI responses
 - "Do this now" shows the most urgent task's next step based on deadline
 - Calendar integration uses existing `/api/calendar/create-event` API
 - Habit streak stats show current/best streak and encouragement message
+- Demo mode now includes a meditation habit with streak data
 
 ---
 
