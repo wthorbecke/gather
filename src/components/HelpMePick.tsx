@@ -85,6 +85,7 @@ export function HelpMePick({
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
   const [rePickCount, setRePickCount] = useState(0)
   const [showWhy, setShowWhy] = useState(false)
+  const [previousPicks, setPreviousPicks] = useState<string[]>([])
 
   // Get top candidates (shuffle picks from top 5)
   const candidates = useMemo(
@@ -105,17 +106,24 @@ export function HelpMePick({
       if (count >= 5) {
         clearInterval(shuffleInterval)
         setIsShuffling(false)
-        // Pick a random task from top 3 candidates
-        if (candidates.length > 0) {
-          const pickFromTop = Math.min(3, candidates.length)
+        // Filter out previously picked tasks
+        const availableCandidates = candidates.filter(c => !previousPicks.includes(c.id))
+        if (availableCandidates.length > 0) {
+          const pickFromTop = Math.min(3, availableCandidates.length)
           const randomIndex = Math.floor(Math.random() * pickFromTop)
+          const picked = availableCandidates[randomIndex]
+          setSelectedTask(picked)
+          setPreviousPicks(prev => [...prev, picked.id])
+        } else if (candidates.length > 0) {
+          // Fallback: if all have been picked, just pick randomly from all
+          const randomIndex = Math.floor(Math.random() * Math.min(3, candidates.length))
           setSelectedTask(candidates[randomIndex])
         }
       }
     }, 300)
 
     return () => clearInterval(shuffleInterval)
-  }, [isShuffling, candidates])
+  }, [isShuffling, candidates, previousPicks])
 
   // Handle re-pick
   const handleRePick = useCallback(() => {
