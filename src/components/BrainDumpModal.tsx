@@ -26,7 +26,13 @@ export function BrainDumpModal({ isOpen, onClose, onAddTasks }: BrainDumpModalPr
   const [extractedTasks, setExtractedTasks] = useState<ExtractedTask[]>([])
   const [groups, setGroups] = useState<string[]>([])
   const [error, setError] = useState<string | null>(null)
+  const [isMac, setIsMac] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  // Detect platform on client to avoid SSR hydration mismatch
+  useEffect(() => {
+    setIsMac(navigator.platform.toUpperCase().includes('MAC'))
+  }, [])
 
   // Focus textarea when modal opens
   useEffect(() => {
@@ -199,7 +205,7 @@ need to call mom back, also gotta schedule that dentist appointment, taxes are d
                 </span>
                 <span className="text-xs text-text-muted">
                   <kbd className="px-1.5 py-0.5 rounded bg-surface border border-border text-[10px] font-medium">
-                    {navigator.platform.includes('Mac') ? 'Cmd' : 'Ctrl'}
+                    {isMac ? 'Cmd' : 'Ctrl'}
                   </kbd>
                   {' + '}
                   <kbd className="px-1.5 py-0.5 rounded bg-surface border border-border text-[10px] font-medium">Enter</kbd>

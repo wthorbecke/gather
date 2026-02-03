@@ -87,9 +87,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'API key not configured' }, { status: 500 })
     }
 
+    // Add timeout to prevent hanging requests
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 30000)
+
     // Make request to Anthropic
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
+      signal: controller.signal,
       headers: {
         'Content-Type': 'application/json',
         'x-api-key': apiKey,
@@ -102,6 +107,8 @@ export async function POST(request: NextRequest) {
         messages: [{ role: 'user', content: `Extract tasks from this brain dump:\n\n${text}` }],
       }),
     })
+
+    clearTimeout(timeout)
 
     if (!response.ok) {
       const errorText = await response.text()
@@ -152,7 +159,10 @@ export async function POST(request: NextRequest) {
       })
     }
   } catch (error) {
-    console.error('Brain dump error:', error)
+    if (error instanceof Error && error.name === 'AbortError') {
+      return NextResponse.json({ error: 'Request timed out' }, { status: 504 })
+    }
+    console.error('Brain dump error:', error instanceof Error ? error.message : 'Unknown error')
     return NextResponse.json({ error: 'Failed to process brain dump' }, { status: 500 })
   }
 }
