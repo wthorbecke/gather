@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import dynamic from 'next/dynamic'
 import { Task, Step } from '@/hooks/useUserData'
-import { IntegrationProvider } from '@/lib/constants'
+import { IntegrationProvider, TaskType } from '@/lib/constants'
 import { UnifiedInput } from './UnifiedInput'
 import { useTheme } from './ThemeProvider'
 import { AICard, AICardState } from './AICard'
@@ -378,6 +378,44 @@ export function TaskView({
           )
         })()}
 
+
+        {/* Habit Streak Stats */}
+        {task.type === TaskType.HABIT && task.streak && (
+          <div className="mb-5 p-4 bg-surface rounded-xl border border-border">
+            <div className="flex items-center justify-between">
+              {/* Current streak */}
+              <div className="flex items-center gap-2">
+                <span className="text-2xl">🔥</span>
+                <div>
+                  <div className="text-2xl font-bold text-text tabular-nums">{task.streak.current}</div>
+                  <div className="text-xs text-text-muted">day streak</div>
+                </div>
+              </div>
+
+              {/* Best streak */}
+              <div className="text-right">
+                <div className="text-sm font-medium text-text-soft tabular-nums">
+                  Best: {task.streak.best} days
+                </div>
+                {task.streak.lastCompleted && (
+                  <div className="text-xs text-text-muted">
+                    Last: {new Date(task.streak.lastCompleted).toLocaleDateString('en-US', {
+                      month: 'short',
+                      day: 'numeric'
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Encouragement message */}
+            {task.streak.current > 0 && task.streak.current === task.streak.best && (
+              <div className="mt-3 pt-3 border-t border-border text-sm text-success text-center">
+                You&apos;re on your best streak! Keep it going!
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Progress */}
         {totalCount > 0 && (
