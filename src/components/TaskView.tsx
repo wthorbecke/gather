@@ -13,6 +13,8 @@ import { HabitCalendar } from './HabitCalendar'
 import { content } from '@/config/content'
 import { SnoozeMenu } from './SnoozeMenu'
 import { SchedulePicker } from './SchedulePicker'
+import { RecurrencePickerModal } from './RecurrencePickerModal'
+import { Recurrence } from '@/hooks/useUserData'
 
 // Lazy load FocusMode - only needed when user enters focus mode
 const FocusMode = dynamic(() => import('./FocusMode').then(mod => ({ default: mod.FocusMode })), {
@@ -48,6 +50,7 @@ interface TaskViewProps {
   onDeleteTask: () => void
   onSnoozeTask?: (date: string) => void
   onScheduleTask?: (datetime: string | null) => void
+  onSetRecurrence?: (recurrence: Recurrence | null) => void
   onAddToCalendar?: () => Promise<{ success: boolean; error?: string }>
   onRemoveFromCalendar?: () => Promise<{ success: boolean; error?: string }>
   focusStepId?: string | number | null
@@ -71,6 +74,7 @@ export function TaskView({
   onDeleteTask,
   onSnoozeTask,
   onScheduleTask,
+  onSetRecurrence,
   onAddToCalendar,
   onRemoveFromCalendar,
   focusStepId,
@@ -83,6 +87,7 @@ export function TaskView({
   const [showFullContext, setShowFullContext] = useState(false)
   const [showSnoozeMenu, setShowSnoozeMenu] = useState(false)
   const [showSchedulePicker, setShowSchedulePicker] = useState(false)
+  const [showRecurrencePicker, setShowRecurrencePicker] = useState(false)
   const [focusStepIndex, setFocusStepIndex] = useState<number | null>(null)
   const [addingToCalendar, setAddingToCalendar] = useState(false)
   const [calendarAdded, setCalendarAdded] = useState(false)
@@ -294,6 +299,24 @@ export function TaskView({
                         <path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01" strokeLinecap="round" />
                       </svg>
                       {task.scheduled_at ? 'Reschedule' : 'Schedule time'}
+                    </button>
+                  )}
+                  {/* Set repeat - for reminders and tasks with scheduled_at */}
+                  {onSetRecurrence && (task.type === TaskType.REMINDER || task.scheduled_at) && (
+                    <button
+                      onClick={() => {
+                        setShowMenu(false)
+                        setShowRecurrencePicker(true)
+                      }}
+                      className="w-full px-3 py-3 min-h-[44px] text-left text-sm text-text hover:bg-subtle flex items-center gap-2.5 transition-colors duration-150 ease-out"
+                    >
+                      <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-text-muted">
+                        <path d="M17 1l4 4-4 4" />
+                        <path d="M3 11V9a4 4 0 014-4h14" />
+                        <path d="M7 23l-4-4 4-4" />
+                        <path d="M21 13v2a4 4 0 01-4 4H3" />
+                      </svg>
+                      {task.recurrence ? 'Edit repeat' : 'Set repeat'}
                     </button>
                   )}
                   {/* Calendar options - only show if task has due date and is not from Google */}
@@ -544,6 +567,18 @@ export function TaskView({
             setShowSchedulePicker(false)
           }}
           onCancel={() => setShowSchedulePicker(false)}
+        />
+      )}
+
+      {/* Recurrence Picker */}
+      {showRecurrencePicker && onSetRecurrence && (
+        <RecurrencePickerModal
+          currentRecurrence={task.recurrence}
+          onSave={(recurrence) => {
+            onSetRecurrence(recurrence)
+            setShowRecurrencePicker(false)
+          }}
+          onCancel={() => setShowRecurrencePicker(false)}
         />
       )}
 

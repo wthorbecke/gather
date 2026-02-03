@@ -366,6 +366,11 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
     await updateTask(taskId, { scheduled_at: scheduledAt } as Partial<Task>)
   }, [updateTask])
 
+  // Set recurrence on a task
+  const handleSetRecurrence = useCallback(async (taskId: string, recurrence: import('@/hooks/useUserData').Recurrence | null) => {
+    await updateTask(taskId, { recurrence } as Partial<Task>)
+  }, [updateTask])
+
   // Add task to Google Calendar
   const handleAddToCalendar = useCallback(async (task: Task): Promise<{ success: boolean; error?: string }> => {
     if (!task.due_date) {
@@ -645,6 +650,7 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
             onDeleteTask={() => handleDeleteTask(currentTask.id)}
             onSnoozeTask={(date) => handleSnoozeTask(currentTask.id, date)}
             onScheduleTask={(datetime) => handleScheduleTask(currentTask.id, datetime)}
+            onSetRecurrence={(recurrence) => handleSetRecurrence(currentTask.id, recurrence)}
             onAddToCalendar={!isDemoUser ? () => handleAddToCalendar(currentTask) : undefined}
             onRemoveFromCalendar={!isDemoUser ? () => handleRemoveFromCalendar(currentTask) : undefined}
             focusStepId={focusStepId}
