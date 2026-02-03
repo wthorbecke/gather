@@ -336,6 +336,15 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
     await updateTask(taskId, { steps: updatedSteps })
   }, [tasks, updateTask])
 
+  // Handle step deletion
+  const handleDeleteStep = useCallback(async (taskId: string, stepId: string | number) => {
+    const task = tasks.find((t) => t.id === taskId)
+    if (!task || !task.steps) return
+
+    const updatedSteps = task.steps.filter((s) => s.id !== stepId)
+    await updateTask(taskId, { steps: updatedSteps })
+  }, [tasks, updateTask])
+
   // Delete task with undo support
   const handleDeleteTask = useCallback(async (taskId: string) => {
     const task = tasks.find(t => t.id === taskId)
@@ -706,6 +715,7 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
             onAICardAction={handleAICardAction}
             onToggleStep={(stepId) => handleToggleStep(currentTask.id, stepId)}
             onEditStep={(stepId, newText) => handleEditStep(currentTask.id, stepId, newText)}
+            onDeleteStep={(stepId) => handleDeleteStep(currentTask.id, stepId)}
             onSetStepContext={setStepContext}
             onRemoveTag={removeTag}
             onDeleteTask={() => handleDeleteTask(currentTask.id)}

@@ -45,6 +45,7 @@ interface TaskViewProps {
   onAICardAction?: (action: { type: string; stepId?: string | number; title?: string; context?: string }) => void
   onToggleStep: (stepId: string | number) => void
   onEditStep?: (stepId: string | number, newText: string) => void
+  onDeleteStep?: (stepId: string | number) => void
   onSetStepContext: (step: Step | null) => void
   onRemoveTag: (index: number) => void
   onDeleteTask: () => void
@@ -70,6 +71,7 @@ export function TaskView({
   onAICardAction,
   onToggleStep,
   onEditStep,
+  onDeleteStep,
   onSetStepContext,
   onRemoveTag,
   onDeleteTask,
@@ -548,6 +550,7 @@ export function TaskView({
                   onStuck={handleStuckOnStep}
                   onFocus={() => setFocusStepIndex(index)}
                   onEdit={onEditStep ? (step, newText) => onEditStep(step.id, newText) : undefined}
+                  onDelete={onDeleteStep ? (step) => onDeleteStep(step.id) : undefined}
                 />
               </div>
             )

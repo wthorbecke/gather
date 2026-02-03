@@ -16,9 +16,10 @@ interface StepItemProps {
   onStuck?: (step: Step) => void
   onFocus?: (step: Step) => void
   onEdit?: (step: Step, newText: string) => void
+  onDelete?: (step: Step) => void
 }
 
-export const StepItem = memo(function StepItem({ step, isNext, isExpanded, onToggle, onExpand, onStuck, onFocus, onEdit }: StepItemProps) {
+export const StepItem = memo(function StepItem({ step, isNext, isExpanded, onToggle, onExpand, onStuck, onFocus, onEdit, onDelete }: StepItemProps) {
   const hasExpandableContent = step.detail || step.alternatives || step.examples || step.checklist || step.action || step.source
   const normalizedActionUrl = normalizeActionUrl(step.action?.url)
   const { title: derivedTitle, remainder: derivedRemainder } = splitStepText(step.text)
@@ -365,6 +366,28 @@ export const StepItem = memo(function StepItem({ step, isNext, isExpanded, onTog
                 `}
               >
                 I&apos;m stuck
+              </button>
+            )}
+            {onDelete && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onDelete(step)
+                }}
+                className="
+                  py-2 px-3
+                  bg-transparent border border-danger/30
+                  rounded-md text-sm text-danger
+                  hover:bg-danger-soft
+                  transition-all duration-[80ms] ease-out
+                  btn-press
+                  flex items-center justify-center gap-2
+                "
+              >
+                <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6" />
+                </svg>
+                Delete
               </button>
             )}
           </div>
