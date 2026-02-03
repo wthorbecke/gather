@@ -506,6 +506,21 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
     }
   }, [tasks, updateTask])
 
+  // Clear all completed tasks
+  const handleClearCompleted = useCallback(async () => {
+    // Find all tasks where all steps are done
+    const completedTasks = tasks.filter(task => {
+      const steps = task.steps || []
+      if (steps.length === 0) return false
+      return steps.every(s => s.done)
+    })
+
+    // Delete each completed task
+    for (const task of completedTasks) {
+      await deleteTask(task.id)
+    }
+  }, [tasks, deleteTask])
+
   // Handle AI card action with focus step support
   const handleAICardAction = useCallback(async (action: { type: string; stepId?: string | number; title?: string; context?: string }) => {
     if (action.type === 'focus_step' && action.stepId !== undefined) {
@@ -645,6 +660,7 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
                 onToggleHabit={handleToggleHabit}
                 onSuggestionClick={handleSuggestionClick}
                 onDeleteTask={handleDeleteTask}
+                onClearCompleted={handleClearCompleted}
                 onSnoozeTask={handleSnoozeTask}
                 onAICardAction={handleAICardAction}
                 onBackQuestion={handleBackQuestion}

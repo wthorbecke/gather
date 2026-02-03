@@ -55,6 +55,7 @@ interface HomeViewProps {
   onToggleHabit?: (taskId: string) => void
   onSuggestionClick: (suggestion: string) => void
   onDeleteTask?: (taskId: string) => void
+  onClearCompleted?: () => void
   onSnoozeTask?: (taskId: string, date: string) => void
   onAICardAction?: (action: { type: string; stepId?: string | number; title?: string; context?: string }) => void
   onBackQuestion?: () => void
@@ -76,6 +77,7 @@ export function HomeView({
   onToggleHabit,
   onSuggestionClick,
   onDeleteTask,
+  onClearCompleted,
   onSnoozeTask,
   onAICardAction,
   onBackQuestion,
@@ -503,21 +505,38 @@ export function HomeView({
                 {/* Expanded completed tasks */}
                 {showCompletedTasks && completedTasks.length > 0 && (
                   <>
-                    <button
-                      onClick={() => setShowCompletedTasks(false)}
-                      className="
-                        py-2 px-4
-                        bg-success-soft/30 rounded-md
-                        text-xs text-text-muted
-                        hover:bg-success-soft/50 transition-colors duration-150
-                        flex items-center justify-between
-                      "
-                    >
-                      <span>{completedTasks.length} completed</span>
-                      <svg width={12} height={12} viewBox="0 0 16 16" className="text-text-muted rotate-180">
-                        <path d="M4 6L8 10L12 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" fill="none"/>
-                      </svg>
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setShowCompletedTasks(false)}
+                        className="
+                          flex-1 py-2 px-4
+                          bg-success-soft/30 rounded-md
+                          text-xs text-text-muted
+                          hover:bg-success-soft/50 transition-colors duration-150
+                          flex items-center justify-between
+                        "
+                      >
+                        <span>{completedTasks.length} completed</span>
+                        <svg width={12} height={12} viewBox="0 0 16 16" className="text-text-muted rotate-180">
+                          <path d="M4 6L8 10L12 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" fill="none"/>
+                        </svg>
+                      </button>
+                      {onClearCompleted && (
+                        <button
+                          onClick={onClearCompleted}
+                          className="
+                            py-2 px-3
+                            rounded-md
+                            text-xs text-text-muted
+                            hover:text-danger hover:bg-danger-soft/50
+                            transition-colors duration-150
+                          "
+                          title="Clear all completed tasks"
+                        >
+                          Clear all
+                        </button>
+                      )}
+                    </div>
                     {completedTasks.map((task, index) => (
                       <div key={task.id} className="animate-rise opacity-60" style={{ animationDelay: `${index * 40}ms` }}>
                         <TaskListItem
