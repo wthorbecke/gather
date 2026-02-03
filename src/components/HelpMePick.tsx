@@ -6,6 +6,7 @@ import { getAlternativeTasks, getTaskPickReason } from '@/lib/taskPicker'
 import { EnergyBadge } from './EnergyBadge'
 import { EnergyLevel } from '@/lib/constants'
 import { splitStepText } from '@/lib/stepText'
+import { NoTasksEmptyState } from './NoTasksEmptyState'
 
 // Fun shuffle messages
 const SHUFFLE_MESSAGES = [
@@ -147,21 +148,7 @@ export function HelpMePick({
 
   // No tasks available
   if (candidates.length === 0) {
-    return (
-      <div className="fixed inset-0 z-50 bg-canvas/95 backdrop-blur-sm flex items-center justify-center p-4">
-        <div className="bg-elevated border border-border rounded-2xl p-6 max-w-sm w-full text-center shadow-modal">
-          <div className="text-4xl mb-4 opacity-40">🎯</div>
-          <h2 className="text-xl font-medium text-text mb-2">Nothing to pick</h2>
-          <p className="text-text-soft mb-6">All your tasks are done!</p>
-          <button
-            onClick={onCancel}
-            className="px-6 py-3 rounded-xl bg-surface text-text hover:bg-card transition-colors"
-          >
-            Back
-          </button>
-        </div>
-      </div>
-    )
+    return <NoTasksEmptyState onAction={onCancel} />
   }
 
   return (

@@ -7,6 +7,7 @@ import { EnergyBadge } from './EnergyBadge'
 import { EnergyLevel } from '@/lib/constants'
 import { splitStepText } from '@/lib/stepText'
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
+import { NoTasksEmptyState } from './NoTasksEmptyState'
 
 interface FocusLauncherProps {
   tasks: Task[]
@@ -85,22 +86,12 @@ export function FocusLauncher({
   // No tasks available
   if (!bestTask || !firstIncompleteStep) {
     return (
-      <div className="fixed inset-0 z-50 bg-canvas flex flex-col items-center justify-center p-8">
-        <div className="text-5xl mb-6 opacity-40">🎯</div>
-        <h1
-          className="text-2xl font-medium text-text mb-2"
-          style={{ fontFamily: 'var(--font-display)' }}
-        >
-          Nothing to focus on
-        </h1>
-        <p className="text-text-soft mb-8">All your tasks are done. Nice work.</p>
-        <button
-          onClick={onExit}
-          className="px-6 py-3 rounded-xl bg-accent text-white font-medium hover:opacity-90 transition-opacity"
-        >
-          Back to list
-        </button>
-      </div>
+      <NoTasksEmptyState
+        title="Nothing to focus on"
+        subtitle="All your tasks are done. Nice work."
+        buttonText="Back to list"
+        onAction={onExit}
+      />
     )
   }
 
