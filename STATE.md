@@ -1,7 +1,7 @@
 # Gather Product State
 
-**Last Updated:** Mon Feb 3 2026, 01:05 PST
-**Session:** 17
+**Last Updated:** Mon Feb 3 2026, 09:00 PST
+**Session:** 17 (continued)
 
 ---
 
@@ -189,6 +189,13 @@ All critical issues fixed:
 - ~~Mood tracking with productivity correlation~~ - Done (Session 16) - MoodPicker with correlation insights
 - ~~Search/filter by energy level~~ - Done (Session 16) - EnergyFilter in StackView
 
+**Market Research Features (Session 17):**
+- ~~Gentle Gamification System~~ - Done (Session 17) - XP without shame, garden grows with progress
+- ~~AI Coaching with Long-Term Memory~~ - Done (Session 17) - Persistent coach with pattern recognition
+- ~~Location-Based Reminders~~ - Done (Session 17) - Context-aware geofencing triggers
+- ~~Persistent Nagging Mode~~ - Done (Session 17) - Due-app style escalating reminders
+- Home Screen Widgets - Documented as Phase 3 (requires React Native, 8-12 weeks)
+
 **Refactoring Opportunities (GatherApp.tsx - started at 1093 lines, now 978 lines):**
 - ~~Extract keyboard shortcuts hook~~ - Done (Session 16) - Created useGlobalKeyboardShortcuts.ts
 - ~~Extract step handlers hook~~ - Done (Session 16) - Created useStepHandlers.ts
@@ -255,6 +262,40 @@ All critical issues fixed:
   - Integrated into HomeView below StatsCard
   - Design: No streak shame, momentum pauses on missed days, low unlock thresholds
   - ✅ Point-earning wired into useStepHandlers (step complete: +5, task complete: +25)
+
+- **Persistent Nagging Mode** - Due-app style persistent reminders for critical tasks
+  - `/src/hooks/useNagging.ts` - Core nagging service with Web Notifications API
+  - `/src/components/NagReminderToast.tsx` - In-app reminder UI with progress bar
+  - `/src/components/NaggingSettings.tsx` - Per-task nagging toggle and frequency selector
+  - 4-level escalation system: GENTLE → PERSISTENT → URGENT → CRITICAL
+  - Customizable intervals (1, 5, 15 min)
+  - Quick snooze buttons (5, 15, 60 min)
+  - Uses localStorage for persistence across sessions
+
+- **Location-Based Reminders** - Context-aware reminders triggering on location
+  - `/src/hooks/useLocation.ts` - Location services with geofencing
+  - `/src/components/LocationPicker.tsx` - Location selection UI
+  - `/src/components/LocationTriggerPicker.tsx` - Configure enter/leave triggers
+  - `/src/components/LocationReminderToast.tsx` - Location-triggered notification UI
+  - `/src/components/LocationPermissionPrompt.tsx` - Permission request flow
+  - `/src/components/LocationSettings.tsx` - Task-level location settings
+  - `/src/components/LocationBadge.tsx` - Visual indicator for location-enabled tasks
+  - Uses Browser Geolocation API with geofencing for enter/leave detection
+
+- **AI Coaching Memory** - Persistent ADHD coach remembering past conversations
+  - `/src/hooks/useCoachingMemory.ts` - Coaching memory hook for pattern analysis
+  - `/src/lib/coachingMemory.ts` - Memory storage and retrieval utilities
+  - `/src/components/CoachNotes.tsx` - UI for viewing coaching insights
+  - `/src/app/api/coaching-memory/` - API routes for memory persistence
+  - Tracks completion patterns and effective strategies over time
+  - Context injection into AI conversations for personalized advice
+  - Pattern recognition across sessions for long-term insights
+
+- **Home Screen Widgets Research** - Documented as Phase 3 scope
+  - `/docs/HOME_SCREEN_WIDGETS_RESEARCH.md` - Comprehensive research document
+  - True home screen widgets require native iOS/Android code
+  - PWA shortcuts are the only current option for web apps
+  - Estimated 8-12 weeks after React Native migration
 
 **Technical notes:**
 - Hydration fix uses `role="button"` pattern for clickable non-buttons
