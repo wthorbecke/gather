@@ -58,15 +58,28 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    // Optionally refresh from Google Calendar API
-    if (refresh) {
+    const now = new Date()
+    const future = new Date(now.getTime() + days * 24 * 60 * 60 * 1000)
+
+    // Check if we need to auto-refresh (check staleness)
+    // Get the most recently updated event to see how stale the cache is
+    const { data: latestEvent } = await serverClient
+      .from('calendar_events')
+      .select('updated_at')
+      .eq('user_id', user.id)
+      .order('updated_at', { ascending: false })
+      .limit(1)
+      .single()
+
+    const thirtyMinutesAgo = new Date(now.getTime() - 30 * 60 * 1000)
+    const cacheIsStale = !latestEvent || new Date(latestEvent.updated_at) < thirtyMinutesAgo
+
+    // Refresh if explicitly requested OR if cache is stale
+    if (refresh || cacheIsStale) {
       await refreshCalendarEvents(user.id, days, serverClient)
     }
 
     // Get events from cache
-    const now = new Date()
-    const future = new Date(now.getTime() + days * 24 * 60 * 60 * 1000)
-
     const { data: events, error: eventsError } = await serverClient
       .from('calendar_events')
       .select('*')
