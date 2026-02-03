@@ -15,6 +15,7 @@ import { EmailTasksCard } from './EmailTasksCard'
 import { StatsCard } from './StatsCard'
 import { content, OTHER_SPECIFY_OPTION } from '@/config/content'
 import { TaskInsight } from './TaskInsight'
+import { EnergySuggestions } from './EnergySuggestions'
 
 // Time-based ambient style - shared atmosphere with StackView
 function getAmbientStyle(taskCount: number, isDark: boolean) {
@@ -383,6 +384,15 @@ export function HomeView({
               })()}
             </div>
           </div>
+        )}
+
+        {/* Low energy alternatives - show when there's a main task */}
+        {nextStep && (
+          <EnergySuggestions
+            tasks={activeTasks}
+            currentTaskId={nextStep.task.id}
+            onGoToTask={onGoToTask}
+          />
         )}
 
         {/* All done state */}
