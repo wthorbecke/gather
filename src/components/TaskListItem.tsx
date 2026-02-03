@@ -5,12 +5,14 @@ import { Task } from '@/hooks/useUserData'
 import { TaskType } from '@/lib/constants'
 import { getTaskTypeColor, isCompletable, formatScheduledTime, isOverdue } from '@/lib/taskTypes'
 import { DeadlineBadge } from './DeadlineBadge'
+import { SnoozeMenu } from './SnoozeMenu'
 
 interface TaskListItemProps {
   task: Task
   onClick: () => void
   onDelete?: () => void
   onHabitComplete?: () => void  // For habits: mark today as complete
+  onSnooze?: (date: string) => void  // Snooze task to a later date
 }
 
 // Type icons (14px, muted color)
@@ -91,8 +93,9 @@ const SourceIcon = memo(function SourceIcon({ source }: { source: string }) {
   return null
 })
 
-export const TaskListItem = memo(function TaskListItem({ task, onClick, onDelete, onHabitComplete }: TaskListItemProps) {
+export const TaskListItem = memo(function TaskListItem({ task, onClick, onDelete, onHabitComplete, onSnooze }: TaskListItemProps) {
   const [showMenu, setShowMenu] = useState(false)
+  const [showSnoozeMenu, setShowSnoozeMenu] = useState(false)
   const taskType = task.type || TaskType.TASK
   const isHabit = taskType === TaskType.HABIT
   const isReminder = taskType === TaskType.REMINDER
@@ -238,6 +241,22 @@ export const TaskListItem = memo(function TaskListItem({ task, onClick, onDelete
                     Done for today
                   </button>
                 )}
+                {onSnooze && !isHabit && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setShowMenu(false)
+                      setShowSnoozeMenu(true)
+                    }}
+                    className="w-full px-3 py-3 min-h-[44px] text-left text-sm text-text-soft hover:bg-surface flex items-center gap-2 transition-colors duration-150 ease-out"
+                  >
+                    <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <circle cx="12" cy="12" r="10" />
+                      <path d="M12 6v6l4 2" strokeLinecap="round" />
+                    </svg>
+                    Snooze
+                  </button>
+                )}
                 {onDelete && (
                   <button
                     onClick={(e) => {
@@ -270,6 +289,18 @@ export const TaskListItem = memo(function TaskListItem({ task, onClick, onDelete
         </svg>
       </div>
 
+      {/* Snooze Menu */}
+      {showSnoozeMenu && onSnooze && (
+        <div onClick={(e) => e.stopPropagation()}>
+          <SnoozeMenu
+            onSnooze={(date) => {
+              onSnooze(date)
+              setShowSnoozeMenu(false)
+            }}
+            onCancel={() => setShowSnoozeMenu(false)}
+          />
+        </div>
+      )}
     </div>
   )
 })

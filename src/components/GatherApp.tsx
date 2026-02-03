@@ -525,6 +525,7 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
                 onToggleHabit={handleToggleHabit}
                 onSuggestionClick={handleSuggestionClick}
                 onDeleteTask={handleDeleteTask}
+                onSnoozeTask={handleSnoozeTask}
                 onAICardAction={handleAICardAction}
                 onBackQuestion={handleBackQuestion}
                 canGoBack={Boolean(contextGathering && contextGathering.currentIndex > 0)}

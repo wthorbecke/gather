@@ -43,15 +43,19 @@ export function SnoozeMenu({ onSnooze, onCancel }: SnoozeMenuProps) {
   const minDate = getDateString(1)
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+    <div
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
+      onClick={(e) => e.stopPropagation()}
+    >
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-backdrop-in"
         onClick={onCancel}
+        aria-hidden="true"
       />
 
       {/* Menu */}
-      <div className="relative bg-elevated border border-border rounded-t-2xl sm:rounded-2xl w-full sm:max-w-sm p-4 shadow-modal animate-rise">
+      <div className="relative z-10 bg-elevated border border-border rounded-t-2xl sm:rounded-2xl w-full sm:max-w-sm p-4 shadow-modal animate-rise">
         <div className="text-center mb-4">
           <h3 className="text-lg font-semibold text-text">Snooze until...</h3>
           <p className="text-sm text-text-muted mt-1">

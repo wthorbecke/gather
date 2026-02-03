@@ -54,6 +54,7 @@ interface HomeViewProps {
   onToggleHabit?: (taskId: string) => void
   onSuggestionClick: (suggestion: string) => void
   onDeleteTask?: (taskId: string) => void
+  onSnoozeTask?: (taskId: string, date: string) => void
   onAICardAction?: (action: { type: string; stepId?: string | number; title?: string; context?: string }) => void
   onBackQuestion?: () => void
   canGoBack?: boolean
@@ -73,6 +74,7 @@ export function HomeView({
   onToggleHabit,
   onSuggestionClick,
   onDeleteTask,
+  onSnoozeTask,
   onAICardAction,
   onBackQuestion,
   canGoBack = false,
@@ -441,6 +443,7 @@ export function HomeView({
                       onClick={() => onGoToTask(task.id)}
                       onDelete={onDeleteTask ? () => onDeleteTask(task.id) : undefined}
                       onHabitComplete={onToggleHabit ? () => onToggleHabit(task.id) : undefined}
+                      onSnooze={onSnoozeTask ? (date) => onSnoozeTask(task.id, date) : undefined}
                     />
                   </div>
                 ))}
@@ -511,6 +514,7 @@ export function HomeView({
                           onClick={() => onGoToTask(task.id)}
                           onDelete={onDeleteTask ? () => onDeleteTask(task.id) : undefined}
                           onHabitComplete={onToggleHabit ? () => onToggleHabit(task.id) : undefined}
+                          onSnooze={onSnoozeTask ? (date) => onSnoozeTask(task.id, date) : undefined}
                         />
                       </div>
                     ))}
