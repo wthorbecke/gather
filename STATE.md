@@ -1,6 +1,6 @@
 # Gather Product State
 
-**Last Updated:** Mon Feb 2 2026, 20:55 PST
+**Last Updated:** Mon Feb 2 2026, 21:05 PST
 **Session:** 11
 
 ---
@@ -158,6 +158,14 @@ All critical issues fixed:
 - ~~Focus mode enhancements~~ - Done (Session 11) - Pomodoro timer and ambient sounds
 - ~~Quick reschedule~~ - Done (Session 11) - "Later today" and "Tomorrow morning" quick options
 - ~~Advanced stats~~ - Done (Session 11) - 7-day activity visualization in StatsCard
+- ~~Natural language dates~~ - Done (Session 11) - "by tomorrow", "due Friday" in task input
+
+**New Future Ideas:**
+- Task templates - Pre-built step breakdowns for common tasks
+- Recurring reminders - Weekly/monthly task recurrence
+- Task sharing/delegation - Share tasks with others
+- Mobile PWA enhancements - Offline support, better notifications
+- Keyboard shortcut overlay - Help modal showing all shortcuts
 
 ---
 
@@ -206,7 +214,14 @@ All critical issues fixed:
   - Scheduled tasks appear in "Coming up" calendar widget
   - Tasks show with checkbox icon and "· Task" label to differentiate from events
   - Clicking a scheduled task in calendar navigates to task view
-- All 173 tests passing, build succeeds
+- **Added natural language date parsing** - Zero friction due date input
+  - Type "call mom by tomorrow" and due date is automatically extracted
+  - Supports: "by tomorrow", "due Friday", "next Monday", "March 15"
+  - Supports: "in 3 days", "next week", "end of month"
+  - Shows "Due Tomorrow" (or other date) badge in input with calendar icon
+  - Date text automatically removed from task title
+  - dueDate passed through metadata to task creation
+- All 189 tests passing, build succeeds
 
 **Commits:**
 - `d83cc42` Add snooze option to task list view menu
@@ -216,6 +231,7 @@ All critical issues fixed:
 - `738a150` Add 7-day activity visualization to StatsCard
 - `7acc0af` Add ambient sounds to Focus Mode
 - `64eea9c` Add time blocking feature - schedule tasks to specific times
+- `240d85f` Add natural language date parsing for task input
 
 **Technical notes:**
 - Quick actions feature (from Future Ideas) partially addressed - snooze was the highest-impact quick action
@@ -235,6 +251,11 @@ All critical issues fixed:
 - CalendarSidebar and CalendarWidget both updated to merge calendar events with scheduled tasks
 - ScheduledItem interface unifies event and task display
 - Tasks filtered to show only incomplete tasks scheduled within next 7 days
+- Natural language date parser uses regex patterns ordered by specificity (most specific first)
+- ParsedInputMetadata extended with dueDate field alongside scheduledAt
+- Date badge shows in input area with calendar icon when date pattern detected
+- formatParsedDate() provides friendly date display (Today, Tomorrow, Friday, Mar 15)
+- Dates in past automatically roll to next year (e.g., "March 15" after March 15 = next year)
 
 ---
 
