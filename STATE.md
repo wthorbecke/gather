@@ -1,6 +1,6 @@
 # Gather Product State
 
-**Last Updated:** Mon Feb 2 2026, 22:15 PST
+**Last Updated:** Mon Feb 2 2026, 22:45 PST
 **Session:** 11
 
 ---
@@ -161,7 +161,7 @@ All critical issues fixed:
 - ~~Natural language dates~~ - Done (Session 11) - "by tomorrow", "due Friday" in task input
 
 **New Future Ideas:**
-- Task templates - Pre-built step breakdowns for common tasks
+- ~~Task templates~~ - Done (Session 11) - Pre-built step breakdowns for common tasks
 - Recurring reminders - Weekly/monthly task recurrence
 - Task sharing/delegation - Share tasks with others
 - Mobile PWA enhancements - Offline support, better notifications
@@ -226,6 +226,14 @@ All critical issues fixed:
   - Organized sections: Global, Task Input, Focus Mode, Date shortcuts
   - Shows all keyboard shortcuts with visual key caps
   - Reduces learning curve by making shortcuts discoverable
+- **Added task templates feature** - Pre-built steps for common workflows
+  - Type `/t` in input to open template browser
+  - 11 templates across 5 categories: Productivity, Self-Care, Home, Work, Health
+  - Templates include: Weekly review, Morning routine, Brain dump, Wind down routine, etc.
+  - Category filter buttons for quick browsing
+  - Preview panel shows all steps before selecting
+  - One tap to create task with pre-built steps (no AI call needed)
+  - Reduces friction for repetitive workflows
 - All 189 tests passing, build succeeds
 
 **Commits:**
@@ -238,6 +246,7 @@ All critical issues fixed:
 - `64eea9c` Add time blocking feature - schedule tasks to specific times
 - `240d85f` Add natural language date parsing for task input
 - `a8d7551` Add keyboard shortcuts help modal (press ? to open)
+- `dd3a9b1` Add task templates feature (/t command)
 
 **Technical notes:**
 - Quick actions feature (from Future Ideas) partially addressed - snooze was the highest-impact quick action
@@ -266,6 +275,13 @@ All critical issues fixed:
 - Global '?' key listener in GatherApp.tsx checks for input focus to avoid conflicts
 - Modal uses existing animation patterns (animate-rise, animate-backdrop-in)
 - Supports both '?' and Shift+/ (same key on most keyboards)
+- Task templates stored in `src/lib/templates.ts` with TaskTemplate interface
+- Templates have pre-built steps with id, text, done, summary, and time fields
+- TaskTemplateModal component with category filters and step preview
+- `/t` command handled in UnifiedInput.tsx handleKeyDown (intercepts before AI flow)
+- Template selection creates task via addTask then updates with steps via updateTask
+- Step IDs regenerated on template use to ensure uniqueness across tasks
+- Navigates to task view after template selection to show the new task
 
 ---
 
