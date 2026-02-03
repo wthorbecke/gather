@@ -186,10 +186,20 @@ export function HourTimeline({ tasks, selectedDate, onGoToTask }: HourTimelinePr
                 <div
                   key={task.id}
                   onClick={() => onGoToTask(task.id)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault()
+                      onGoToTask(task.id)
+                    }
+                  }}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`${task.title} at ${formatHour(taskHour)}${taskMinutes > 0 ? `:${taskMinutes.toString().padStart(2, '0')}` : ''}`}
                   className={`
                     absolute top-2 h-14 rounded-md cursor-pointer
                     border ${colors.bg} ${colors.border}
                     hover:shadow-sm hover:scale-[1.02]
+                    focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-1
                     transition-all duration-150
                     flex items-center px-2 overflow-hidden
                   `}
