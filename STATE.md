@@ -164,6 +164,10 @@ All critical issues fixed:
   - Empty boxes for missed days
   - Today highlighted with accent ring
   - Legend showing completed vs missed
+- **Added calendar event management** - users can add/remove tasks from Google Calendar
+  - "Add to Calendar" option for tasks with due dates
+  - "Remove from Calendar" option for tasks already synced
+  - calendar_event_id tracked on task for state management
 - Streak interface extended with `completions` array for tracking history
 - Habit completion now records dates in completions array
 - All 184 tests passing, no console errors
