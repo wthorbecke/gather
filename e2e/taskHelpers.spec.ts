@@ -122,19 +122,33 @@ test.describe('detectCompletionIntent', () => {
 })
 
 test.describe('createFallbackSteps', () => {
-  test('creates 4 steps with task name', () => {
-    const steps = createFallbackSteps('Renew Passport')
+  test('creates 3 steps with actionable content', () => {
+    const steps = createFallbackSteps('Generic Task')
 
-    expect(steps).toHaveLength(4)
-    expect(steps[0].text).toContain('renew passport')
+    expect(steps).toHaveLength(3)
     expect(steps[0].done).toBe(false)
     expect(steps[0].id).toMatch(/^step-\d+-1$/)
+    // Generic fallback should have actionable steps
+    expect(steps[0].text).toContain('Search for how to')
+    expect(steps[2].text).toContain('Do the first thing')
   })
 
-  test('includes context description when provided', () => {
-    const steps = createFallbackSteps('File Taxes', 'For tax year 2024')
+  test('uses keyword matching for common task types', () => {
+    // "Cancel" keyword
+    const cancelSteps = createFallbackSteps('Cancel gym membership')
+    expect(cancelSteps[0].text).toContain('cancellation')
 
-    expect(steps[1].summary).toContain('For tax year 2024')
+    // "Pay" keyword
+    const paySteps = createFallbackSteps('Pay electric bill')
+    expect(paySteps[0].text).toContain('bill or invoice')
+
+    // "Clean" keyword
+    const cleanSteps = createFallbackSteps('Clean my room')
+    expect(cleanSteps[0].text).toContain('timer')
+
+    // "Call" keyword
+    const callSteps = createFallbackSteps('Call the dentist')
+    expect(callSteps[0].text).toContain('Write down what you need to say')
   })
 
   test('all steps have unique IDs', () => {
@@ -142,13 +156,19 @@ test.describe('createFallbackSteps', () => {
     const ids = steps.map(s => s.id)
     const uniqueIds = new Set(ids)
 
-    expect(uniqueIds.size).toBe(4)
+    expect(uniqueIds.size).toBe(steps.length)
   })
 
   test('all steps are incomplete', () => {
     const steps = createFallbackSteps('Test Task')
 
     expect(steps.every(s => s.done === false)).toBe(true)
+  })
+
+  test('steps include time estimates', () => {
+    const steps = createFallbackSteps('Write a report')
+    expect(steps[0].time).toBeDefined()
+    expect(steps[0].time).toMatch(/\d+ min/)
   })
 })
 
