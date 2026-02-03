@@ -116,7 +116,7 @@ export function FocusLauncher({
 
         <div className="text-xs text-text-muted flex items-center gap-2">
           <span>Press Enter to start</span>
-          <span className="bg-surface px-1.5 py-0.5 rounded text-[10px]">↵</span>
+          <span className="bg-surface px-1.5 py-0.5 rounded text-xs">↵</span>
         </div>
       </div>
 
@@ -124,7 +124,7 @@ export function FocusLauncher({
       <div className="flex-1 flex flex-col items-center justify-center px-6 pb-8 max-w-lg mx-auto w-full">
         {/* Pick reason tag */}
         <div className="mb-4">
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-medium bg-accent/10 text-accent rounded-full">
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-medium bg-accent-soft text-accent rounded-full">
             <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" strokeLinecap="round" />
               <path d="M22 4L12 14.01l-3-3" strokeLinecap="round" strokeLinejoin="round" />

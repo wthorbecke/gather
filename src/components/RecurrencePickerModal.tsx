@@ -93,7 +93,7 @@ export function RecurrencePickerModal({
               className={`
                 w-full text-left p-3 rounded-xl transition-all flex items-center justify-between
                 ${frequency === option.value
-                  ? 'bg-accent/10 border-2 border-accent'
+                  ? 'bg-accent-soft border-2 border-accent'
                   : 'bg-surface border border-border hover:border-accent/50'
                 }
               `}

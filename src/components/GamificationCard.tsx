@@ -168,7 +168,7 @@ function RewardsModalContent({
       {activeTab === 'progress' ? (
         <div className="space-y-4">
           {/* Momentum days */}
-          <div className="flex items-center justify-between p-3 rounded-lg bg-surface">
+          <div className="flex items-center justify-between p-4 rounded-lg bg-surface">
             <div>
               <div className="text-sm font-medium text-text">Momentum</div>
               <div className="text-xs text-text-muted">Days active in a row</div>
@@ -295,18 +295,17 @@ function RewardGroup({
               }}
               disabled={!isUnlocked && !canUnlock}
               className={`
-                p-3 rounded-lg text-left
+                p-4 rounded-lg text-left
                 transition-all duration-150
                 ${isUnlocked
                   ? isActive
-                    ? 'bg-accent/10 border-2 border-accent'
+                    ? 'bg-accent-soft border-2 border-accent'
                     : 'bg-surface border border-border hover:border-accent/50'
                   : canUnlock
                     ? 'bg-surface border border-border hover:bg-card-hover cursor-pointer'
-                    : 'bg-surface/50 border border-border/50 opacity-60'
+                    : 'bg-surface border border-border-subtle opacity-60'
                 }
-              `}
-            >
+              `}>
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium text-text">
                   {item.name}

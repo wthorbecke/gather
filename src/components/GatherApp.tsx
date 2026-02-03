@@ -73,6 +73,14 @@ const JustOneThing = dynamic(() => import('./JustOneThing').then(mod => ({ defau
   ssr: false,
   loading: () => null,
 })
+const CommandPalette = dynamic(() => import('./CommandPalette').then(mod => ({ default: mod.CommandPalette })), {
+  ssr: false,
+  loading: () => null,
+})
+const DayPlanningModal = dynamic(() => import('./DayPlanningModal').then(mod => ({ default: mod.DayPlanningModal })), {
+  ssr: false,
+  loading: () => null,
+})
 
 // Minimum time spent (30 seconds) before prompting for context note
 const MIN_TIME_FOR_CONTEXT_PROMPT = 30 * 1000
@@ -149,6 +157,12 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
   // Just One Thing mode state
   const [showJustOneThing, setShowJustOneThing] = useState(false)
 
+  // Command palette state
+  const [showCommandPalette, setShowCommandPalette] = useState(false)
+
+  // Day planning modal state
+  const [showDayPlanning, setShowDayPlanning] = useState(false)
+
   // Context capture modal state (for "where I left off" notes)
   const [showContextCapture, setShowContextCapture] = useState(false)
   const [contextCaptureTask, setContextCaptureTask] = useState<Task | null>(null)
@@ -178,10 +192,13 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
     onHideHelpMePick: () => setShowHelpMePick(false),
     onShowBrainDump: () => setShowBrainDump(true),
     onHideBrainDump: () => setShowBrainDump(false),
+    onShowCommandPalette: () => setShowCommandPalette(true),
+    onHideCommandPalette: () => setShowCommandPalette(false),
     showKeyboardShortcuts,
     showFocusLauncher,
     showHelpMePick,
     showBrainDump,
+    showCommandPalette,
     currentTaskId,
   })
 
@@ -833,6 +850,7 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
                 onOpenTemplates={() => setShowTemplateModal(true)}
                 onOpenBrainDump={() => setShowBrainDump(true)}
                 onOpenJustOneThing={() => setShowJustOneThing(true)}
+                onOpenDayPlanning={() => setShowDayPlanning(true)}
                 userId={isDemoUser ? null : user.id}
               />
             </ErrorBoundary>
@@ -995,6 +1013,36 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
           onSkip={handleSkipContextNote}
         />
       )}
+
+      {/* Command Palette */}
+      <CommandPalette
+        isOpen={showCommandPalette}
+        onClose={() => setShowCommandPalette(false)}
+        onOpenTemplates={() => setShowTemplateModal(true)}
+        onOpenBrainDump={() => setShowBrainDump(true)}
+        onOpenFocusLauncher={() => setShowFocusLauncher(true)}
+        onOpenHelpMePick={() => setShowHelpMePick(true)}
+        onOpenSettings={() => setShowIntegrationSettings(true)}
+      />
+
+      {/* Day Planning Modal - accessible from home view */}
+      <DayPlanningModal
+        isOpen={showDayPlanning}
+        onClose={() => setShowDayPlanning(false)}
+        tasks={tasks}
+        aiCard={aiCard}
+        pendingInput={pendingInput}
+        selectedDate={selectedDate}
+        onDateChange={setSelectedDate}
+        onSubmit={handleSubmit}
+        onQuickAdd={handleQuickAdd}
+        onQuickReply={handleQuickReply}
+        onDismissAI={dismissAI}
+        onGoToTask={goToTask}
+        onToggleStep={handleToggleStep}
+        onToggleHabit={handleToggleHabit}
+        onAICardAction={handleAICardAction}
+      />
     </div>
   )
 }

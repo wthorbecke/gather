@@ -329,7 +329,7 @@ export function DayView({
           </button>
 
           <div className="flex items-center gap-3">
-            <h2 className="text-lg font-semibold text-text">
+            <h2 className="text-lg font-medium text-text">
               {formatDateHeader(selectedDate)}
             </h2>
             {!isToday && (
@@ -360,7 +360,7 @@ export function DayView({
               flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium
               transition-all duration-150
               ${showTimeline
-                ? 'bg-accent/10 text-accent border border-accent/20'
+                ? 'bg-accent-soft text-accent border border-accent/20'
                 : 'bg-surface text-text-muted border border-transparent hover:text-text hover:bg-subtle'
               }
             `}
@@ -410,7 +410,7 @@ export function DayView({
           <div className="mb-6">
             <div className="flex items-center gap-2 mb-3">
               <div className="w-2 h-2 rounded-full bg-accent animate-pulse" />
-              <span className="text-sm font-semibold text-accent uppercase tracking-wide">Do this now</span>
+              <span className="text-sm font-medium text-accent uppercase tracking-wide">Do this now</span>
             </div>
 
             <div
@@ -433,7 +433,7 @@ export function DayView({
                   />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="text-base font-semibold text-text mb-1">
+                  <div className="text-base font-medium text-text mb-1">
                     {getDerivedStepTitle(nextStep.step.text)}
                   </div>
                   {nextStep.step.summary && (

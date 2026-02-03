@@ -150,7 +150,7 @@ export function BrainDumpModal({ isOpen, onClose, onAddTasks }: BrainDumpModalPr
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-border">
           <div>
-            <h2 className="text-lg font-semibold text-text">Brain Dump</h2>
+            <h2 className="text-lg font-medium text-text">Brain Dump</h2>
             <p className="text-sm text-text-muted mt-0.5">
               {viewState === 'input' && "Just dump everything here"}
               {viewState === 'processing' && "Sorting through your thoughts..."}
@@ -197,11 +197,11 @@ need to call mom back, also gotta schedule that dentist appointment, taxes are d
                   {text.length > 0 && `${text.length} characters`}
                 </span>
                 <span className="text-xs text-text-muted">
-                  <kbd className="px-1.5 py-0.5 rounded bg-surface border border-border text-[10px] font-medium">
+                  <kbd className="px-1.5 py-0.5 rounded bg-surface border border-border text-xs font-medium">
                     {isMac ? 'Cmd' : 'Ctrl'}
                   </kbd>
                   {' + '}
-                  <kbd className="px-1.5 py-0.5 rounded bg-surface border border-border text-[10px] font-medium">Enter</kbd>
+                  <kbd className="px-1.5 py-0.5 rounded bg-surface border border-border text-xs font-medium">Enter</kbd>
                   {' to process'}
                 </span>
               </div>
@@ -211,7 +211,7 @@ need to call mom back, also gotta schedule that dentist appointment, taxes are d
           {/* Processing View */}
           {viewState === 'processing' && (
             <div className="p-5 flex flex-col items-center justify-center min-h-[300px]">
-              <div className="w-12 h-12 rounded-full bg-accent/10 flex items-center justify-center mb-4">
+              <div className="w-12 h-12 rounded-full bg-accent-soft flex items-center justify-center mb-4">
                 <div className="w-6 h-6 border-2 border-accent border-t-transparent rounded-full animate-spin" />
               </div>
               <p className="text-text-soft text-center">

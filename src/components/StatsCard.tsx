@@ -383,7 +383,7 @@ export function StatsCard({ tasks, moodEntries = [] }: StatsCardProps) {
       <div className="grid grid-cols-2 gap-3">
         {/* Steps completed */}
         {stats.stepsCompleted > 0 && (
-          <div className="p-3 bg-accent-soft/30 rounded-lg">
+          <div className="p-4 bg-accent-soft rounded-lg">
             <div className="text-2xl font-bold text-accent">{stats.stepsCompleted}</div>
             <div className="text-xs text-text-muted">
               {stats.stepsCompleted === 1 ? 'step' : 'steps'} done
@@ -393,7 +393,7 @@ export function StatsCard({ tasks, moodEntries = [] }: StatsCardProps) {
 
         {/* Tasks completed */}
         {stats.completedTasks > 0 && (
-          <div className="p-3 bg-success-soft/30 rounded-lg">
+          <div className="p-4 bg-success-soft rounded-lg">
             <div className="text-2xl font-bold text-success">{stats.completedTasks}</div>
             <div className="text-xs text-text-muted">
               {stats.completedTasks === 1 ? 'task' : 'tasks'} finished
@@ -403,7 +403,7 @@ export function StatsCard({ tasks, moodEntries = [] }: StatsCardProps) {
 
         {/* Best active streak */}
         {stats.bestStreak && (
-          <div className="p-3 bg-subtle rounded-lg col-span-2">
+          <div className="p-4 bg-subtle rounded-lg col-span-2">
             <div className="flex items-center gap-2">
               <span className="text-lg">🔥</span>
               <div>
@@ -420,7 +420,7 @@ export function StatsCard({ tasks, moodEntries = [] }: StatsCardProps) {
 
         {/* 7-day activity visualization */}
         {stats.weekActivity.some(d => d.count > 0) && (
-          <div className="col-span-2 pt-3 mt-1 border-t border-border/50">
+          <div className="col-span-2 pt-3 mt-1 border-t border-border-subtle">
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs text-text-muted">This week</span>
               <span className="text-xs text-text-muted">
@@ -450,7 +450,7 @@ export function StatsCard({ tasks, moodEntries = [] }: StatsCardProps) {
                       </svg>
                     ) : null}
                   </div>
-                  <span className={`text-[10px] ${day.isToday ? 'font-bold text-accent' : 'text-text-muted'}`}>
+                  <span className={`text-xs ${day.isToday ? 'font-bold text-accent' : 'text-text-muted'}`}>
                     {day.dayName}
                   </span>
                 </div>
@@ -461,7 +461,7 @@ export function StatsCard({ tasks, moodEntries = [] }: StatsCardProps) {
 
         {/* Completion Insights - only show when enough data */}
         {stats.insightMessage && (
-          <div className="col-span-2 pt-3 mt-1 border-t border-border/50">
+          <div className="col-span-2 pt-3 mt-1 border-t border-border-subtle">
             <button
               onClick={() => setShowInsightDetail(!showInsightDetail)}
               className="w-full text-left group"
@@ -485,7 +485,7 @@ export function StatsCard({ tasks, moodEntries = [] }: StatsCardProps) {
                     {stats.insightMessage}
                   </p>
                   {showInsightDetail && stats.completionPatterns.peakHour !== null && (
-                    <p className="text-[11px] text-text-muted mt-1.5 leading-relaxed">
+                    <p className="text-xs text-text-muted mt-1.5 leading-relaxed">
                       Based on {stats.completionPatterns.totalCompletions} completions.
                       Try scheduling your hardest tasks around {formatHour(stats.completionPatterns.peakHour)}.
                     </p>
@@ -509,7 +509,7 @@ export function StatsCard({ tasks, moodEntries = [] }: StatsCardProps) {
 
         {/* Mood-Productivity Insight - only show when enough mood data */}
         {stats.moodCorrelation && (
-          <div className="col-span-2 pt-3 mt-1 border-t border-border/50">
+          <div className="col-span-2 pt-3 mt-1 border-t border-border-subtle">
             <div className="flex items-start gap-2">
               <span className="text-base flex-shrink-0" role="img" aria-hidden="true">
                 {MOOD_EMOJIS[stats.moodCorrelation.bestMood]}

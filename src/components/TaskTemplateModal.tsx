@@ -108,7 +108,7 @@ export function TaskTemplateModal({ onSelect, onClose }: TaskTemplateModalProps)
                 className={`
                   w-full text-left p-3 rounded-xl transition-all
                   ${selectedTemplate?.id === template.id
-                    ? 'bg-accent/10 border-2 border-accent'
+                    ? 'bg-accent-soft border-2 border-accent'
                     : 'bg-surface border border-border hover:border-accent/50'
                   }
                 `}

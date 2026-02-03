@@ -31,7 +31,7 @@ const energyConfig = {
     label: 'High energy',
     shortLabel: 'High',
     icon: '🔥',
-    bgClass: 'bg-accent/10',
+    bgClass: 'bg-accent-soft',
     textClass: 'text-accent',
     borderClass: 'border-accent/30',
   },
@@ -54,7 +54,7 @@ export function EnergyBadge({ energy, size = 'sm', showLabel = false }: EnergyBa
       `}
       title={config.label}
     >
-      <span className={size === 'sm' ? 'text-[10px]' : 'text-xs'}>{config.icon}</span>
+      <span className={size === 'sm' ? 'text-xs' : 'text-xs'}>{config.icon}</span>
       {showLabel && <span className="font-medium">{config.shortLabel}</span>}
     </span>
   )
@@ -104,7 +104,7 @@ export function EnergyPicker({ value, onChange, taskTitle }: EnergyPickerProps) 
                 <span>{energyConfig[option.value].icon}</span>
                 <span>{energyConfig[option.value].shortLabel}</span>
                 {isSuggested && (
-                  <span className="text-[10px] text-accent font-normal ml-0.5">(Suggested)</span>
+                  <span className="text-xs text-accent font-normal ml-0.5">(Suggested)</span>
                 )}
               </span>
             ) : (

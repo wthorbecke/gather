@@ -471,7 +471,7 @@ export function TaskView({
 
         {/* Where I left off - context preservation note */}
         {task.notes && (
-          <div className="mb-5 p-4 bg-accent/10 dark:bg-accent/20 rounded-xl border border-accent/20 animate-fade-in">
+          <div className="mb-5 p-4 bg-accent-soft rounded-xl border border-accent/20 animate-fade-in">
             <div className="flex items-start gap-3">
               <div className="flex-shrink-0 mt-0.5">
                 <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-accent">

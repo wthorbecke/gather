@@ -11,11 +11,14 @@ interface GlobalKeyboardShortcutsOptions {
   onHideHelpMePick: () => void
   onShowBrainDump: () => void
   onHideBrainDump: () => void
+  onShowCommandPalette: () => void
+  onHideCommandPalette: () => void
   // Current state to determine what to show/hide
   showKeyboardShortcuts: boolean
   showFocusLauncher: boolean
   showHelpMePick: boolean
   showBrainDump: boolean
+  showCommandPalette: boolean
   currentTaskId: string | null
 }
 
@@ -24,6 +27,7 @@ interface GlobalKeyboardShortcutsOptions {
  *
  * Shortcuts:
  * - '?' or Shift+/ : Show keyboard shortcuts modal
+ * - Cmd+K or '`' : Open command palette
  * - 'f' : Open focus launcher (when not in task view or modal)
  * - 'h' : Open help me pick (when not in task view or modal)
  * - 'd' : Open brain dump (when not in task view or modal)
@@ -39,17 +43,48 @@ export function useGlobalKeyboardShortcuts(options: GlobalKeyboardShortcutsOptio
     onHideHelpMePick,
     onShowBrainDump,
     onHideBrainDump,
+    onShowCommandPalette,
+    onHideCommandPalette,
     showKeyboardShortcuts,
     showFocusLauncher,
     showHelpMePick,
     showBrainDump,
+    showCommandPalette,
     currentTaskId,
   } = options
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
-    // Don't trigger when typing in inputs
+    // Don't trigger when typing in inputs (except for Cmd+K which should work anywhere)
     const target = e.target as HTMLElement
-    if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
+    const isInInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable
+
+    // Cmd+K or Ctrl+K to open command palette (works even in inputs)
+    if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+      e.preventDefault()
+      if (showCommandPalette) {
+        onHideCommandPalette()
+      } else {
+        onShowCommandPalette()
+      }
+      return
+    }
+
+    // Escape to close command palette
+    if (e.key === 'Escape' && showCommandPalette) {
+      e.preventDefault()
+      onHideCommandPalette()
+      return
+    }
+
+    // Don't process other shortcuts when in inputs
+    if (isInInput) {
+      return
+    }
+
+    // '`' (backtick) to open command palette (when not in input)
+    if (e.key === '`' && !showCommandPalette && !showKeyboardShortcuts && !showFocusLauncher && !showHelpMePick && !showBrainDump) {
+      e.preventDefault()
+      onShowCommandPalette()
       return
     }
 
@@ -66,7 +101,7 @@ export function useGlobalKeyboardShortcuts(options: GlobalKeyboardShortcutsOptio
     }
 
     // 'f' to toggle focus launcher (when not in a modal)
-    if (e.key === 'f' && !showKeyboardShortcuts && !showFocusLauncher && !currentTaskId) {
+    if (e.key === 'f' && !showKeyboardShortcuts && !showFocusLauncher && !showCommandPalette && !currentTaskId) {
       e.preventDefault()
       onShowFocusLauncher()
     }
@@ -78,7 +113,7 @@ export function useGlobalKeyboardShortcuts(options: GlobalKeyboardShortcutsOptio
     }
 
     // 'h' to show help me pick (when not in a modal or task view)
-    if (e.key === 'h' && !showKeyboardShortcuts && !showFocusLauncher && !showHelpMePick && !currentTaskId) {
+    if (e.key === 'h' && !showKeyboardShortcuts && !showFocusLauncher && !showHelpMePick && !showCommandPalette && !currentTaskId) {
       e.preventDefault()
       onShowHelpMePick()
     }
@@ -90,7 +125,7 @@ export function useGlobalKeyboardShortcuts(options: GlobalKeyboardShortcutsOptio
     }
 
     // 'd' to open brain dump (when not in a modal or task view)
-    if (e.key === 'd' && !showKeyboardShortcuts && !showFocusLauncher && !showHelpMePick && !showBrainDump && !currentTaskId) {
+    if (e.key === 'd' && !showKeyboardShortcuts && !showFocusLauncher && !showHelpMePick && !showBrainDump && !showCommandPalette && !currentTaskId) {
       e.preventDefault()
       onShowBrainDump()
     }
@@ -109,10 +144,13 @@ export function useGlobalKeyboardShortcuts(options: GlobalKeyboardShortcutsOptio
     onHideHelpMePick,
     onShowBrainDump,
     onHideBrainDump,
+    onShowCommandPalette,
+    onHideCommandPalette,
     showKeyboardShortcuts,
     showFocusLauncher,
     showHelpMePick,
     showBrainDump,
+    showCommandPalette,
     currentTaskId,
   ])
 

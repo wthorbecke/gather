@@ -43,3 +43,7 @@ export type { UndoAction, UndoActionType, UseUndoReturn } from './useUndo'
 // Subscription hook
 export { useSubscription } from './useSubscription'
 export type { Subscription, SubscriptionStatus } from './useSubscription'
+
+// Swipe gesture hook
+export { useSwipeGesture, isTouchSupported } from './useSwipeGesture'
+export type { SwipeGestureOptions, SwipeState, SwipeGestureReturn } from './useSwipeGesture'

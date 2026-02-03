@@ -5,6 +5,7 @@ import { Task, Step } from '@/hooks/useUserData'
 import type { UndoAction } from '@/hooks/useUndo'
 import type { MemoryEntry } from '@/hooks/useMemory'
 import { playSound } from '@/lib/sounds'
+import { useWhisperActivity } from '@/components/CoachWhisper'
 
 interface StepHandlersOptions {
   tasks: Task[]
@@ -43,6 +44,9 @@ export function useStepHandlers({
   addEntry,
   onEarnPoints,
 }: StepHandlersOptions): StepHandlers {
+  // Whisper activity tracking for coach insights
+  const { recordCompletion } = useWhisperActivity()
+
   // Handle step toggle with celebration and undo
   const handleToggleStep = useCallback(async (taskId: string, stepId: string | number, inFocusMode = false) => {
     const task = tasks.find((t) => t.id === taskId)
@@ -86,6 +90,9 @@ export function useStepHandlers({
         playSound('stepComplete')
       }
 
+      // Record completion for coach whispers
+      recordCompletion(task.title, isTaskComplete)
+
       // Award points for completing a step (gamification)
       if (onEarnPoints) {
         onEarnPoints(5, 'step_complete', taskId)
@@ -97,7 +104,7 @@ export function useStepHandlers({
         }
       }
     }
-  }, [toggleStep, tasks, addEntry, checkAndCelebrate, pushUndo, onEarnPoints])
+  }, [toggleStep, tasks, addEntry, checkAndCelebrate, pushUndo, onEarnPoints, recordCompletion])
 
   // Handle step edit
   const handleEditStep = useCallback(async (taskId: string, stepId: string | number, newText: string) => {

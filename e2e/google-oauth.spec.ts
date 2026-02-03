@@ -88,7 +88,7 @@ test.describe('Google OAuth Integration', () => {
     await page.waitForTimeout(500)
 
     // Verify Integration Settings modal is open (look for modal content)
-    await expect(page.locator('text=Connect Google').or(page.locator('text=Gmail'))).toBeVisible({ timeout: 5000 })
+    await expect(page.getByRole('heading', { name: 'Connect Google' }).or(page.getByRole('heading', { name: 'Gmail' }))).toBeVisible({ timeout: 5000 })
 
     // Take screenshot
     await page.screenshot({ path: '.playwright-mcp/google-oauth-step2-settings-modal.png', fullPage: true })
@@ -120,7 +120,10 @@ test.describe('Google OAuth Integration', () => {
   })
 
   test.describe('Google OAuth Flow (requires --headed)', () => {
-    // This test requires headed mode and may be blocked by Google
+    // This test requires headed mode and manual interaction
+    // It's marked as skip in CI but can be run locally with: npx playwright test e2e/google-oauth.spec.ts --headed
+    test.skip(({ }, testInfo) => !!process.env.CI, 'Skipping OAuth flow test in CI - requires manual interaction')
+
     test('attempt OAuth flow', async ({ page }) => {
       const config = getTestConfig()
 

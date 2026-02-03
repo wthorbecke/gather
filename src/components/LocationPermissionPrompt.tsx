@@ -28,7 +28,7 @@ export function LocationPermissionPrompt({
   return (
     <div className="fixed bottom-4 left-4 right-4 md:left-auto md:right-4 md:w-80 bg-elevated border border-border rounded-2xl p-4 shadow-lg z-50 animate-fade-in">
       <div className="flex gap-3 mb-3">
-        <div className="w-10 h-10 rounded-full bg-accent/10 flex items-center justify-center flex-shrink-0">
+        <div className="w-10 h-10 rounded-full bg-accent-soft flex items-center justify-center flex-shrink-0">
           <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-accent">
             <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
             <circle cx="12" cy="10" r="3" />
