@@ -1,10 +1,19 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { Step } from '@/hooks/useUserData'
 import { Checkbox } from './Checkbox'
 import { splitStepText } from '@/lib/stepText'
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
+
+// Pomodoro constants
+const POMODORO_WORK_SECONDS = 25 * 60 // 25 minutes
+const POMODORO_SHORT_BREAK_SECONDS = 5 * 60 // 5 minutes
+const POMODORO_LONG_BREAK_SECONDS = 15 * 60 // 15 minutes
+const POMODOROS_UNTIL_LONG_BREAK = 4
+
+type TimerMode = 'stopwatch' | 'pomodoro'
+type PomodoroPhase = 'work' | 'shortBreak' | 'longBreak'
 
 interface FocusModeProps {
   step: Step
@@ -37,14 +46,81 @@ export function FocusMode({
   const [elapsedTime, setElapsedTime] = useState(0)
   const [isTimerRunning, setIsTimerRunning] = useState(true)
 
-  // Timer that counts up
+  // Pomodoro state
+  const [timerMode, setTimerMode] = useState<TimerMode>('stopwatch')
+  const [pomodoroTime, setPomodoroTime] = useState(POMODORO_WORK_SECONDS)
+  const [pomodoroPhase, setPomodoroPhase] = useState<PomodoroPhase>('work')
+  const [pomodoroCount, setPomodoroCount] = useState(0)
+  const [showBreakPrompt, setShowBreakPrompt] = useState(false)
+  const [isPulsing, setIsPulsing] = useState(false)
+
+  // Timer that counts up (stopwatch mode)
   useEffect(() => {
-    if (!isTimerRunning) return
+    if (!isTimerRunning || timerMode !== 'stopwatch') return
     const interval = setInterval(() => {
       setElapsedTime(prev => prev + 1)
     }, 1000)
     return () => clearInterval(interval)
-  }, [isTimerRunning])
+  }, [isTimerRunning, timerMode])
+
+  // Timer that counts down (pomodoro mode)
+  useEffect(() => {
+    if (!isTimerRunning || timerMode !== 'pomodoro') return
+    const interval = setInterval(() => {
+      setPomodoroTime(prev => {
+        if (prev <= 1) {
+          // Timer complete
+          setIsTimerRunning(false)
+          setIsPulsing(true)
+          setTimeout(() => setIsPulsing(false), 3000)
+
+          if (pomodoroPhase === 'work') {
+            const newCount = pomodoroCount + 1
+            setPomodoroCount(newCount)
+            setShowBreakPrompt(true)
+          } else {
+            // Break complete, back to work
+            setPomodoroPhase('work')
+            return POMODORO_WORK_SECONDS
+          }
+          return 0
+        }
+        return prev - 1
+      })
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [isTimerRunning, timerMode, pomodoroPhase, pomodoroCount])
+
+  // Start break
+  const startBreak = useCallback((isLongBreak: boolean) => {
+    setShowBreakPrompt(false)
+    setPomodoroPhase(isLongBreak ? 'longBreak' : 'shortBreak')
+    setPomodoroTime(isLongBreak ? POMODORO_LONG_BREAK_SECONDS : POMODORO_SHORT_BREAK_SECONDS)
+    setIsTimerRunning(true)
+  }, [])
+
+  // Skip break and continue working
+  const skipBreak = useCallback(() => {
+    setShowBreakPrompt(false)
+    setPomodoroPhase('work')
+    setPomodoroTime(POMODORO_WORK_SECONDS)
+    setIsTimerRunning(true)
+  }, [])
+
+  // Toggle timer mode
+  const toggleTimerMode = useCallback(() => {
+    setTimerMode(prev => {
+      if (prev === 'stopwatch') {
+        // Switching to pomodoro, reset pomodoro timer
+        setPomodoroTime(POMODORO_WORK_SECONDS)
+        setPomodoroPhase('work')
+        return 'pomodoro'
+      } else {
+        // Switching to stopwatch
+        return 'stopwatch'
+      }
+    })
+  }, [])
 
   // Keyboard shortcuts
   const shortcuts = useMemo(() => [
@@ -83,9 +159,14 @@ export function FocusMode({
       action: () => setIsTimerRunning(prev => !prev),
       description: 'Pause/resume timer',
     },
-  ], [onExit, onToggleStep, onNext, onPrevious, step.done])
+    {
+      key: 'p',
+      action: toggleTimerMode,
+      description: 'Toggle pomodoro',
+    },
+  ], [onExit, onToggleStep, onNext, onPrevious, step.done, toggleTimerMode])
 
-  useKeyboardShortcuts({ shortcuts, enabled: true })
+  useKeyboardShortcuts({ shortcuts, enabled: !showBreakPrompt })
 
   // Format time as mm:ss
   const formatTime = (seconds: number) => {
@@ -117,13 +198,47 @@ export function FocusMode({
 
         {/* Timer and keyboard hint */}
         <div className="flex items-center gap-1">
+          {/* Timer mode toggle */}
+          <button
+            onClick={toggleTimerMode}
+            className={`
+              px-2 py-1 min-h-[36px] rounded-lg text-xs font-medium
+              transition-all duration-150 ease-out
+              ${timerMode === 'pomodoro'
+                ? 'bg-accent/20 text-accent'
+                : 'text-text-muted hover:text-text hover:bg-surface'
+              }
+            `}
+            aria-label={timerMode === 'pomodoro' ? 'Switch to stopwatch' : 'Switch to pomodoro'}
+            title="Press P to toggle"
+          >
+            {timerMode === 'pomodoro' ? '🍅' : '⏱️'}
+          </button>
+
+          {/* Timer display */}
           <button
             onClick={() => setIsTimerRunning(prev => !prev)}
-            className={`font-mono text-sm tabular-nums min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg hover:bg-surface transition-all duration-150 ease-out ${isTimerRunning ? 'text-accent' : 'text-text-muted'}`}
+            className={`
+              font-mono text-sm tabular-nums min-w-[60px] min-h-[44px]
+              flex items-center justify-center rounded-lg
+              hover:bg-surface transition-all duration-150 ease-out
+              ${isPulsing ? 'animate-pulse bg-accent/20' : ''}
+              ${isTimerRunning
+                ? timerMode === 'pomodoro' && pomodoroPhase !== 'work' ? 'text-success' : 'text-accent'
+                : 'text-text-muted'
+              }
+            `}
             aria-label={isTimerRunning ? 'Pause timer' : 'Resume timer'}
           >
-            {formatTime(elapsedTime)}
+            {timerMode === 'pomodoro' ? formatTime(pomodoroTime) : formatTime(elapsedTime)}
           </button>
+
+          {/* Pomodoro count */}
+          {timerMode === 'pomodoro' && pomodoroCount > 0 && (
+            <div className="text-xs text-text-muted px-1">
+              {pomodoroCount}🍅
+            </div>
+          )}
           <div className="group relative">
             <button className="text-text-muted hover:text-text transition-colors duration-150 ease-out min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg hover:bg-surface" aria-label="Keyboard shortcuts">
               <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -146,6 +261,7 @@ export function FocusMode({
                 <div className="flex justify-between"><span className="text-text-soft">Previous</span><span className="text-text-muted">←</span></div>
                 <div className="flex justify-between"><span className="text-text-soft">Details</span><span className="text-text-muted">D</span></div>
                 <div className="flex justify-between"><span className="text-text-soft">Pause timer</span><span className="text-text-muted">Space</span></div>
+                <div className="flex justify-between"><span className="text-text-soft">Pomodoro</span><span className="text-text-muted">P</span></div>
                 <div className="flex justify-between"><span className="text-text-soft">Exit</span><span className="text-text-muted">Esc</span></div>
               </div>
             </div>
@@ -282,6 +398,54 @@ export function FocusMode({
           </svg>
         </button>
       </div>
+
+      {/* Break Prompt Modal */}
+      {showBreakPrompt && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-canvas/95 backdrop-blur-sm animate-fade-in">
+          <div className="bg-elevated border border-border rounded-2xl p-8 max-w-sm mx-4 text-center shadow-modal">
+            <div className="text-4xl mb-4">🍅</div>
+            <h2 className="text-xl font-semibold text-text mb-2">
+              Pomodoro complete!
+            </h2>
+            <p className="text-text-soft mb-6">
+              You&apos;ve done {pomodoroCount} {pomodoroCount === 1 ? 'pomodoro' : 'pomodoros'}. Time for a break?
+            </p>
+
+            <div className="space-y-3">
+              {pomodoroCount % POMODOROS_UNTIL_LONG_BREAK === 0 ? (
+                <>
+                  <button
+                    onClick={() => startBreak(true)}
+                    className="w-full p-3 rounded-lg bg-success text-white font-medium hover:bg-success/90 transition-all duration-150 ease-out btn-press"
+                  >
+                    Long break (15 min)
+                  </button>
+                  <button
+                    onClick={() => startBreak(false)}
+                    className="w-full p-3 rounded-lg bg-subtle text-text-soft hover:bg-surface transition-all duration-150 ease-out btn-press"
+                  >
+                    Short break (5 min)
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={() => startBreak(false)}
+                  className="w-full p-3 rounded-lg bg-success text-white font-medium hover:bg-success/90 transition-all duration-150 ease-out btn-press"
+                >
+                  Take a break (5 min)
+                </button>
+              )}
+
+              <button
+                onClick={skipBreak}
+                className="w-full p-3 rounded-lg text-text-muted hover:text-text transition-colors duration-150 ease-out"
+              >
+                Skip break, keep going
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
