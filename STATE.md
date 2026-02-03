@@ -152,6 +152,12 @@ All critical issues fixed:
 9. ~~**Calendar event editing**~~ - Done (Session 10) - Add/remove calendar events from task menu
 10. ~~**Habit completion calendar**~~ - Done (Session 10) - 4-week visual calendar in habit view
 
+**Future Ideas:**
+- Time blocking - Schedule tasks into calendar time blocks
+- Statistics/insights - Show users their productivity patterns
+- Quick actions - One-tap common actions (snooze 1hr, etc.)
+- Focus mode enhancements - Pomodoro timer, ambient sounds
+
 ---
 
 ## Session Log
