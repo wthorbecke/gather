@@ -398,16 +398,27 @@ export function FocusMode({
 
         {/* Action button */}
         <div className="mb-8">
-          <button
+          <div
             onClick={() => {
               onToggleStep()
               if (!step.done && onNext) {
                 setTimeout(onNext, 300)
               }
             }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                onToggleStep()
+                if (!step.done && onNext) {
+                  setTimeout(onNext, 300)
+                }
+              }
+            }}
+            role="button"
+            tabIndex={0}
             className={`
               flex items-center gap-4
-              p-6 rounded-xl
+              p-6 rounded-xl cursor-pointer
               transition-all duration-150 ease-out
               ${step.done
                 ? 'bg-success/10 border-2 border-success'
@@ -419,7 +430,7 @@ export function FocusMode({
             <span className={`text-lg font-medium ${step.done ? 'text-success' : 'text-text'}`}>
               {step.done ? 'Done!' : 'Mark as done'}
             </span>
-          </button>
+          </div>
         </div>
 
         {/* Stuck button */}
