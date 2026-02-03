@@ -1,7 +1,7 @@
 # Gather Product State
 
-**Last Updated:** Mon Feb 2 2026, 23:15 PST
-**Session:** 13
+**Last Updated:** Mon Feb 2 2026, 23:30 PST
+**Session:** 14
 
 ---
 
@@ -180,6 +180,35 @@ All critical issues fixed:
 ---
 
 ## Session Log
+
+### Session 14 - Feb 2, 2026
+**Accomplished:**
+- **Added database migration for energy feature** - Production users can now use energy levels
+  - Migration 013: adds energy, pinned, and calendar_event_id columns
+  - CHECK constraint ensures valid energy values (low/medium/high)
+  - Indexes for efficient filtering by energy and pinned status
+  - schema.sql updated with all new columns
+- **Added smart energy level suggestions** - Keyword-based energy detection
+  - energySuggestion.ts analyzes task titles for energy keywords
+  - HIGH: focus, analyze, taxes, deadline, presentation, complex
+  - MEDIUM: organize, email, appointment, exercise, review
+  - LOW: simple, routine, clean, meditate, renew, relax
+  - EnergyPicker shows "(Suggested)" label with accent highlight when applicable
+  - Only shows suggestion when it differs from current value (not intrusive)
+- All 173 tests passing, build succeeds
+
+**Commits:**
+- `b5b572b` Add database migration for energy, pinned, and calendar_event_id columns
+- `4f3b997` Add smart energy level suggestions based on task keywords
+
+**Technical notes:**
+- Migration uses IF NOT EXISTS pattern for idempotent execution
+- suggestEnergyLevel() returns null if no confident match (no tie-breaking)
+- suggestEnergyWithConfidence() provides match details for debugging
+- EnergyPicker receives taskTitle prop to compute suggestion
+- Suggested button gets accent ring styling to draw attention
+
+---
 
 ### Session 13 - Feb 2, 2026
 **Accomplished:**
