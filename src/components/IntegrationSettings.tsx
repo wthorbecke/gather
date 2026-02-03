@@ -3,6 +3,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Modal } from './Modal'
 import { useAuth } from './AuthProvider'
+import { useSubscription } from '@/hooks/useSubscription'
+import { UpgradeModal } from './UpgradeModal'
 
 interface IntegrationSettingsProps {
   isOpen: boolean
@@ -35,6 +37,15 @@ export function IntegrationSettings({ isOpen, onClose }: IntegrationSettingsProp
   const [loading, setLoading] = useState<'gmail' | 'calendar' | 'connect' | 'insights' | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [insightFrequency, setInsightFrequency] = useState<InsightFrequency>('normal')
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false)
+
+  // Subscription state
+  const {
+    hasActiveSubscription,
+    subscription,
+    isLoading: subscriptionLoading,
+    openBillingPortal
+  } = useSubscription()
 
   // Check if Google is connected with proper scopes
   const checkGoogleConnection = useCallback(async () => {
@@ -316,6 +327,63 @@ export function IntegrationSettings({ isOpen, onClose }: IntegrationSettingsProp
           </div>
         )}
 
+        {/* Subscription Status */}
+        <div className="p-4 bg-surface rounded-xl border border-border">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-lg bg-card flex items-center justify-center">
+              <svg width={20} height={20} viewBox="0 0 24 24" className="text-accent">
+                <path
+                  d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
+                  fill="currentColor"
+                />
+              </svg>
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between">
+                <h3 className="font-medium text-text">
+                  {hasActiveSubscription ? 'Gather Pro' : 'Free Plan'}
+                </h3>
+                {hasActiveSubscription ? (
+                  <span className="px-2 py-0.5 bg-success text-white text-xs font-medium rounded-full">
+                    Active
+                  </span>
+                ) : (
+                  <span className="px-2 py-0.5 bg-border text-text-muted text-xs font-medium rounded-full">
+                    Limited
+                  </span>
+                )}
+              </div>
+              <p className="text-sm text-text-muted mt-1">
+                {hasActiveSubscription
+                  ? subscription?.cancelAtPeriodEnd
+                    ? `Cancels ${new Date(subscription.currentPeriodEnd).toLocaleDateString()}`
+                    : `Renews ${new Date(subscription?.currentPeriodEnd || '').toLocaleDateString()}`
+                  : 'Upgrade to unlock AI task breakdown and integrations'
+                }
+              </p>
+              <div className="mt-3">
+                {subscriptionLoading ? (
+                  <div className="text-sm text-text-muted">Loading...</div>
+                ) : hasActiveSubscription ? (
+                  <button
+                    onClick={openBillingPortal}
+                    className="px-4 py-2 bg-surface border border-border rounded-lg text-sm font-medium text-text hover:bg-card transition-colors"
+                  >
+                    Manage Billing
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => setShowUpgradeModal(true)}
+                    className="px-4 py-2 bg-accent text-white rounded-lg text-sm font-medium hover:opacity-90 transition-opacity"
+                  >
+                    Upgrade to Pro
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
         {!status.googleConnected ? (
           // Google not connected - show connect button
           <div className="p-4 bg-surface rounded-xl border border-border">
@@ -531,6 +599,12 @@ export function IntegrationSettings({ isOpen, onClose }: IntegrationSettingsProp
           Integrations sync automatically. Your data stays private.
         </p>
       </div>
+
+      {/* Upgrade Modal */}
+      <UpgradeModal
+        isOpen={showUpgradeModal}
+        onClose={() => setShowUpgradeModal(false)}
+      />
     </Modal>
   )
 }
