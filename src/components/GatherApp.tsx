@@ -521,6 +521,13 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
     }
   }, [tasks, deleteTask])
 
+  // Toggle task pinned state
+  const handleTogglePin = useCallback(async (taskId: string) => {
+    const task = tasks.find(t => t.id === taskId)
+    if (!task) return
+    await updateTask(taskId, { pinned: !task.pinned } as Partial<Task>)
+  }, [tasks, updateTask])
+
   // Handle AI card action with focus step support
   const handleAICardAction = useCallback(async (action: { type: string; stepId?: string | number; title?: string; context?: string }) => {
     if (action.type === 'focus_step' && action.stepId !== undefined) {
@@ -661,6 +668,7 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
                 onSuggestionClick={handleSuggestionClick}
                 onDeleteTask={handleDeleteTask}
                 onClearCompleted={handleClearCompleted}
+                onTogglePin={handleTogglePin}
                 onSnoozeTask={handleSnoozeTask}
                 onAICardAction={handleAICardAction}
                 onBackQuestion={handleBackQuestion}

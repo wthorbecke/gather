@@ -56,6 +56,7 @@ interface HomeViewProps {
   onSuggestionClick: (suggestion: string) => void
   onDeleteTask?: (taskId: string) => void
   onClearCompleted?: () => void
+  onTogglePin?: (taskId: string) => void
   onSnoozeTask?: (taskId: string, date: string) => void
   onAICardAction?: (action: { type: string; stepId?: string | number; title?: string; context?: string }) => void
   onBackQuestion?: () => void
@@ -78,6 +79,7 @@ export function HomeView({
   onSuggestionClick,
   onDeleteTask,
   onClearCompleted,
+  onTogglePin,
   onSnoozeTask,
   onAICardAction,
   onBackQuestion,
@@ -99,9 +101,13 @@ export function HomeView({
     })
   }, [tasks])
 
-  // Sort by deadline urgency
+  // Sort by pinned first, then deadline urgency
   const sortedTasks = useMemo(() => {
     return [...activeTasks].sort((a, b) => {
+      // Pinned tasks come first
+      if (a.pinned && !b.pinned) return -1
+      if (!a.pinned && b.pinned) return 1
+      // Then sort by deadline urgency
       const urgencyA = getDeadlineUrgency(a.due_date)
       const urgencyB = getDeadlineUrgency(b.due_date)
       return urgencyA - urgencyB
@@ -458,6 +464,7 @@ export function HomeView({
                       onDelete={onDeleteTask ? () => onDeleteTask(task.id) : undefined}
                       onHabitComplete={onToggleHabit ? () => onToggleHabit(task.id) : undefined}
                       onSnooze={onSnoozeTask ? (date) => onSnoozeTask(task.id, date) : undefined}
+                      onTogglePin={onTogglePin ? () => onTogglePin(task.id) : undefined}
                     />
                   </div>
                 ))}
@@ -572,6 +579,7 @@ export function HomeView({
                           onDelete={onDeleteTask ? () => onDeleteTask(task.id) : undefined}
                           onHabitComplete={onToggleHabit ? () => onToggleHabit(task.id) : undefined}
                           onSnooze={onSnoozeTask ? (date) => onSnoozeTask(task.id, date) : undefined}
+                          onTogglePin={onTogglePin ? () => onTogglePin(task.id) : undefined}
                         />
                       </div>
                     ))}

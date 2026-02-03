@@ -13,6 +13,7 @@ interface TaskListItemProps {
   onDelete?: () => void
   onHabitComplete?: () => void  // For habits: mark today as complete
   onSnooze?: (date: string) => void  // Snooze task to a later date
+  onTogglePin?: () => void     // Pin/unpin task
 }
 
 // Type icons (14px, muted color)
@@ -117,7 +118,7 @@ const SourceIcon = memo(function SourceIcon({ source }: { source: string }) {
   return null
 })
 
-export const TaskListItem = memo(function TaskListItem({ task, onClick, onDelete, onHabitComplete, onSnooze }: TaskListItemProps) {
+export const TaskListItem = memo(function TaskListItem({ task, onClick, onDelete, onHabitComplete, onSnooze, onTogglePin }: TaskListItemProps) {
   const [showMenu, setShowMenu] = useState(false)
   const [showSnoozeMenu, setShowSnoozeMenu] = useState(false)
   const taskType = task.type || TaskType.TASK
@@ -205,6 +206,12 @@ export const TaskListItem = memo(function TaskListItem({ task, onClick, onDelete
         {/* Content - simplified: just title and one line of context */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
+            {/* Pin indicator */}
+            {task.pinned && (
+              <svg width={12} height={12} viewBox="0 0 24 24" className="text-accent flex-shrink-0" aria-label="Pinned">
+                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" fill="currentColor"/>
+              </svg>
+            )}
             {task.source && task.source !== 'manual' && !isEvent && (
               <SourceIcon source={task.source} />
             )}
@@ -283,6 +290,21 @@ export const TaskListItem = memo(function TaskListItem({ task, onClick, onDelete
                       <path d="M12 6v6l4 2" strokeLinecap="round" />
                     </svg>
                     Snooze
+                  </button>
+                )}
+                {onTogglePin && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setShowMenu(false)
+                      onTogglePin()
+                    }}
+                    className="w-full px-3 py-3 min-h-[44px] text-left text-sm text-text-soft hover:bg-surface flex items-center gap-2 transition-colors duration-150 ease-out"
+                  >
+                    <svg width={14} height={14} viewBox="0 0 24 24" fill={task.pinned ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.5" className={task.pinned ? 'text-accent' : ''}>
+                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                    </svg>
+                    {task.pinned ? 'Unpin' : 'Pin to top'}
                   </button>
                 )}
                 {onDelete && (
