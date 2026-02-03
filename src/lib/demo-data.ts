@@ -46,21 +46,34 @@ export const DEMO_EMAILS: MockEmail[] = [
 ]
 
 // Get demo calendar events with dynamic times relative to now
+// Events are always scheduled in the future to look realistic
 export function getDemoCalendarEvents(): MockCalendarEvent[] {
   const now = new Date()
-  const today = new Date(now)
-  const tomorrow = new Date(now)
-  tomorrow.setDate(tomorrow.getDate() + 1)
 
-  // Set times for realistic events
-  const meeting1 = new Date(today)
-  meeting1.setHours(14, 0, 0, 0) // 2 PM today
+  // Round to next half hour for cleaner display
+  const roundToNextHalfHour = (date: Date): Date => {
+    const d = new Date(date)
+    const minutes = d.getMinutes()
+    if (minutes < 30) {
+      d.setMinutes(30, 0, 0)
+    } else {
+      d.setHours(d.getHours() + 1, 0, 0, 0)
+    }
+    return d
+  }
 
-  const meeting2 = new Date(today)
-  meeting2.setHours(16, 30, 0, 0) // 4:30 PM today
+  // Event 1: 1 hour from now
+  const meeting1 = new Date(roundToNextHalfHour(now))
+  meeting1.setMinutes(meeting1.getMinutes() + 60)
 
-  const meeting3 = new Date(tomorrow)
-  meeting3.setHours(10, 0, 0, 0) // 10 AM tomorrow
+  // Event 2: 3 hours from now
+  const meeting2 = new Date(roundToNextHalfHour(now))
+  meeting2.setMinutes(meeting2.getMinutes() + 180)
+
+  // Event 3: Tomorrow at 10 AM
+  const meeting3 = new Date(now)
+  meeting3.setDate(meeting3.getDate() + 1)
+  meeting3.setHours(10, 0, 0, 0)
 
   return [
     {
