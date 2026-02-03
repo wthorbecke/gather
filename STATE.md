@@ -1,6 +1,6 @@
 # Gather Product State
 
-**Last Updated:** Mon Feb 2 2026, 22:45 PST
+**Last Updated:** Mon Feb 2 2026, 23:15 PST
 **Session:** 11
 
 ---
@@ -162,7 +162,7 @@ All critical issues fixed:
 
 **New Future Ideas:**
 - ~~Task templates~~ - Done (Session 11) - Pre-built step breakdowns for common tasks
-- Recurring reminders - Weekly/monthly task recurrence
+- ~~Recurring reminders~~ - Done (Session 11) - Weekly/monthly task recurrence
 - Task sharing/delegation - Share tasks with others
 - Mobile PWA enhancements - Offline support, better notifications
 - ~~Keyboard shortcut overlay~~ - Done (Session 11) - Help modal showing all shortcuts
@@ -234,6 +234,12 @@ All critical issues fixed:
   - Preview panel shows all steps before selecting
   - One tap to create task with pre-built steps (no AI call needed)
   - Reduces friction for repetitive workflows
+- **Added recurring reminders feature** - Set tasks to repeat automatically
+  - "Set repeat" / "Edit repeat" option in task menu for reminders and scheduled tasks
+  - RecurrencePickerModal with frequency options: No repeat, Daily, Weekly, Monthly
+  - Weekly recurrence includes day-of-week selector (S M T W T F S buttons)
+  - Recurrence stored on task and persists in demo/production
+  - Builds on existing Recurrence interface already used by habits
 - All 189 tests passing, build succeeds
 
 **Commits:**
@@ -247,6 +253,7 @@ All critical issues fixed:
 - `240d85f` Add natural language date parsing for task input
 - `a8d7551` Add keyboard shortcuts help modal (press ? to open)
 - `dd3a9b1` Add task templates feature (/t command)
+- `5862e98` Add recurring reminders feature
 
 **Technical notes:**
 - Quick actions feature (from Future Ideas) partially addressed - snooze was the highest-impact quick action
@@ -282,6 +289,10 @@ All critical issues fixed:
 - Template selection creates task via addTask then updates with steps via updateTask
 - Step IDs regenerated on template use to ensure uniqueness across tasks
 - Navigates to task view after template selection to show the new task
+- RecurrencePickerModal reuses existing Recurrence interface from useUserData
+- "Set repeat" shows for TaskType.REMINDER or any task with scheduled_at
+- Weekly day selector uses 0-6 indexing (Sun-Sat) matching JavaScript Date.getDay()
+- handleSetRecurrence in GatherApp updates task recurrence via updateTask
 
 ---
 
