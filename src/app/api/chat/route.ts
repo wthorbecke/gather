@@ -5,7 +5,6 @@ import {
   checkRateLimitAsync,
   getRequestIdentifier,
   rateLimitResponse,
-  RATE_LIMITS,
 } from '@/lib/rateLimit'
 import {
   validateChatInput,
@@ -14,13 +13,9 @@ import {
 import { requireAuthOrDemo, type DemoResult } from '@/lib/api-auth'
 import {
   CHAT_SYSTEM_PROMPT,
-  ChatResponseSchema,
-  DEFAULT_CHAT_RESPONSE,
-  parseAIResponse,
-  extractJSON,
   parseAIResponseFull,
-  type ChatResponse,
 } from '@/lib/ai'
+import { checkSubscriptionTier, getTierRateLimit } from '@/lib/subscription'
 
 interface Source {
   title: string
@@ -34,16 +29,27 @@ export async function POST(request: NextRequest) {
     return auth
   }
 
-  // Use stricter rate limits for demo users (by IP)
+  // Check subscription tier for rate limiting
   const isDemo = 'isDemo' in auth && auth.isDemo
+  const subscriptionCheck = await checkSubscriptionTier(auth.userId, isDemo)
+
+  // Build rate limit identifier
   const identifier = isDemo
     ? `demo:${request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown'}`
     : getRequestIdentifier(request, auth.userId)
 
-  // Demo users get fewer requests per hour
-  const rateLimit = isDemo ? { limit: 10, windowSeconds: 3600, name: 'demo-ai-chat' as const } : RATE_LIMITS.aiChat
+  // Apply tier-based rate limits
+  const rateLimit = getTierRateLimit(subscriptionCheck.tier, 'aiChat')
   const rateCheck = await checkRateLimitAsync(identifier, rateLimit)
   if (!rateCheck.allowed) {
+    // For free users hitting limit, suggest upgrade
+    if (subscriptionCheck.tier === 'free') {
+      return NextResponse.json({
+        error: 'Daily limit reached',
+        message: 'Upgrade to Pro for unlimited AI assistance',
+        upgradeRequired: true,
+      }, { status: 429 })
+    }
     return rateLimitResponse(rateCheck)
   }
 
