@@ -47,6 +47,7 @@ interface TaskViewProps {
   onEditStep?: (stepId: string | number, newText: string) => void
   onDeleteStep?: (stepId: string | number) => void
   onAddStep?: (text: string) => void
+  onMoveStep?: (stepId: string | number, direction: 'up' | 'down') => void
   onSetStepContext: (step: Step | null) => void
   onRemoveTag: (index: number) => void
   onDeleteTask: () => void
@@ -74,6 +75,7 @@ export function TaskView({
   onEditStep,
   onDeleteStep,
   onAddStep,
+  onMoveStep,
   onSetStepContext,
   onRemoveTag,
   onDeleteTask,
@@ -555,6 +557,8 @@ export function TaskView({
                   onFocus={() => setFocusStepIndex(index)}
                   onEdit={onEditStep ? (step, newText) => onEditStep(step.id, newText) : undefined}
                   onDelete={onDeleteStep ? (step) => onDeleteStep(step.id) : undefined}
+                  onMoveUp={onMoveStep && index > 0 ? () => onMoveStep(step.id, 'up') : undefined}
+                  onMoveDown={onMoveStep && index < steps.length - 1 ? () => onMoveStep(step.id, 'down') : undefined}
                 />
               </div>
             )

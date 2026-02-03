@@ -360,6 +360,26 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
     await updateTask(taskId, { steps: updatedSteps } as Partial<Task>)
   }, [tasks, updateTask])
 
+  // Handle moving a step up or down
+  const handleMoveStep = useCallback(async (taskId: string, stepId: string | number, direction: 'up' | 'down') => {
+    const task = tasks.find((t) => t.id === taskId)
+    if (!task || !task.steps) return
+
+    const index = task.steps.findIndex((s) => s.id === stepId)
+    if (index === -1) return
+
+    const newIndex = direction === 'up' ? index - 1 : index + 1
+    if (newIndex < 0 || newIndex >= task.steps.length) return
+
+    // Swap steps
+    const updatedSteps = [...task.steps]
+    const temp = updatedSteps[index]
+    updatedSteps[index] = updatedSteps[newIndex]
+    updatedSteps[newIndex] = temp
+
+    await updateTask(taskId, { steps: updatedSteps })
+  }, [tasks, updateTask])
+
   // Delete task with undo support
   const handleDeleteTask = useCallback(async (taskId: string) => {
     const task = tasks.find(t => t.id === taskId)
@@ -732,6 +752,7 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
             onEditStep={(stepId, newText) => handleEditStep(currentTask.id, stepId, newText)}
             onDeleteStep={(stepId) => handleDeleteStep(currentTask.id, stepId)}
             onAddStep={(text) => handleAddStep(currentTask.id, text)}
+            onMoveStep={(stepId, direction) => handleMoveStep(currentTask.id, stepId, direction)}
             onSetStepContext={setStepContext}
             onRemoveTag={removeTag}
             onDeleteTask={() => handleDeleteTask(currentTask.id)}

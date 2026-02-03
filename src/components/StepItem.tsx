@@ -17,9 +17,11 @@ interface StepItemProps {
   onFocus?: (step: Step) => void
   onEdit?: (step: Step, newText: string) => void
   onDelete?: (step: Step) => void
+  onMoveUp?: () => void
+  onMoveDown?: () => void
 }
 
-export const StepItem = memo(function StepItem({ step, isNext, isExpanded, onToggle, onExpand, onStuck, onFocus, onEdit, onDelete }: StepItemProps) {
+export const StepItem = memo(function StepItem({ step, isNext, isExpanded, onToggle, onExpand, onStuck, onFocus, onEdit, onDelete, onMoveUp, onMoveDown }: StepItemProps) {
   const hasExpandableContent = step.detail || step.alternatives || step.examples || step.checklist || step.action || step.source
   const normalizedActionUrl = normalizeActionUrl(step.action?.url)
   const { title: derivedTitle, remainder: derivedRemainder } = splitStepText(step.text)
@@ -348,6 +350,53 @@ export const StepItem = memo(function StepItem({ step, isNext, isExpanded, onTog
                 </svg>
                 Edit
               </button>
+            )}
+            {/* Move up/down buttons */}
+            {(onMoveUp || onMoveDown) && (
+              <div className="flex gap-1">
+                {onMoveUp && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onMoveUp()
+                    }}
+                    className="
+                      py-2 px-2.5
+                      bg-transparent border border-border
+                      rounded-md text-text-muted
+                      hover:bg-card-hover hover:text-text
+                      transition-all duration-[80ms] ease-out
+                      btn-press
+                    "
+                    title="Move up"
+                  >
+                    <svg width={14} height={14} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+                      <path d="M8 12V4M4 8l4-4 4 4" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </button>
+                )}
+                {onMoveDown && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onMoveDown()
+                    }}
+                    className="
+                      py-2 px-2.5
+                      bg-transparent border border-border
+                      rounded-md text-text-muted
+                      hover:bg-card-hover hover:text-text
+                      transition-all duration-[80ms] ease-out
+                      btn-press
+                    "
+                    title="Move down"
+                  >
+                    <svg width={14} height={14} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+                      <path d="M8 4v8M4 8l4 4 4-4" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </button>
+                )}
+              </div>
             )}
             {onStuck && (
               <button
