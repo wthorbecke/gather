@@ -223,6 +223,10 @@ All critical issues fixed:
 - FocusLauncher uses pickBestTask() to select optimal task
 - Task scoring: pinned (+50), overdue (+100+), due today (+80), energy match (+30)
 - KeyboardShortcutsModal updated with 'F' and 'H' shortcut documentation
+- **Code quality improvements** (from architecture agent review):
+  - Fixed camelCase typo in taskPicker.ts (incompleteSteps)
+  - Extracted getWorkableTasks() helper to reduce duplication
+  - Created shared NoTasksEmptyState component for FocusLauncher/HelpMePick
 - **Implemented "Help Me Pick" feature** - Fun decision support for choice paralysis
   - `/src/components/HelpMePick.tsx` - Modal with shuffle animation
   - Picks from top 3 tasks for variety while maintaining smart prioritization
