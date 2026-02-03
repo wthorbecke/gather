@@ -5,6 +5,23 @@ import { Step } from '@/hooks/useUserData'
 import { Checkbox } from './Checkbox'
 import { splitStepText } from '@/lib/stepText'
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
+import { useAmbientSound, AmbientSoundType } from '@/hooks/useAmbientSound'
+
+// Sound type labels for display
+const SOUND_LABELS: Record<AmbientSoundType, string> = {
+  off: 'Sound off',
+  white: 'White noise',
+  brown: 'Brown noise',
+  rain: 'Rain',
+}
+
+// Sound icons
+const SOUND_ICONS: Record<AmbientSoundType, string> = {
+  off: '🔇',
+  white: '〰️',
+  brown: '🌊',
+  rain: '🌧️',
+}
 
 // Pomodoro constants
 const POMODORO_WORK_SECONDS = 25 * 60 // 25 minutes
@@ -45,6 +62,9 @@ export function FocusMode({
   const [showDetails, setShowDetails] = useState(false)
   const [elapsedTime, setElapsedTime] = useState(0)
   const [isTimerRunning, setIsTimerRunning] = useState(true)
+
+  // Ambient sound
+  const { soundType, toggleSound } = useAmbientSound()
 
   // Pomodoro state
   const [timerMode, setTimerMode] = useState<TimerMode>('stopwatch')
@@ -164,7 +184,12 @@ export function FocusMode({
       action: toggleTimerMode,
       description: 'Toggle pomodoro',
     },
-  ], [onExit, onToggleStep, onNext, onPrevious, step.done, toggleTimerMode])
+    {
+      key: 's',
+      action: toggleSound,
+      description: 'Cycle ambient sound',
+    },
+  ], [onExit, onToggleStep, onNext, onPrevious, step.done, toggleTimerMode, toggleSound])
 
   useKeyboardShortcuts({ shortcuts, enabled: !showBreakPrompt })
 
@@ -239,6 +264,24 @@ export function FocusMode({
               {pomodoroCount}🍅
             </div>
           )}
+
+          {/* Ambient sound toggle */}
+          <button
+            onClick={toggleSound}
+            className={`
+              px-2 py-1 min-h-[36px] rounded-lg text-sm
+              transition-all duration-150 ease-out
+              ${soundType !== 'off'
+                ? 'bg-success/20 text-success'
+                : 'text-text-muted hover:text-text hover:bg-surface'
+              }
+            `}
+            aria-label={SOUND_LABELS[soundType]}
+            title={`${SOUND_LABELS[soundType]} (Press S to change)`}
+          >
+            {SOUND_ICONS[soundType]}
+          </button>
+
           <div className="group relative">
             <button className="text-text-muted hover:text-text transition-colors duration-150 ease-out min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg hover:bg-surface" aria-label="Keyboard shortcuts">
               <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -262,6 +305,7 @@ export function FocusMode({
                 <div className="flex justify-between"><span className="text-text-soft">Details</span><span className="text-text-muted">D</span></div>
                 <div className="flex justify-between"><span className="text-text-soft">Pause timer</span><span className="text-text-muted">Space</span></div>
                 <div className="flex justify-between"><span className="text-text-soft">Pomodoro</span><span className="text-text-muted">P</span></div>
+                <div className="flex justify-between"><span className="text-text-soft">Sound</span><span className="text-text-muted">S</span></div>
                 <div className="flex justify-between"><span className="text-text-soft">Exit</span><span className="text-text-muted">Esc</span></div>
               </div>
             </div>
