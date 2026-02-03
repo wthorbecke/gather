@@ -660,3 +660,63 @@ export function useTasks(user: User | null) {
 
   return { tasks, completeTask, addTask, updateTask, toggleStep, deleteTask, restoreTask, loading }
 }
+
+// ============ MOOD ENTRIES ============
+
+export interface MoodEntry {
+  mood: 1 | 2 | 3 | 4 | 5
+  timestamp: string  // ISO string
+}
+
+const MOOD_STORAGE_KEY = 'gather:mood_entries'
+const MAX_MOOD_ENTRIES = 30
+
+/**
+ * Hook for managing mood entries
+ * Stores mood data in localStorage (works for both demo and authenticated users)
+ * Keeps last 30 entries max
+ */
+export function useMoodEntries() {
+  const [moodEntries, setMoodEntries] = useState<MoodEntry[]>([])
+  const [loading, setLoading] = useState(true)
+
+  // Load mood entries on mount
+  useEffect(() => {
+    const stored = safeGetJSON<MoodEntry[]>(MOOD_STORAGE_KEY, [])
+    setMoodEntries(stored)
+    setLoading(false)
+  }, [])
+
+  // Add a new mood entry
+  const addMoodEntry = useCallback((mood: 1 | 2 | 3 | 4 | 5) => {
+    const newEntry: MoodEntry = {
+      mood,
+      timestamp: new Date().toISOString(),
+    }
+
+    setMoodEntries((prev) => {
+      // Add new entry at the beginning, keep only last 30
+      const updated = [newEntry, ...prev].slice(0, MAX_MOOD_ENTRIES)
+      safeSetJSON(MOOD_STORAGE_KEY, updated)
+      return updated
+    })
+  }, [])
+
+  // Get entries from the last N days
+  const getEntriesFromLastDays = useCallback((days: number): MoodEntry[] => {
+    const cutoff = new Date()
+    cutoff.setDate(cutoff.getDate() - days)
+
+    return moodEntries.filter((entry) => {
+      const entryDate = new Date(entry.timestamp)
+      return entryDate >= cutoff
+    })
+  }, [moodEntries])
+
+  return {
+    moodEntries,
+    addMoodEntry,
+    getEntriesFromLastDays,
+    loading,
+  }
+}

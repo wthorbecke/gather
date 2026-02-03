@@ -1,11 +1,12 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { Task } from '@/hooks/useUserData'
+import { Task, MoodEntry } from '@/hooks/useUserData'
 import { TaskType } from '@/lib/constants'
 
 interface StatsCardProps {
   tasks: Task[]
+  moodEntries?: MoodEntry[]
 }
 
 // Day names for display
@@ -14,6 +15,18 @@ const FULL_DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 
 
 // Minimum completions needed before showing insights
 const MIN_COMPLETIONS_FOR_INSIGHTS = 5
+
+// Minimum mood entries needed before showing mood correlation
+const MIN_MOOD_ENTRIES_FOR_INSIGHT = 10
+
+// Mood emojis for display
+const MOOD_EMOJIS: Record<number, string> = {
+  1: '😤',
+  2: '😕',
+  3: '😐',
+  4: '🙂',
+  5: '😊',
+}
 
 /**
  * Format hour to friendly string (e.g., "10am", "2pm")
@@ -124,6 +137,110 @@ function analyzeCompletionPatterns(tasks: Task[]): {
 }
 
 /**
+ * Analyze mood-productivity correlation
+ * Returns the mood level that correlates with best productivity
+ */
+function analyzeMoodCorrelation(
+  moodEntries: MoodEntry[],
+  tasks: Task[]
+): { bestMood: number; percentageIncrease: number } | null {
+  if (moodEntries.length < MIN_MOOD_ENTRIES_FOR_INSIGHT) {
+    return null
+  }
+
+  // Map mood entries by date
+  const moodByDate: Record<string, number> = {}
+  for (const entry of moodEntries) {
+    const dateStr = entry.timestamp.split('T')[0]
+    moodByDate[dateStr] = entry.mood
+  }
+
+  // Count completions per mood level
+  const completionsByMood: Record<number, number[]> = {
+    1: [],
+    2: [],
+    3: [],
+    4: [],
+    5: [],
+  }
+
+  // Get completion dates from habits
+  const habits = tasks.filter(t => t.type === TaskType.HABIT)
+  const completionDates = new Set<string>()
+
+  for (const habit of habits) {
+    if (habit.streak?.completions) {
+      for (const dateStr of habit.streak.completions) {
+        completionDates.add(dateStr.split('T')[0])
+      }
+    }
+  }
+
+  // Also count step completions (approximate by task completion)
+  // Since steps don't have timestamps, we'll rely mostly on habit data
+
+  // For each mood entry, count how many completions happened that day
+  for (const entry of moodEntries) {
+    const dateStr = entry.timestamp.split('T')[0]
+    const completionsOnDay = completionDates.has(dateStr) ? 1 : 0
+    completionsByMood[entry.mood].push(completionsOnDay)
+  }
+
+  // Calculate average completions per mood level
+  const averageByMood: Record<number, number> = {}
+  let totalDataPoints = 0
+
+  for (const mood of [1, 2, 3, 4, 5]) {
+    const data = completionsByMood[mood]
+    if (data.length > 0) {
+      averageByMood[mood] = data.reduce((a, b) => a + b, 0) / data.length
+      totalDataPoints += data.length
+    }
+  }
+
+  // Need enough data across mood levels
+  if (totalDataPoints < MIN_MOOD_ENTRIES_FOR_INSIGHT) {
+    return null
+  }
+
+  // Find the mood with highest average completions
+  let bestMood = 3
+  let highestAvg = 0
+  let lowestAvg = Infinity
+
+  for (const mood of [1, 2, 3, 4, 5]) {
+    if (averageByMood[mood] !== undefined) {
+      if (averageByMood[mood] > highestAvg) {
+        highestAvg = averageByMood[mood]
+        bestMood = mood
+      }
+      if (averageByMood[mood] < lowestAvg) {
+        lowestAvg = averageByMood[mood]
+      }
+    }
+  }
+
+  // Calculate percentage increase from lowest to highest
+  // Only show if there's a meaningful difference
+  if (lowestAvg === 0 || highestAvg === lowestAvg) {
+    // If we can't calculate a percentage, but have a best mood, show simpler insight
+    if (highestAvg > 0) {
+      return { bestMood, percentageIncrease: 0 }
+    }
+    return null
+  }
+
+  const percentageIncrease = Math.round(((highestAvg - lowestAvg) / lowestAvg) * 100)
+
+  // Only show if there's at least 10% difference
+  if (percentageIncrease < 10) {
+    return null
+  }
+
+  return { bestMood, percentageIncrease }
+}
+
+/**
  * Generate a friendly insight message about completion patterns
  */
 function generateInsightMessage(patterns: ReturnType<typeof analyzeCompletionPatterns>): string | null {
@@ -154,7 +271,7 @@ function generateInsightMessage(patterns: ReturnType<typeof analyzeCompletionPat
  * Simple statistics card showing productivity insights
  * Designed to be non-overwhelming for ADHD users
  */
-export function StatsCard({ tasks }: StatsCardProps) {
+export function StatsCard({ tasks, moodEntries = [] }: StatsCardProps) {
   const [showInsightDetail, setShowInsightDetail] = useState(false)
 
   const stats = useMemo(() => {
@@ -225,6 +342,9 @@ export function StatsCard({ tasks }: StatsCardProps) {
     const completionPatterns = analyzeCompletionPatterns(tasks)
     const insightMessage = generateInsightMessage(completionPatterns)
 
+    // Analyze mood correlation
+    const moodCorrelation = analyzeMoodCorrelation(moodEntries, tasks)
+
     // Only show if there's meaningful progress
     const hasProgress = stepsCompleted > 0 || activeStreaks.length > 0
 
@@ -239,8 +359,9 @@ export function StatsCard({ tasks }: StatsCardProps) {
       activeDaysThisWeek,
       completionPatterns,
       insightMessage,
+      moodCorrelation,
     }
-  }, [tasks])
+  }, [tasks, moodEntries])
 
   // Don't show if no meaningful progress
   if (!stats.hasProgress) {
@@ -383,6 +504,23 @@ export function StatsCard({ tasks }: StatsCardProps) {
                 </svg>
               </div>
             </button>
+          </div>
+        )}
+
+        {/* Mood-Productivity Insight - only show when enough mood data */}
+        {stats.moodCorrelation && (
+          <div className="col-span-2 pt-3 mt-1 border-t border-border/50">
+            <div className="flex items-start gap-2">
+              <span className="text-base flex-shrink-0" role="img" aria-hidden="true">
+                {MOOD_EMOJIS[stats.moodCorrelation.bestMood]}
+              </span>
+              <p className="text-xs text-text-soft leading-relaxed">
+                {stats.moodCorrelation.percentageIncrease > 0
+                  ? `You complete ${stats.moodCorrelation.percentageIncrease}% more tasks when starting in a ${MOOD_EMOJIS[stats.moodCorrelation.bestMood]} mood`
+                  : `You tend to be most productive when starting in a ${MOOD_EMOJIS[stats.moodCorrelation.bestMood]} mood`
+                }
+              </p>
+            </div>
           </div>
         )}
       </div>

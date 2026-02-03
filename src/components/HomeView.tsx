@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useEffect, useState } from 'react'
-import { Task } from '@/hooks/useUserData'
+import { Task, MoodEntry } from '@/hooks/useUserData'
 import { useDarkMode } from '@/hooks/useDarkMode'
 import { splitStepText } from '@/lib/stepText'
 import { getNextStep } from '@/hooks/useTaskSearch'
@@ -45,6 +45,7 @@ function getAmbientStyle(taskCount: number, isDark: boolean) {
 
 interface HomeViewProps {
   tasks: Task[]
+  moodEntries?: MoodEntry[]
   aiCard: AICardState | null
   pendingInput: string | null
   onSubmit: (value: string, metadata?: ParsedInputMetadata) => void
@@ -69,6 +70,7 @@ interface HomeViewProps {
 
 export function HomeView({
   tasks,
+  moodEntries = [],
   aiCard,
   pendingInput,
   onSubmit,
@@ -264,7 +266,7 @@ export function HomeView({
         />
 
         {/* Weekly Stats - only show when not in AI conversation */}
-        {!aiCard && <StatsCard tasks={tasks} />}
+        {!aiCard && <StatsCard tasks={tasks} moodEntries={moodEntries} />}
 
         {/* FOCUS: The ONE thing to do now - prominent, impossible to miss */}
         {nextStep && (

@@ -3,7 +3,8 @@
 import { useCallback, useState, useEffect } from 'react'
 import dynamic from 'next/dynamic'
 import { User } from '@supabase/supabase-js'
-import { useTasks, Task, Step } from '@/hooks/useUserData'
+import { useTasks, Task, Step, useMoodEntries } from '@/hooks/useUserData'
+import { MoodPicker, shouldShowMoodPicker, markMoodPickerShown, type MoodValue } from './MoodPicker'
 import { mapAIStepsToSteps } from '@/lib/taskHelpers'
 import { useMemory } from '@/hooks/useMemory'
 import { useUndo, type UndoAction } from '@/hooks/useUndo'
@@ -12,6 +13,9 @@ import { useViewState } from '@/hooks/useViewState'
 import { useTaskNavigation } from '@/hooks/useTaskNavigation'
 import { useCelebration } from '@/hooks/useCelebration'
 import { useAIConversation } from '@/hooks/useAIConversation'
+import { useGlobalKeyboardShortcuts } from '@/hooks/useGlobalKeyboardShortcuts'
+import { useStepHandlers } from '@/hooks/useStepHandlers'
+import { GatherAppSkeleton } from './GatherAppSkeleton'
 import { ThemeToggle } from './ThemeProvider'
 import { HomeView } from './HomeView'
 import { StackView } from './StackView'
@@ -78,7 +82,31 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
   // Data hooks
   const { tasks, addTask, updateTask, toggleStep, deleteTask, restoreTask, loading } = useTasks(user)
   const { addEntry, addToConversation, getMemoryForAI, getRelevantMemory, getPreference, setPreference } = useMemory()
+  const { moodEntries, addMoodEntry } = useMoodEntries()
   const isDemoUser = Boolean(user?.id?.startsWith('demo-') || user?.email?.endsWith('@gather.local'))
+
+  // Mood picker state - only show once per session
+  const [showMoodPicker, setShowMoodPicker] = useState(false)
+
+  // Check if we should show mood picker on mount
+  useEffect(() => {
+    if (!loading && shouldShowMoodPicker()) {
+      setShowMoodPicker(true)
+    }
+  }, [loading])
+
+  // Handle mood selection
+  const handleMoodSelect = useCallback((mood: MoodValue) => {
+    addMoodEntry(mood)
+    markMoodPickerShown()
+    setShowMoodPicker(false)
+  }, [addMoodEntry])
+
+  // Handle mood picker dismissal
+  const handleMoodDismiss = useCallback(() => {
+    markMoodPickerShown()
+    setShowMoodPicker(false)
+  }, [])
 
   // Chat modal state
   const [showChatModal, setShowChatModal] = useState(false)
@@ -121,66 +149,21 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
   } = useViewState()
 
   // Global keyboard shortcuts
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Don't trigger when typing in inputs
-      const target = e.target as HTMLElement
-      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
-        return
-      }
-
-      // '?' to show keyboard shortcuts (Shift + /)
-      if (e.key === '?' || (e.shiftKey && e.key === '/')) {
-        e.preventDefault()
-        setShowKeyboardShortcuts(true)
-      }
-
-      // Escape to close keyboard shortcuts
-      if (e.key === 'Escape' && showKeyboardShortcuts) {
-        e.preventDefault()
-        setShowKeyboardShortcuts(false)
-      }
-
-      // 'f' to toggle focus launcher (when not in a modal)
-      if (e.key === 'f' && !showKeyboardShortcuts && !showFocusLauncher && !currentTaskId) {
-        e.preventDefault()
-        setShowFocusLauncher(true)
-      }
-
-      // Escape to close focus launcher
-      if (e.key === 'Escape' && showFocusLauncher) {
-        e.preventDefault()
-        setShowFocusLauncher(false)
-      }
-
-      // 'h' to show help me pick (when not in a modal or task view)
-      if (e.key === 'h' && !showKeyboardShortcuts && !showFocusLauncher && !showHelpMePick && !currentTaskId) {
-        e.preventDefault()
-        setShowHelpMePick(true)
-      }
-
-      // Escape to close help me pick
-      if (e.key === 'Escape' && showHelpMePick) {
-        e.preventDefault()
-        setShowHelpMePick(false)
-      }
-
-      // 'd' to open brain dump (when not in a modal or task view)
-      if (e.key === 'd' && !showKeyboardShortcuts && !showFocusLauncher && !showHelpMePick && !showBrainDump && !currentTaskId) {
-        e.preventDefault()
-        setShowBrainDump(true)
-      }
-
-      // Escape to close brain dump
-      if (e.key === 'Escape' && showBrainDump) {
-        e.preventDefault()
-        setShowBrainDump(false)
-      }
-    }
-
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [showKeyboardShortcuts, showFocusLauncher, showHelpMePick, showBrainDump, currentTaskId])
+  useGlobalKeyboardShortcuts({
+    onShowKeyboardShortcuts: () => setShowKeyboardShortcuts(true),
+    onHideKeyboardShortcuts: () => setShowKeyboardShortcuts(false),
+    onShowFocusLauncher: () => setShowFocusLauncher(true),
+    onHideFocusLauncher: () => setShowFocusLauncher(false),
+    onShowHelpMePick: () => setShowHelpMePick(true),
+    onHideHelpMePick: () => setShowHelpMePick(false),
+    onShowBrainDump: () => setShowBrainDump(true),
+    onHideBrainDump: () => setShowBrainDump(false),
+    showKeyboardShortcuts,
+    showFocusLauncher,
+    showHelpMePick,
+    showBrainDump,
+    currentTaskId,
+  })
 
   // Task navigation
   const {
@@ -213,6 +196,22 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
   }, [restoreTask, toggleStep])
 
   const { pendingUndo, pushUndo, executeUndo, dismissUndo } = useUndo(handleUndoAction)
+
+  // Step handlers - consolidated from useStepHandlers hook
+  const {
+    handleToggleStep,
+    handleEditStep,
+    handleDeleteStep,
+    handleAddStep,
+    handleMoveStep,
+  } = useStepHandlers({
+    tasks,
+    toggleStep,
+    updateTask,
+    checkAndCelebrate,
+    pushUndo,
+    addEntry,
+  })
 
   // AI conversation - pass dependencies
   const aiConversation = useAIConversation({
@@ -428,95 +427,6 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
   const handleSuggestionClick = useCallback((suggestion: string) => {
     handleSubmit(suggestion)
   }, [handleSubmit])
-
-  // Handle step toggle with celebration and undo
-  const handleToggleStep = useCallback(async (taskId: string, stepId: string | number, inFocusMode = false) => {
-    const task = tasks.find((t) => t.id === taskId)
-    if (!task) {
-      await toggleStep(taskId, stepId)
-      return
-    }
-
-    // Find the step being toggled
-    const step = task.steps?.find((s) => s.id === stepId)
-    const wasComplete = step?.done
-
-    await toggleStep(taskId, stepId)
-
-    // Check if this completes the task and celebrate if so
-    if (wasComplete !== undefined) {
-      checkAndCelebrate(task, stepId, wasComplete, addEntry)
-    }
-
-    // Offer undo when marking a step complete (not when uncompleting)
-    if (step && !wasComplete) {
-      const stepText = step.text.length > 30 ? step.text.slice(0, 30) + '...' : step.text
-      pushUndo({
-        type: 'toggle_step',
-        description: `Completed "${stepText}"`,
-        data: {
-          taskId,
-          stepId,
-        },
-      })
-    }
-  }, [toggleStep, tasks, addEntry, checkAndCelebrate, pushUndo])
-
-  // Handle step edit
-  const handleEditStep = useCallback(async (taskId: string, stepId: string | number, newText: string) => {
-    const task = tasks.find((t) => t.id === taskId)
-    if (!task || !task.steps) return
-
-    const updatedSteps = task.steps.map((s) =>
-      s.id === stepId ? { ...s, text: newText } : s
-    )
-
-    await updateTask(taskId, { steps: updatedSteps })
-  }, [tasks, updateTask])
-
-  // Handle step deletion
-  const handleDeleteStep = useCallback(async (taskId: string, stepId: string | number) => {
-    const task = tasks.find((t) => t.id === taskId)
-    if (!task || !task.steps) return
-
-    const updatedSteps = task.steps.filter((s) => s.id !== stepId)
-    await updateTask(taskId, { steps: updatedSteps })
-  }, [tasks, updateTask])
-
-  // Handle adding a new step
-  const handleAddStep = useCallback(async (taskId: string, text: string) => {
-    const task = tasks.find((t) => t.id === taskId)
-    if (!task) return
-
-    const newStep: Step = {
-      id: `step-${Date.now()}`,
-      text,
-      done: false,
-    }
-
-    const updatedSteps = [...(task.steps || []), newStep]
-    await updateTask(taskId, { steps: updatedSteps } as Partial<Task>)
-  }, [tasks, updateTask])
-
-  // Handle moving a step up or down
-  const handleMoveStep = useCallback(async (taskId: string, stepId: string | number, direction: 'up' | 'down') => {
-    const task = tasks.find((t) => t.id === taskId)
-    if (!task || !task.steps) return
-
-    const index = task.steps.findIndex((s) => s.id === stepId)
-    if (index === -1) return
-
-    const newIndex = direction === 'up' ? index - 1 : index + 1
-    if (newIndex < 0 || newIndex >= task.steps.length) return
-
-    // Swap steps
-    const updatedSteps = [...task.steps]
-    const temp = updatedSteps[index]
-    updatedSteps[index] = updatedSteps[newIndex]
-    updatedSteps[newIndex] = temp
-
-    await updateTask(taskId, { steps: updatedSteps })
-  }, [tasks, updateTask])
 
   // Delete task with undo support
   const handleDeleteTask = useCallback(async (taskId: string) => {
@@ -796,38 +706,7 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
   }, [addTask, updateTask])
 
   if (loading) {
-    // Skeleton UI - matches actual layout for spatial continuity
-    return (
-      <div className="min-h-screen bg-canvas">
-        {/* Skeleton header */}
-        <div className="sticky top-0 z-10 bg-canvas/95 backdrop-blur-sm border-b border-border-subtle">
-          <div className="px-5 py-4">
-            <div className="max-w-[540px] mx-auto">
-              <div className="flex justify-between items-center">
-                <div className="h-9 w-28 bg-surface rounded-lg animate-pulse" />
-                <div className="flex items-center gap-2">
-                  <div className="w-11 h-11 bg-surface rounded-lg animate-pulse" />
-                  <div className="w-11 h-11 bg-surface rounded-lg animate-pulse" />
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-        {/* Skeleton content */}
-        <div className="px-5 py-6">
-          <div className="max-w-[540px] mx-auto space-y-4">
-            {/* Skeleton input */}
-            <div className="h-14 bg-surface rounded-2xl animate-pulse" />
-            {/* Skeleton task cards */}
-            <div className="space-y-3 pt-2">
-              <div className="h-[72px] bg-surface rounded-md animate-pulse" />
-              <div className="h-[72px] bg-surface rounded-md animate-pulse opacity-75" />
-              <div className="h-[72px] bg-surface rounded-md animate-pulse opacity-50" />
-            </div>
-          </div>
-        </div>
-      </div>
-    )
+    return <GatherAppSkeleton />
   }
 
   return (
@@ -858,6 +737,11 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Mood Picker - only show on home view, once per session */}
+      {!currentTaskId && showMoodPicker && (
+        <MoodPicker onSelect={handleMoodSelect} onDismiss={handleMoodDismiss} />
       )}
 
       {/* Views */}
@@ -905,6 +789,7 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
             <ErrorBoundary>
               <HomeView
                 tasks={tasks}
+                moodEntries={moodEntries}
                 aiCard={aiCard}
                 pendingInput={pendingInput}
                 onSubmit={handleSubmit}

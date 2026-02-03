@@ -10,6 +10,7 @@ import { AICard, AICardState } from './AICard'
 import { StackViewEmptyState } from './StackViewEmptyState'
 import { DEMO_EMAILS, getDemoCalendarEvents } from '@/lib/demo-data'
 import { getDismissCounts, incrementDismissCount, clearDismissCount } from '@/lib/dismissCounts'
+import { EnergyFilter, EnergyFilterValue } from './EnergyFilter'
 
 // Card types
 type EmailCard = { type: 'email'; id: string; subject: string; from: string; snippet: string }
@@ -93,6 +94,7 @@ aiCard,
   const [isHolding, setIsHolding] = useState(false)
   const [holdComplete, setHoldComplete] = useState(false) // Only set once at end
   const [celebrateEmpty, setCelebrateEmpty] = useState(false)
+  const [energyFilter, setEnergyFilter] = useState<EnergyFilterValue>('all')
 
   // Use centralized dark mode hook (single MutationObserver shared across components)
   const isDark = useDarkMode()
@@ -140,7 +142,14 @@ aiCard,
       getDeadlineUrgency(a.due_date) - getDeadlineUrgency(b.due_date)
     )
 
-    for (const task of sortedTasks) {
+    // Filter tasks by energy level
+    // Tasks with no energy tag only show in "All" filter
+    const filteredTasks = sortedTasks.filter(task => {
+      if (energyFilter === 'all') return true
+      return task.energy === energyFilter
+    })
+
+    for (const task of filteredTasks) {
       const hasSteps = task.steps && task.steps.length > 0
       const incompleteSteps = task.steps?.filter(s => !s.done) || []
       const totalSteps = task.steps?.length || 0
@@ -167,6 +176,7 @@ aiCard,
       }
     }
 
+    // Email and calendar cards are not affected by energy filter
     for (const email of emails.slice(0, 3)) {
       if (!dismissedIds.has(email.id)) cards.push(email)
     }
@@ -176,7 +186,7 @@ aiCard,
     }
 
     return cards
-  }, [tasks, emails, calendarEvents, dismissedIds])
+  }, [tasks, emails, calendarEvents, dismissedIds, energyFilter])
 
   // Reset stack card refs when stack changes
   useEffect(() => {
@@ -693,6 +703,11 @@ aiCard,
           </form>
         </div>
       )}
+
+      {/* Energy level filter */}
+      <div className="relative z-10 px-5 py-2">
+        <EnergyFilter value={energyFilter} onChange={setEnergyFilter} />
+      </div>
 
       {/* AI Card - shows while processing */}
       {aiCard && onDismissAI && (
