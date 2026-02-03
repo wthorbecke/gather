@@ -20,6 +20,7 @@ const shortcutSections: ShortcutSection[] = [
     title: 'Global',
     shortcuts: [
       { keys: ['⌘', 'K'], description: 'Focus on input' },
+      { keys: ['F'], description: 'Focus launcher - pick one task' },
       { keys: ['?'], description: 'Show keyboard shortcuts' },
       { keys: ['Esc'], description: 'Close modal / Go back' },
     ],

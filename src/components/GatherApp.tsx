@@ -49,6 +49,10 @@ const TaskTemplateModal = dynamic(() => import('./TaskTemplateModal').then(mod =
   ssr: false,
   loading: () => null,
 })
+const FocusLauncher = dynamic(() => import('./FocusLauncher').then(mod => ({ default: mod.FocusLauncher })), {
+  ssr: false,
+  loading: () => null,
+})
 
 interface GatherAppProps {
   user: User
@@ -73,7 +77,24 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
   // Task template modal state
   const [showTemplateModal, setShowTemplateModal] = useState(false)
 
-  // Global keyboard shortcut for '?' to show help
+  // Focus launcher state
+  const [showFocusLauncher, setShowFocusLauncher] = useState(false)
+
+  // View state
+  const {
+    currentTaskId,
+    showIntegrationSettings,
+    useStackView,
+    viewMode,
+    selectedDate,
+    setCurrentTaskId,
+    setShowIntegrationSettings,
+    setUseStackView,
+    setViewMode,
+    setSelectedDate,
+  } = useViewState()
+
+  // Global keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Don't trigger when typing in inputs
@@ -93,25 +114,23 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
         e.preventDefault()
         setShowKeyboardShortcuts(false)
       }
+
+      // 'f' to toggle focus launcher (when not in a modal)
+      if (e.key === 'f' && !showKeyboardShortcuts && !showFocusLauncher && !currentTaskId) {
+        e.preventDefault()
+        setShowFocusLauncher(true)
+      }
+
+      // Escape to close focus launcher
+      if (e.key === 'Escape' && showFocusLauncher) {
+        e.preventDefault()
+        setShowFocusLauncher(false)
+      }
     }
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [showKeyboardShortcuts])
-
-  // View state
-  const {
-    currentTaskId,
-    showIntegrationSettings,
-    useStackView,
-    viewMode,
-    selectedDate,
-    setCurrentTaskId,
-    setShowIntegrationSettings,
-    setUseStackView,
-    setViewMode,
-    setSelectedDate,
-  } = useViewState()
+  }, [showKeyboardShortcuts, showFocusLauncher, currentTaskId])
 
   // Task navigation
   const {
@@ -596,6 +615,35 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
     })
   }, [setStepContext, setAiCard])
 
+  // Handle starting focus mode from FocusLauncher
+  const handleStartFocus = useCallback((task: Task, stepIndex: number) => {
+    setShowFocusLauncher(false)
+    setCurrentTaskId(task.id)
+    // Set focus to the specific step
+    const step = task.steps?.[stepIndex]
+    if (step) {
+      setFocusStepId(step.id)
+    }
+  }, [setCurrentTaskId, setFocusStepId])
+
+  // Handle snoozing a task from FocusLauncher
+  const handleFocusLauncherSnooze = useCallback((taskId: string, duration: 'later' | 'tomorrow' | 'skip') => {
+    if (duration === 'later') {
+      // Snooze to later today (4 hours from now)
+      const laterDate = new Date()
+      laterDate.setHours(laterDate.getHours() + 4)
+      handleSnoozeTask(taskId, laterDate.toISOString())
+    } else if (duration === 'tomorrow') {
+      // Snooze to tomorrow morning
+      const tomorrow = new Date()
+      tomorrow.setDate(tomorrow.getDate() + 1)
+      tomorrow.setHours(9, 0, 0, 0)
+      handleSnoozeTask(taskId, tomorrow.toISOString())
+    }
+    // 'skip' just closes the launcher without doing anything
+    setShowFocusLauncher(false)
+  }, [handleSnoozeTask])
+
   if (loading) {
     // Skeleton UI - matches actual layout for spatial continuity
     return (
@@ -820,6 +868,16 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
         <TaskTemplateModal
           onSelect={handleSelectTemplate}
           onClose={() => setShowTemplateModal(false)}
+        />
+      )}
+
+      {/* Focus Launcher */}
+      {showFocusLauncher && (
+        <FocusLauncher
+          tasks={tasks}
+          onStartFocus={handleStartFocus}
+          onSnooze={handleFocusLauncherSnooze}
+          onExit={() => setShowFocusLauncher(false)}
         />
       )}
 

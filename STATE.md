@@ -1,7 +1,7 @@
 # Gather Product State
 
-**Last Updated:** Mon Feb 2 2026, 23:30 PST
-**Session:** 14
+**Last Updated:** Mon Feb 2 2026, 23:45 PST
+**Session:** 15
 
 ---
 
@@ -179,21 +179,52 @@ All critical issues fixed:
 
 **Gap Analysis (from competitive research - Session 14):**
 - Visual timeline view - Tiimo's winning feature for time blindness
-- One-task-at-a-time mode - neurolist's focus mode reduces overwhelm
+- ~~One-task-at-a-time mode~~ - Done (Session 15) - Focus Launcher with smart task selection
 - Brain dump import - AI organization of unstructured thoughts
 - "Help me pick" / task randomizer - Decision support for paralysis
 - Voice notifications - Audio guidance during focus sessions
 - Mood tracking with productivity correlation
 
-**Refactoring Opportunities (StackView.tsx - 1054 lines):**
-- Extract empty state component (~100 lines) - HIGH priority
+**Refactoring Opportunities (StackView.tsx - started at 1054 lines, now 957 lines):**
+- ~~Extract dismiss count utilities~~ - Done (Session 15) - Created dismissCounts.ts
+- ~~Extract empty state component~~ - Done (Session 15) - Created StackViewEmptyState.tsx
 - Extract main card component (~160 lines) - HIGH priority
-- Extract dismiss count utilities - HIGH priority, quick win
-- Could reduce to ~700 lines with top 3 extractions
+- Could reduce further to ~750 lines with main card extraction
 
 ---
 
 ## Session Log
+
+### Session 15 - Feb 2, 2026
+**Accomplished:**
+- **StackView.tsx refactoring** - Reduced file size from 1054 to 957 lines (-97 lines)
+  - Extracted dismiss count utilities to `/src/lib/dismissCounts.ts` (38 lines)
+  - Extracted empty state component to `/src/components/StackViewEmptyState.tsx` (141 lines)
+  - Both extractions maintain identical functionality
+  - Build and all tests passing
+- **Implemented Focus Launcher** - One-task-at-a-time mode to eliminate decision paralysis
+  - `/src/components/FocusLauncher.tsx` - Full-screen overlay presenting THE one task to work on
+  - `/src/lib/taskPicker.ts` - Smart task selection algorithm considering:
+    - Deadline urgency (overdue > today > tomorrow > etc)
+    - Pinned status
+    - Energy level match
+    - Task progress (started tasks get boost)
+    - Time of day (morning = high energy, evening = low)
+    - Quick wins (short time estimates)
+  - Keyboard shortcut 'F' to launch from anywhere
+  - "Pick something else" shows 3 alternatives to avoid overwhelm
+  - Snooze options: "Not now" (4 hours), "Tomorrow" (9am)
+  - Integrates with existing FocusMode for step-by-step execution
+
+**Technical notes:**
+- StackViewEmptyState receives 15 props covering all empty state behaviors
+- dismissCounts.ts uses safeGetJSON/safeSetJSON for localStorage access
+- Clean separation allows easier testing of individual components
+- FocusLauncher uses pickBestTask() to select optimal task
+- Task scoring: pinned (+50), overdue (+100+), due today (+80), energy match (+30)
+- KeyboardShortcutsModal updated with 'F' shortcut documentation
+
+---
 
 ### Session 14 - Feb 2, 2026
 **Accomplished:**
