@@ -240,6 +240,10 @@ All critical issues fixed:
   - Weekly recurrence includes day-of-week selector (S M T W T F S buttons)
   - Recurrence stored on task and persists in demo/production
   - Builds on existing Recurrence interface already used by habits
+- **Added visual recurrence icon** - Shows repeat arrows next to recurring tasks in list view
+  - Small muted icon appears next to task titles with recurrence set
+  - Helps users identify recurring tasks at a glance without opening task detail
+  - Excluded for habits (which already have a distinct type icon)
 - All 189 tests passing, build succeeds
 
 **Commits:**
@@ -254,6 +258,7 @@ All critical issues fixed:
 - `a8d7551` Add keyboard shortcuts help modal (press ? to open)
 - `dd3a9b1` Add task templates feature (/t command)
 - `5862e98` Add recurring reminders feature
+- `fcad9ab` Add visual recurrence icon to task list items
 
 **Technical notes:**
 - Quick actions feature (from Future Ideas) partially addressed - snooze was the highest-impact quick action
@@ -293,6 +298,8 @@ All critical issues fixed:
 - "Set repeat" shows for TaskType.REMINDER or any task with scheduled_at
 - Weekly day selector uses 0-6 indexing (Sun-Sat) matching JavaScript Date.getDay()
 - handleSetRecurrence in GatherApp updates task recurrence via updateTask
+- Visual recurrence icon (repeat arrows) shows next to task titles in list view
+- RecurrenceIcon component shows for tasks/reminders with recurrence (habits excluded - already have type icon)
 
 ---
 
