@@ -66,6 +66,9 @@ const ContextCaptureModal = dynamic(() => import('./ContextCaptureModal').then(m
   loading: () => null,
 })
 
+// Minimum time spent (30 seconds) before prompting for context note
+const MIN_TIME_FOR_CONTEXT_PROMPT = 30 * 1000
+
 interface GatherAppProps {
   user: User
   onSignOut: () => void
@@ -254,9 +257,6 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
       setTaskViewStartTime(null)
     }
   }, [currentTaskId])
-
-  // Minimum time spent (30 seconds) before prompting for context note
-  const MIN_TIME_FOR_CONTEXT_PROMPT = 30 * 1000
 
   // Check if we should prompt for a context note when leaving a task
   const checkForContextPrompt = useCallback((task: Task | undefined) => {
@@ -1049,6 +1049,16 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
         onClose={() => setShowBrainDump(false)}
         onAddTasks={handleBrainDumpTasks}
       />
+
+      {/* Context Capture Modal - "Where I left off" notes */}
+      {contextCaptureTask && (
+        <ContextCaptureModal
+          isOpen={showContextCapture}
+          taskTitle={contextCaptureTask.title}
+          onSave={handleSaveContextNote}
+          onSkip={handleSkipContextNote}
+        />
+      )}
 
       {/* Chat FAB - floating action button */}
       <button
