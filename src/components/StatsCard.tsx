@@ -8,6 +8,9 @@ interface StatsCardProps {
   tasks: Task[]
 }
 
+// Day names for display
+const SHORT_DAY_NAMES = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
+
 /**
  * Simple statistics card showing productivity insights
  * Designed to be non-overwhelming for ADHD users
@@ -44,6 +47,39 @@ export function StatsCard({ tasks }: StatsCardProps) {
     // Best streak
     const bestStreak = activeStreaks.length > 0 ? activeStreaks[0] : null
 
+    // Calculate 7-day activity from habit completions
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const weekActivity: { date: Date; dayName: string; count: number; isToday: boolean }[] = []
+
+    // Get all completion dates from habits
+    const completionDates = new Set<string>()
+    habits.forEach(habit => {
+      if (habit.streak?.completions) {
+        habit.streak.completions.forEach(dateStr => {
+          completionDates.add(dateStr.split('T')[0])
+        })
+      }
+    })
+
+    // Build 7-day array (oldest to newest)
+    for (let i = 6; i >= 0; i--) {
+      const date = new Date(today)
+      date.setDate(date.getDate() - i)
+      const dateStr = date.toISOString().split('T')[0]
+      const dayOfWeek = date.getDay()
+
+      weekActivity.push({
+        date,
+        dayName: SHORT_DAY_NAMES[dayOfWeek],
+        count: completionDates.has(dateStr) ? 1 : 0,
+        isToday: i === 0
+      })
+    }
+
+    // Count active days this week
+    const activeDaysThisWeek = weekActivity.filter(d => d.count > 0).length
+
     // Only show if there's meaningful progress
     const hasProgress = stepsCompleted > 0 || activeStreaks.length > 0
 
@@ -54,6 +90,8 @@ export function StatsCard({ tasks }: StatsCardProps) {
       activeStreaks,
       bestStreak,
       hasProgress,
+      weekActivity,
+      activeDaysThisWeek,
     }
   }, [tasks])
 
@@ -108,6 +146,47 @@ export function StatsCard({ tasks }: StatsCardProps) {
                   {stats.bestStreak.title}
                 </div>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* 7-day activity visualization */}
+        {stats.weekActivity.some(d => d.count > 0) && (
+          <div className="col-span-2 pt-3 mt-1 border-t border-border/50">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs text-text-muted">This week</span>
+              <span className="text-xs text-text-muted">
+                {stats.activeDaysThisWeek}/7 days active
+              </span>
+            </div>
+            <div className="flex justify-between gap-1">
+              {stats.weekActivity.map((day, i) => (
+                <div key={i} className="flex flex-col items-center gap-1">
+                  <div
+                    className={`
+                      w-6 h-6 rounded-md flex items-center justify-center
+                      transition-colors duration-150
+                      ${day.count > 0
+                        ? 'bg-success/80 text-white'
+                        : day.isToday
+                          ? 'bg-accent/20 text-accent'
+                          : 'bg-subtle text-text-muted'
+                      }
+                      ${day.isToday ? 'ring-2 ring-accent/50' : ''}
+                    `}
+                    title={day.date.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
+                  >
+                    {day.count > 0 ? (
+                      <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                        <path d="M20 6L9 17l-5-5" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    ) : null}
+                  </div>
+                  <span className={`text-[10px] ${day.isToday ? 'font-bold text-accent' : 'text-text-muted'}`}>
+                    {day.dayName}
+                  </span>
+                </div>
+              ))}
             </div>
           </div>
         )}
