@@ -35,6 +35,10 @@ const IntegrationSettings = dynamic(() => import('./IntegrationSettings').then(m
   ssr: false,
   loading: () => <div className="animate-pulse p-8 text-center text-text-muted">Loading settings...</div>,
 })
+const UpgradeModal = dynamic(() => import('./UpgradeModal').then(mod => ({ default: mod.UpgradeModal })), {
+  ssr: false,
+  loading: () => null,
+})
 
 interface GatherAppProps {
   user: User
@@ -49,6 +53,9 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
 
   // Chat modal state
   const [showChatModal, setShowChatModal] = useState(false)
+
+  // Upgrade modal state
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false)
 
   // View state
   const {
@@ -113,6 +120,7 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
     goToTask: navGoToTask,
     setCurrentTaskId,
     useStackView,
+    onUpgradeRequired: () => setShowUpgradeModal(true),
   })
 
   const {
@@ -523,6 +531,12 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
         onGoToTask={goToTask}
         addTask={addTask}
         updateTask={updateTask}
+      />
+
+      {/* Upgrade Modal */}
+      <UpgradeModal
+        isOpen={showUpgradeModal}
+        onClose={() => setShowUpgradeModal(false)}
       />
 
       {/* Chat FAB - floating action button */}

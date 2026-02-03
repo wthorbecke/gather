@@ -74,6 +74,7 @@ export interface AIConversationDeps {
   goToTask: (taskId: string, tasks: Task[]) => ContextTag[]
   setCurrentTaskId: (taskId: string | null) => void
   useStackView: boolean
+  onUpgradeRequired?: () => void
 }
 
 export interface AIConversationActions {
@@ -109,6 +110,7 @@ export function useAIConversation(deps: AIConversationDeps): AIConversationState
     goToTask,
     setCurrentTaskId,
     useStackView,
+    onUpgradeRequired,
   } = deps
 
   // Use extracted hooks for state management
@@ -343,6 +345,22 @@ export function useAIConversation(deps: AIConversationDeps): AIConversationState
               showSources: actions.some((action) => action.type === 'show_sources') ? false : true,
             })
           } else {
+            // Check for upgrade required response
+            if (response.status === 429) {
+              try {
+                const errorData = await response.json()
+                if (errorData.upgradeRequired && onUpgradeRequired) {
+                  setAiCard({
+                    streaming: false,
+                    message: errorData.message || "You've reached your daily limit. Upgrade to Pro for unlimited AI assistance.",
+                  })
+                  onUpgradeRequired()
+                  return
+                }
+              } catch {
+                // Continue with default error handling
+              }
+            }
             setAiCard({
               streaming: false,
               message: "Sorry, I couldn't get an answer. Try rephrasing your question.",
@@ -554,6 +572,22 @@ export function useAIConversation(deps: AIConversationDeps): AIConversationState
             })
           }
         } else {
+          // Check for upgrade required response
+          if (response.status === 429) {
+            try {
+              const errorData = await response.json()
+              if (errorData.upgradeRequired && onUpgradeRequired) {
+                setAiCard({
+                  streaming: false,
+                  message: errorData.message || "You've reached your daily limit. Upgrade to Pro for unlimited AI assistance.",
+                })
+                onUpgradeRequired()
+                return
+              }
+            } catch {
+              // Continue with default error handling
+            }
+          }
           setAiCard({
             message: "Sorry, I couldn't get an answer. Try rephrasing your question.",
             streaming: false,
