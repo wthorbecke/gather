@@ -232,7 +232,11 @@ export function HomeView({
         )}
 
         {/* Calendar Widget */}
-        <CalendarWidget isDemoUser={isDemoUser} />
+        <CalendarWidget
+          isDemoUser={isDemoUser}
+          tasks={tasks}
+          onSelectTask={(task) => onGoToTask(task.id)}
+        />
 
         {/* Email Tasks */}
         <EmailTasksCard

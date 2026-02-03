@@ -1,8 +1,9 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useAuth } from './AuthProvider'
 import { getDemoCalendarEvents } from '@/lib/demo-data'
+import { Task } from '@/hooks/useUserData'
 
 interface CalendarEvent {
   id: string
@@ -16,18 +17,43 @@ interface CalendarEvent {
   linked_task_id: string | null
 }
 
+// Unified item type for display
+interface ScheduledItem {
+  id: string
+  title: string
+  start_time: string
+  type: 'event' | 'task'
+  location?: string | null
+  all_day?: boolean
+  linked_task_id?: string | null
+  task?: Task
+}
+
 interface CalendarSidebarProps {
   onLinkToTask?: (eventId: string, eventTitle: string) => void
+  onSelectTask?: (task: Task) => void
+  tasks?: Task[]
   className?: string
   isDemoUser?: boolean
 }
 
-export function CalendarSidebar({ onLinkToTask, className = '', isDemoUser }: CalendarSidebarProps) {
+export function CalendarSidebar({ onLinkToTask, onSelectTask, tasks = [], className = '', isDemoUser }: CalendarSidebarProps) {
   const { session } = useAuth()
   const [events, setEvents] = useState<CalendarEvent[]>([])
   const [loading, setLoading] = useState(true)
   const [enabled, setEnabled] = useState(false)
   const [collapsed, setCollapsed] = useState(false)
+
+  // Get scheduled tasks (next 7 days)
+  const scheduledTasks = useMemo(() => {
+    const now = new Date()
+    const weekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
+    return tasks.filter(task => {
+      if (!task.scheduled_at || task.category === 'completed') return false
+      const scheduledDate = new Date(task.scheduled_at)
+      return scheduledDate >= now && scheduledDate <= weekFromNow
+    })
+  }, [tasks])
 
   const fetchEvents = useCallback(async () => {
     // Load demo data in demo mode
@@ -76,13 +102,48 @@ export function CalendarSidebar({ onLinkToTask, className = '', isDemoUser }: Ca
     fetchEvents()
   }, [fetchEvents])
 
-  // Group events by date
-  const groupedEvents = events.reduce((acc, event) => {
-    const date = new Date(event.start_time).toISOString().split('T')[0]
-    if (!acc[date]) acc[date] = []
-    acc[date].push(event)
-    return acc
-  }, {} as Record<string, CalendarEvent[]>)
+  // Combine events and scheduled tasks into unified items
+  const allItems = useMemo((): ScheduledItem[] => {
+    const items: ScheduledItem[] = []
+
+    // Add calendar events
+    events.forEach(event => {
+      items.push({
+        id: event.id,
+        title: event.title,
+        start_time: event.start_time,
+        type: 'event',
+        location: event.location,
+        all_day: event.all_day,
+        linked_task_id: event.linked_task_id,
+      })
+    })
+
+    // Add scheduled tasks
+    scheduledTasks.forEach(task => {
+      if (task.scheduled_at) {
+        items.push({
+          id: `task-${task.id}`,
+          title: task.title,
+          start_time: task.scheduled_at,
+          type: 'task',
+          task,
+        })
+      }
+    })
+
+    return items
+  }, [events, scheduledTasks])
+
+  // Group items by date
+  const groupedItems = useMemo(() => {
+    return allItems.reduce((acc, item) => {
+      const date = new Date(item.start_time).toISOString().split('T')[0]
+      if (!acc[date]) acc[date] = []
+      acc[date].push(item)
+      return acc
+    }, {} as Record<string, ScheduledItem[]>)
+  }, [allItems])
 
   const formatTime = (dateStr: string, allDay: boolean) => {
     if (allDay) return 'All day'
@@ -108,11 +169,14 @@ export function CalendarSidebar({ onLinkToTask, className = '', isDemoUser }: Ca
     })
   }
 
-  if (!enabled) {
+  // Show if we have calendar events OR scheduled tasks
+  const hasItems = enabled || scheduledTasks.length > 0
+
+  if (!hasItems) {
     return null
   }
 
-  if (loading) {
+  if (loading && scheduledTasks.length === 0) {
     return (
       <div className={`p-4 ${className}`}>
         <div className="animate-pulse space-y-2">
@@ -124,7 +188,7 @@ export function CalendarSidebar({ onLinkToTask, className = '', isDemoUser }: Ca
     )
   }
 
-  if (events.length === 0) {
+  if (allItems.length === 0) {
     return (
       <div className={`p-4 ${className}`}>
         <div className="flex items-center gap-2 text-sm text-text-muted">
@@ -154,7 +218,7 @@ export function CalendarSidebar({ onLinkToTask, className = '', isDemoUser }: Ca
             <line x1="8" y1="2" x2="8" y2="6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
             <line x1="3" y1="10" x2="21" y2="10" stroke="currentColor" strokeWidth="2" />
           </svg>
-          Upcoming ({events.length})
+          Upcoming ({allItems.length})
         </div>
         <svg
           width={16}
@@ -172,39 +236,59 @@ export function CalendarSidebar({ onLinkToTask, className = '', isDemoUser }: Ca
         </svg>
       </button>
 
-      {/* Events list */}
+      {/* Events and scheduled tasks list */}
       {!collapsed && (
         <div className="px-4 pb-4 space-y-4">
-          {Object.entries(groupedEvents)
+          {Object.entries(groupedItems)
             .sort(([a], [b]) => a.localeCompare(b))
-            .map(([date, dateEvents]) => (
+            .map(([date, dateItems]) => (
               <div key={date}>
                 <div className="text-xs font-medium text-text-muted uppercase tracking-wide mb-2">
                   {formatDateHeader(date)}
                 </div>
                 <div className="space-y-2">
-                  {dateEvents.map((event) => (
+                  {dateItems
+                    .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime())
+                    .map((item) => (
                     <div
-                      key={event.id}
-                      className="group p-3 bg-surface rounded-lg border border-border hover:border-border-strong transition-colors duration-150 ease-out"
+                      key={item.id}
+                      onClick={item.type === 'task' && item.task && onSelectTask ? () => onSelectTask(item.task!) : undefined}
+                      className={`
+                        group p-3 rounded-lg border transition-colors duration-150 ease-out
+                        ${item.type === 'task'
+                          ? 'bg-accent/5 border-accent/30 hover:border-accent cursor-pointer'
+                          : 'bg-surface border-border hover:border-border-strong'
+                        }
+                      `}
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0 flex-1">
-                          <div className="text-sm font-medium text-text truncate">
-                            {event.title}
+                          <div className="flex items-center gap-2">
+                            {item.type === 'task' && (
+                              <svg width={12} height={12} viewBox="0 0 16 16" className="text-accent shrink-0">
+                                <rect x="2" y="2" width="12" height="12" rx="2" stroke="currentColor" strokeWidth="1.5" fill="none" />
+                                <path d="M5 8L7 10L11 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+                              </svg>
+                            )}
+                            <span className="text-sm font-medium text-text truncate">
+                              {item.title}
+                            </span>
                           </div>
                           <div className="text-xs text-text-muted mt-0.5">
-                            {formatTime(event.start_time, event.all_day)}
-                            {event.location && (
+                            {formatTime(item.start_time, item.all_day || false)}
+                            {item.type === 'task' && (
+                              <span className="ml-2 text-accent">· Scheduled task</span>
+                            )}
+                            {item.location && (
                               <span className="ml-2">
-                                · {event.location.length > 20 ? event.location.slice(0, 20) + '...' : event.location}
+                                · {item.location.length > 20 ? item.location.slice(0, 20) + '...' : item.location}
                               </span>
                             )}
                           </div>
                         </div>
-                        {onLinkToTask && !event.linked_task_id && (
+                        {item.type === 'event' && onLinkToTask && !item.linked_task_id && (
                           <button
-                            onClick={() => onLinkToTask(event.id, event.title)}
+                            onClick={() => onLinkToTask(item.id, item.title)}
                             className="
                               opacity-0 group-hover:opacity-100 focus:opacity-100
                               min-w-[44px] min-h-[44px] -m-2.5 rounded-lg
@@ -226,7 +310,7 @@ export function CalendarSidebar({ onLinkToTask, className = '', isDemoUser }: Ca
                             </svg>
                           </button>
                         )}
-                        {event.linked_task_id && (
+                        {item.type === 'event' && item.linked_task_id && (
                           <div className="p-1.5 text-success" title="Linked to task">
                             <svg width={14} height={14} viewBox="0 0 16 16">
                               <path
@@ -252,14 +336,32 @@ export function CalendarSidebar({ onLinkToTask, className = '', isDemoUser }: Ca
   )
 }
 
+interface CalendarWidgetProps {
+  className?: string
+  isDemoUser?: boolean
+  tasks?: Task[]
+  onSelectTask?: (task: Task) => void
+}
+
 /**
  * Compact calendar widget for the home view.
  */
-export function CalendarWidget({ className = '', isDemoUser }: { className?: string; isDemoUser?: boolean }) {
+export function CalendarWidget({ className = '', isDemoUser, tasks = [], onSelectTask }: CalendarWidgetProps) {
   const { session } = useAuth()
   const [events, setEvents] = useState<CalendarEvent[]>([])
   const [loading, setLoading] = useState(true)
   const [enabled, setEnabled] = useState(false)
+
+  // Get scheduled tasks (next 7 days)
+  const scheduledTasks = useMemo(() => {
+    const now = new Date()
+    const weekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
+    return tasks.filter(task => {
+      if (!task.scheduled_at || task.category === 'completed') return false
+      const scheduledDate = new Date(task.scheduled_at)
+      return scheduledDate >= now && scheduledDate <= weekFromNow
+    })
+  }, [tasks])
 
   useEffect(() => {
     async function fetchEvents() {
@@ -308,7 +410,40 @@ export function CalendarWidget({ className = '', isDemoUser }: { className?: str
     fetchEvents()
   }, [session?.access_token, isDemoUser])
 
-  if (!enabled || loading || events.length === 0) {
+  // Combine events and scheduled tasks
+  const allItems = useMemo((): ScheduledItem[] => {
+    const items: ScheduledItem[] = []
+
+    events.forEach(event => {
+      items.push({
+        id: event.id,
+        title: event.title,
+        start_time: event.start_time,
+        type: 'event',
+        all_day: event.all_day,
+        location: event.location,
+      })
+    })
+
+    scheduledTasks.forEach(task => {
+      if (task.scheduled_at) {
+        items.push({
+          id: `task-${task.id}`,
+          title: task.title,
+          start_time: task.scheduled_at,
+          type: 'task',
+          task,
+        })
+      }
+    })
+
+    // Sort by start time
+    return items.sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime())
+  }, [events, scheduledTasks])
+
+  const hasItems = enabled || scheduledTasks.length > 0
+
+  if (!hasItems || loading || allItems.length === 0) {
     return null
   }
 
@@ -342,24 +477,37 @@ export function CalendarWidget({ className = '', isDemoUser }: { className?: str
         Coming up
       </div>
       <div className="bg-card rounded-lg border border-border overflow-hidden">
-        {events.slice(0, 4).map((event, idx) => (
+        {allItems.slice(0, 4).map((item, idx) => (
           <div
-            key={event.id}
-            className={`flex items-center gap-3 px-4 py-3 ${idx > 0 ? 'border-t border-border' : ''}`}
+            key={item.id}
+            onClick={item.type === 'task' && item.task && onSelectTask ? () => onSelectTask(item.task!) : undefined}
+            className={`
+              flex items-center gap-3 px-4 py-3
+              ${idx > 0 ? 'border-t border-border' : ''}
+              ${item.type === 'task' ? 'cursor-pointer hover:bg-surface/50' : ''}
+            `}
           >
-            <div className="w-2 h-2 rounded-full bg-accent shrink-0" />
+            {item.type === 'task' ? (
+              <svg width={12} height={12} viewBox="0 0 16 16" className="text-accent shrink-0">
+                <rect x="2" y="2" width="12" height="12" rx="2" stroke="currentColor" strokeWidth="1.5" fill="none" />
+                <path d="M5 8L7 10L11 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+              </svg>
+            ) : (
+              <div className="w-2 h-2 rounded-full bg-accent shrink-0" />
+            )}
             <div className="flex-1 min-w-0">
-              <div className="text-sm text-text truncate">{event.title}</div>
+              <div className="text-sm text-text truncate">{item.title}</div>
               <div className="text-xs text-text-muted">
-                {formatEventTime(event.start_time, event.all_day)}
-                {event.location && ` · ${event.location.slice(0, 25)}${event.location.length > 25 ? '...' : ''}`}
+                {formatEventTime(item.start_time, item.all_day || false)}
+                {item.type === 'task' && <span className="text-accent"> · Task</span>}
+                {item.location && ` · ${item.location.slice(0, 25)}${item.location.length > 25 ? '...' : ''}`}
               </div>
             </div>
           </div>
         ))}
-        {events.length > 4 && (
+        {allItems.length > 4 && (
           <div className="px-4 py-2 border-t border-border bg-surface/50 text-xs text-text-muted text-center">
-            +{events.length - 4} more this week
+            +{allItems.length - 4} more this week
           </div>
         )}
       </div>

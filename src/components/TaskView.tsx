@@ -12,6 +12,7 @@ import { SegmentedProgress } from './SegmentedProgress'
 import { HabitCalendar } from './HabitCalendar'
 import { content } from '@/config/content'
 import { SnoozeMenu } from './SnoozeMenu'
+import { SchedulePicker } from './SchedulePicker'
 
 // Lazy load FocusMode - only needed when user enters focus mode
 const FocusMode = dynamic(() => import('./FocusMode').then(mod => ({ default: mod.FocusMode })), {
@@ -46,6 +47,7 @@ interface TaskViewProps {
   onRemoveTag: (index: number) => void
   onDeleteTask: () => void
   onSnoozeTask?: (date: string) => void
+  onScheduleTask?: (datetime: string | null) => void
   onAddToCalendar?: () => Promise<{ success: boolean; error?: string }>
   onRemoveFromCalendar?: () => Promise<{ success: boolean; error?: string }>
   focusStepId?: string | number | null
@@ -68,6 +70,7 @@ export function TaskView({
   onRemoveTag,
   onDeleteTask,
   onSnoozeTask,
+  onScheduleTask,
   onAddToCalendar,
   onRemoveFromCalendar,
   focusStepId,
@@ -79,6 +82,7 @@ export function TaskView({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [showFullContext, setShowFullContext] = useState(false)
   const [showSnoozeMenu, setShowSnoozeMenu] = useState(false)
+  const [showSchedulePicker, setShowSchedulePicker] = useState(false)
   const [focusStepIndex, setFocusStepIndex] = useState<number | null>(null)
   const [addingToCalendar, setAddingToCalendar] = useState(false)
   const [calendarAdded, setCalendarAdded] = useState(false)
@@ -273,6 +277,23 @@ export function TaskView({
                         <path d="M12 6v6l4 2" strokeLinecap="round" />
                       </svg>
                       Snooze
+                    </button>
+                  )}
+                  {/* Schedule time - time blocking */}
+                  {onScheduleTask && (
+                    <button
+                      onClick={() => {
+                        setShowMenu(false)
+                        setShowSchedulePicker(true)
+                      }}
+                      className="w-full px-3 py-3 min-h-[44px] text-left text-sm text-text hover:bg-subtle flex items-center gap-2.5 transition-colors duration-150 ease-out"
+                    >
+                      <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-text-muted">
+                        <rect x="3" y="4" width="18" height="18" rx="2" />
+                        <path d="M16 2v4M8 2v4M3 10h18" />
+                        <path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01" strokeLinecap="round" />
+                      </svg>
+                      {task.scheduled_at ? 'Reschedule' : 'Schedule time'}
                     </button>
                   )}
                   {/* Calendar options - only show if task has due date and is not from Google */}
@@ -511,6 +532,18 @@ export function TaskView({
             onBack()
           }}
           onCancel={() => setShowSnoozeMenu(false)}
+        />
+      )}
+
+      {/* Schedule Picker */}
+      {showSchedulePicker && onScheduleTask && (
+        <SchedulePicker
+          currentSchedule={task.scheduled_at}
+          onSchedule={(datetime) => {
+            onScheduleTask(datetime)
+            setShowSchedulePicker(false)
+          }}
+          onCancel={() => setShowSchedulePicker(false)}
         />
       )}
 

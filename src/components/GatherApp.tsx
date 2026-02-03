@@ -288,6 +288,11 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
     goHome() // Navigate back home after snoozing
   }, [updateTask, goHome])
 
+  // Schedule task (time blocking)
+  const handleScheduleTask = useCallback(async (taskId: string, scheduledAt: string | null) => {
+    await updateTask(taskId, { scheduled_at: scheduledAt } as Partial<Task>)
+  }, [updateTask])
+
   // Add task to Google Calendar
   const handleAddToCalendar = useCallback(async (task: Task): Promise<{ success: boolean; error?: string }> => {
     if (!task.due_date) {
@@ -565,6 +570,7 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
             onRemoveTag={removeTag}
             onDeleteTask={() => handleDeleteTask(currentTask.id)}
             onSnoozeTask={(date) => handleSnoozeTask(currentTask.id, date)}
+            onScheduleTask={(datetime) => handleScheduleTask(currentTask.id, datetime)}
             onAddToCalendar={!isDemoUser ? () => handleAddToCalendar(currentTask) : undefined}
             onRemoveFromCalendar={!isDemoUser ? () => handleRemoveFromCalendar(currentTask) : undefined}
             focusStepId={focusStepId}
