@@ -12,6 +12,7 @@ import { Checkbox } from './Checkbox'
 import { getDeadlineUrgency } from './DeadlineBadge'
 import { CalendarWidget } from './CalendarSidebar'
 import { EmailTasksCard } from './EmailTasksCard'
+import { StatsCard } from './StatsCard'
 import { content, OTHER_SPECIFY_OPTION } from '@/config/content'
 import { TaskInsight } from './TaskInsight'
 
@@ -241,6 +242,9 @@ export function HomeView({
           }}
           isDemoUser={isDemoUser}
         />
+
+        {/* Weekly Stats - only show when not in AI conversation */}
+        {!aiCard && <StatsCard tasks={tasks} />}
 
         {/* FOCUS: The ONE thing to do now - prominent, impossible to miss */}
         {nextStep && (
