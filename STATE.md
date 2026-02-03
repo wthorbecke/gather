@@ -254,7 +254,7 @@ All critical issues fixed:
   - CSS animations: garden sway, points pulse, level up celebration
   - Integrated into HomeView below StatsCard
   - Design: No streak shame, momentum pauses on missed days, low unlock thresholds
-  - Follow-up needed: Wire earnPoints into useStepHandlers
+  - ✅ Point-earning wired into useStepHandlers (step complete: +5, task complete: +25)
 
 **Technical notes:**
 - Hydration fix uses `role="button"` pattern for clickable non-buttons
@@ -270,6 +270,7 @@ All critical issues fixed:
 - `efe8050` Add gamification system foundation (Phase 1)
 - `a20b7b1` Add gamification UI components (Phase 2)
 - `00ac3e2` Integrate gamification into HomeView (Phase 3)
+- `6322c57` Wire point-earning into step completion handlers
 
 ---
 
