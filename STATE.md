@@ -1,6 +1,6 @@
 # Gather Product State
 
-**Last Updated:** Mon Feb 3 2026, 00:50 PST
+**Last Updated:** Mon Feb 3 2026, 01:05 PST
 **Session:** 17
 
 ---
@@ -194,11 +194,10 @@ All critical issues fixed:
 - ~~Extract step handlers hook~~ - Done (Session 16) - Created useStepHandlers.ts
 - ~~Extract skeleton component~~ - Done (Session 16) - Created GatherAppSkeleton.tsx
 
-**Refactoring Opportunities (StackView.tsx - started at 1054 lines, now 957 lines):**
+**Refactoring Opportunities (StackView.tsx - started at 1054 lines, now 825 lines):**
 - ~~Extract dismiss count utilities~~ - Done (Session 15) - Created dismissCounts.ts
 - ~~Extract empty state component~~ - Done (Session 15) - Created StackViewEmptyState.tsx
-- Extract main card component (~160 lines) - HIGH priority
-- Could reduce further to ~750 lines with main card extraction
+- ~~Extract main card component~~ - Done (Session 17) - Created StackViewMainCard.tsx (246 lines), reduced StackView to 825 lines
 
 ---
 
@@ -231,14 +230,46 @@ All critical issues fixed:
   - Work-along mode toggles body doubling feature
   - Original bug report was false positive
 
+- **HourTimeline Accessibility** - Added proper ARIA attributes to task blocks
+  - Added `role="button"` and `tabIndex={0}` for screen readers
+  - Added `aria-label` with task title and scheduled time
+  - Added `onKeyDown` handler for Enter/Space navigation
+  - Added focus ring styles for visual feedback
+- **StackViewMainCard Extraction** - Refactored StackView for maintainability
+  - Created StackViewMainCard.tsx (246 lines)
+  - Reduced StackView.tsx from 972 to 825 lines (~15% reduction)
+  - Exported StackCard and CardContent types for reuse
+- **QA Agent Complete** - Comprehensive testing report
+  - Verified: Demo mode, AI breakdown, energy filter, focus mode, step management
+  - Found transient HelpMePick ChunkLoadError (dev server issue, not code bug)
+  - /dump command UX working correctly (needs Enter to submit)
+
+- **Gentle Gamification System** - ADHD-friendly rewards without shame (HIGH priority)
+  - Database: `user_rewards`, `point_transactions`, `rewards_catalog` tables
+  - `/src/lib/pointsCalculator.ts` - Levels, garden stages, momentum tracking
+  - `/src/hooks/useRewards.ts` - Full state management with demo mode support
+  - `/src/components/ProgressGarden.tsx` - Visual garden that grows (10 stages)
+  - `/src/components/MomentumPoints.tsx` - Points display with animations
+  - `/src/components/GamificationCard.tsx` - Inline display + rewards modal
+  - CSS animations: garden sway, points pulse, level up celebration
+  - Integrated into HomeView below StatsCard
+  - Design: No streak shame, momentum pauses on missed days, low unlock thresholds
+  - Follow-up needed: Wire earnPoints into useStepHandlers
+
 **Technical notes:**
 - Hydration fix uses `role="button"` pattern for clickable non-buttons
 - Architect agent identified 10 refactoring opportunities prioritized by impact
 - Researcher agent created 5 new implementation tasks from market analysis
-- QA agent testing continues with comprehensive feature validation
+- All QA issues resolved or marked as transient dev server issues
+- Gamification follows ADHD-friendly principles: quick dopamine hits, no punishment
 
 **Commits:**
-- Pending commit for hydration fix
+- `21591c8` Fix hydration error in FocusMode action button
+- `a301a60` Add accessibility attributes to HourTimeline task blocks
+- `ccf160e` Extract StackViewMainCard component from StackView
+- `efe8050` Add gamification system foundation (Phase 1)
+- `a20b7b1` Add gamification UI components (Phase 2)
+- `00ac3e2` Integrate gamification into HomeView (Phase 3)
 
 ---
 
