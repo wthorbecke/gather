@@ -1,7 +1,7 @@
 # Gather Product State
 
-**Last Updated:** Mon Feb 2 2026, 19:30 PST
-**Session:** 9
+**Last Updated:** Mon Feb 2 2026, 20:15 PST
+**Session:** 10
 
 ---
 
@@ -155,6 +155,28 @@ All critical issues fixed:
 ---
 
 ## Session Log
+
+### Session 10 - Feb 2, 2026
+**Accomplished:**
+- Added dynamic due date to demo "File taxes" task (3 days from now) so users can see the deadline badge feature in demo mode
+- Verified all core features work correctly: AI chat, task breakdown, habit completion, streak tracking
+- All 185 tests passing, no console errors
+- Build succeeds
+
+**Commits:**
+- `33e7236` Add dynamic due date to demo task for deadline badge visibility
+
+**Technical notes:**
+- Demo tasks now showcase the deadline badge ("Due in 3d") feature
+- Due date badge only shows for tasks within 7 days (overdue, today, tomorrow, or "Due in Xd")
+- Storage key for demo tasks is `gather-demo-tasks-v2`
+
+**Observations:**
+- AI conversation in chat works well, providing specific, actionable steps
+- First 3 steps from task-view breakdown are generic fallbacks before AI-specific steps load
+- Product is stable and feature-complete for beta launch
+
+---
 
 ### Session 9 - Feb 2, 2026
 **Accomplished:**
