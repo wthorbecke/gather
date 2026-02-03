@@ -87,11 +87,11 @@ export function Onboarding({ isOpen, onComplete }: OnboardingProps) {
           isClosing ? 'animate-modal-out' : isVisible ? 'animate-modal-in' : 'opacity-0'
         }`}
       >
-        {/* Skip button */}
+        {/* Skip button - min 44x44px touch target per WCAG */}
         {!isLastStep && (
           <button
             onClick={handleSkip}
-            className="absolute top-4 right-4 text-sm text-text-muted hover:text-text transition-colors z-10"
+            className="absolute top-2 right-2 text-sm text-text-muted hover:text-text transition-colors z-10 min-w-[44px] min-h-[44px] flex items-center justify-center"
           >
             Skip
           </button>
