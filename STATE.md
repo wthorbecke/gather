@@ -181,7 +181,7 @@ All critical issues fixed:
 - Visual timeline view - Tiimo's winning feature for time blindness
 - ~~One-task-at-a-time mode~~ - Done (Session 15) - Focus Launcher with smart task selection
 - Brain dump import - AI organization of unstructured thoughts
-- "Help me pick" / task randomizer - Decision support for paralysis
+- ~~"Help me pick" / task randomizer~~ - Done (Session 15) - Shuffle-based selection with limited re-picks
 - Voice notifications - Audio guidance during focus sessions
 - Mood tracking with productivity correlation
 
@@ -222,7 +222,14 @@ All critical issues fixed:
 - Clean separation allows easier testing of individual components
 - FocusLauncher uses pickBestTask() to select optimal task
 - Task scoring: pinned (+50), overdue (+100+), due today (+80), energy match (+30)
-- KeyboardShortcutsModal updated with 'F' shortcut documentation
+- KeyboardShortcutsModal updated with 'F' and 'H' shortcut documentation
+- **Implemented "Help Me Pick" feature** - Fun decision support for choice paralysis
+  - `/src/components/HelpMePick.tsx` - Modal with shuffle animation
+  - Picks from top 3 tasks for variety while maintaining smart prioritization
+  - Limited to 2 re-picks to prevent infinite deferral ("trust the process")
+  - Encouraging messages tailored to reason (deadline, quick win, etc.)
+  - Expandable "why this one?" explanation
+  - Keyboard shortcut 'H' to trigger from anywhere
 
 ---
 

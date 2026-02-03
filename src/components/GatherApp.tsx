@@ -53,6 +53,10 @@ const FocusLauncher = dynamic(() => import('./FocusLauncher').then(mod => ({ def
   ssr: false,
   loading: () => null,
 })
+const HelpMePick = dynamic(() => import('./HelpMePick').then(mod => ({ default: mod.HelpMePick })), {
+  ssr: false,
+  loading: () => null,
+})
 
 interface GatherAppProps {
   user: User
@@ -79,6 +83,9 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
 
   // Focus launcher state
   const [showFocusLauncher, setShowFocusLauncher] = useState(false)
+
+  // Help me pick state
+  const [showHelpMePick, setShowHelpMePick] = useState(false)
 
   // View state
   const {
@@ -126,11 +133,23 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
         e.preventDefault()
         setShowFocusLauncher(false)
       }
+
+      // 'h' to show help me pick (when not in a modal or task view)
+      if (e.key === 'h' && !showKeyboardShortcuts && !showFocusLauncher && !showHelpMePick && !currentTaskId) {
+        e.preventDefault()
+        setShowHelpMePick(true)
+      }
+
+      // Escape to close help me pick
+      if (e.key === 'Escape' && showHelpMePick) {
+        e.preventDefault()
+        setShowHelpMePick(false)
+      }
     }
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [showKeyboardShortcuts, showFocusLauncher, currentTaskId])
+  }, [showKeyboardShortcuts, showFocusLauncher, showHelpMePick, currentTaskId])
 
   // Task navigation
   const {
@@ -644,6 +663,12 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
     setShowFocusLauncher(false)
   }, [handleSnoozeTask])
 
+  // Handle task selection from HelpMePick
+  const handleHelpMePickSelect = useCallback((task: Task) => {
+    setShowHelpMePick(false)
+    setCurrentTaskId(task.id)
+  }, [setCurrentTaskId])
+
   if (loading) {
     // Skeleton UI - matches actual layout for spatial continuity
     return (
@@ -878,6 +903,15 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
           onStartFocus={handleStartFocus}
           onSnooze={handleFocusLauncherSnooze}
           onExit={() => setShowFocusLauncher(false)}
+        />
+      )}
+
+      {/* Help Me Pick */}
+      {showHelpMePick && (
+        <HelpMePick
+          tasks={tasks}
+          onSelectTask={handleHelpMePickSelect}
+          onCancel={() => setShowHelpMePick(false)}
         />
       )}
 
