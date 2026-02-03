@@ -142,9 +142,10 @@ All critical issues fixed:
 2. ~~**Add upgrade modal trigger**~~ - Done (Session 8)
 3. ~~**Fix calendar stale data**~~ - Done (Session 8) - auto-refresh if cache >30 min old
 4. ~~**Email snooze & persistent dismiss**~~ - Done (Session 8)
-5. **Create Stripe products** - Set up products/prices in Stripe Dashboard
-6. **Add calendar event create/edit** - Allow users to add events from Gather
-7. **Habit tracking improvements** - Streak visualization, habit completion history
+5. ~~**Habit completion from list view**~~ - Done (Session 8)
+6. **Create Stripe products** - Set up products/prices in Stripe Dashboard
+7. **Add calendar event create/edit** - Allow users to add events from Gather
+8. **Habit streak visualization** - History view, streak calendar display
 
 ---
 
@@ -158,12 +159,14 @@ All critical issues fixed:
 - Show UpgradeModal automatically when free users hit rate limit
 - Fixed calendar stale events bug (auto-refresh if cache >30 min old)
 - Added email snooze and persistent dismiss functionality
+- Added "Done for today" option for habits in task list view
 - All tests passing, build succeeds
 
 **Commits:**
 - `0f32dd9` Add upgrade modal trigger when hitting rate limits
 - `69a07a9` Fix calendar showing stale events
 - `662e5e4` Add snooze and persistent dismiss for email tasks
+- `ac5bcaf` Add "Done for today" option for habits in task list
 
 ---
 
