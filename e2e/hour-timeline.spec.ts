@@ -11,13 +11,24 @@ import {
  * This feature helps ADHD users visualize their day and combat time blindness.
  */
 
+/**
+ * Switch to day view by clicking the view toggle
+ */
+async function switchToDayView(page: import('@playwright/test').Page) {
+  // Find the view toggle button with title="Day" or aria-label="Day view"
+  const dayViewButton = page.locator('button[title="Day"], button[aria-label="Day view"]')
+  await expect(dayViewButton.first()).toBeVisible({ timeout: 5000 })
+  await dayViewButton.first().click()
+  await page.waitForTimeout(500)
+}
+
 test.describe('Hour Timeline', () => {
   test('shows timeline toggle button in day view', async ({ page }) => {
     await enterDemoMode(page)
-
-    // Navigate to day view by looking for Today header or timeline toggle
-    // Demo mode should start in the day view
     await page.waitForTimeout(1000)
+
+    // Switch to day view first
+    await switchToDayView(page)
 
     // Should see the timeline toggle button
     const timelineToggle = page.getByRole('button', { name: /timeline/i })
@@ -29,6 +40,9 @@ test.describe('Hour Timeline', () => {
   test('timeline toggle shows/hides the timeline', async ({ page }) => {
     await enterDemoMode(page)
     await page.waitForTimeout(1000)
+
+    // Switch to day view first
+    await switchToDayView(page)
 
     const timelineToggle = page.getByRole('button', { name: /timeline/i })
 
@@ -60,6 +74,9 @@ test.describe('Hour Timeline', () => {
     await enterDemoMode(page)
     await page.waitForTimeout(1000)
 
+    // Switch to day view first
+    await switchToDayView(page)
+
     // Check for hour labels (6am to 11pm range)
     // Look for common hour markers
     await expect(page.locator('text=/^6a$/')).toBeVisible({ timeout: 5000 })
@@ -71,6 +88,9 @@ test.describe('Hour Timeline', () => {
   test('timeline is horizontally scrollable', async ({ page }) => {
     await enterDemoMode(page)
     await page.waitForTimeout(1000)
+
+    // Switch to day view first
+    await switchToDayView(page)
 
     // The timeline container should be scrollable
     // Find the scrollable container
@@ -98,6 +118,9 @@ test.describe('Hour Timeline', () => {
     await enterDemoMode(page)
     await page.waitForTimeout(1000)
 
+    // Switch to day view first
+    await switchToDayView(page)
+
     // Current time indicator should be a red/danger colored vertical line
     // The indicator has a small dot at the top
     const currentTimeIndicator = page.locator('.bg-danger').first()
@@ -118,6 +141,9 @@ test.describe('Hour Timeline', () => {
     await enterDemoMode(page)
     await page.waitForTimeout(1000)
 
+    // Switch to day view first
+    await switchToDayView(page)
+
     // Demo mode may have scheduled tasks
     // Task blocks appear as rounded rectangles in the timeline
     const taskBlocks = page.locator('.rounded-md.cursor-pointer').filter({
@@ -134,6 +160,9 @@ test.describe('Hour Timeline', () => {
   test('clicking task block navigates to task', async ({ page }) => {
     await enterDemoMode(page)
     await page.waitForTimeout(1000)
+
+    // Switch to day view first
+    await switchToDayView(page)
 
     // Find a task block in the timeline
     // Task blocks have truncated text and are clickable
@@ -166,6 +195,9 @@ test.describe('Hour Timeline', () => {
 
     await enterDemoMode(page)
     await page.waitForTimeout(1000)
+
+    // Switch to day view first
+    await switchToDayView(page)
 
     // Timeline should still be visible and usable
     const timelineToggle = page.getByRole('button', { name: /timeline/i })
