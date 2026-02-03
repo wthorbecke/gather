@@ -149,7 +149,7 @@ All critical issues fixed:
 6. **Create Stripe products** - Set up products/prices in Stripe Dashboard
 7. ~~**Add calendar event create/edit**~~ - Done (Session 9) - "Add to Calendar" in task menu
 8. ~~**Habit streak visualization**~~ - Done (Session 9) - Streak stats in task view
-9. **Calendar event editing** - Allow editing/removing events added from Gather
+9. ~~**Calendar event editing**~~ - Done (Session 10) - Add/remove calendar events from task menu
 10. ~~**Habit completion calendar**~~ - Done (Session 10) - 4-week visual calendar in habit view
 
 ---
@@ -172,12 +172,15 @@ All critical issues fixed:
 **Commits:**
 - `33e7236` Add dynamic due date to demo task for deadline badge visibility
 - `691bcb6` Add habit completion calendar visualization
+- `520a6e5` Add calendar event management (add/remove from calendar)
 
 **Technical notes:**
 - Demo tasks now showcase the deadline badge ("Due in 3d") feature
 - HabitCalendar component shows last 4 weeks (28 days) of history
 - Completions stored as ISO date strings array in streak JSONB
 - Demo habit includes sample completion data with gaps to show missed days
+- Task interface has calendar_event_id field to track linked Google Calendar events
+- Users can add tasks to calendar and remove them later from task menu
 
 ---
 
