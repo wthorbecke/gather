@@ -155,7 +155,7 @@ All critical issues fixed:
 **Future Ideas:**
 - Time blocking - Schedule tasks into calendar time blocks
 - ~~Statistics/insights~~ - Done (Session 11) - StatsCard shows progress
-- ~~Focus mode enhancements~~ - Pomodoro timer done (Session 11), ambient sounds remaining
+- ~~Focus mode enhancements~~ - Done (Session 11) - Pomodoro timer and ambient sounds
 - ~~Quick reschedule~~ - Done (Session 11) - "Later today" and "Tomorrow morning" quick options
 - ~~Advanced stats~~ - Done (Session 11) - 7-day activity visualization in StatsCard
 
@@ -194,7 +194,12 @@ All critical issues fixed:
   - "X/7 days active" summary
   - Green checkmarks for completed days, today highlighted
   - Helps users see their consistency patterns
-- All 183 tests passing, build succeeds
+- **Added ambient sounds to Focus Mode** - Background noise for better focus
+  - White noise, brown noise, and rain sound options
+  - Uses Web Audio API (no external audio files needed)
+  - Toggle with 'S' keyboard shortcut or click icon
+  - Helps ADHD users focus with background noise
+- All 185 tests passing, build succeeds
 
 **Commits:**
 - `d83cc42` Add snooze option to task list view menu
@@ -202,6 +207,7 @@ All critical issues fixed:
 - `d83b440` Add Pomodoro timer to Focus Mode
 - `9cf6a98` Add quick snooze options (Later today, Tomorrow morning)
 - `738a150` Add 7-day activity visualization to StatsCard
+- `7acc0af` Add ambient sounds to Focus Mode
 
 **Technical notes:**
 - Quick actions feature (from Future Ideas) partially addressed - snooze was the highest-impact quick action
@@ -214,6 +220,8 @@ All critical issues fixed:
 - useMemo calculates available options based on current time to avoid showing past times
 - 7-day activity pulls from habit streak completions array (already tracked per habit)
 - Activity visualization shows only when there's at least one active day (non-intrusive)
+- Ambient sounds use Web Audio API with generated noise (white/brown/rain) - no external files
+- useAmbientSound hook manages AudioContext lifecycle and cleanup on unmount
 
 ---
 
