@@ -150,7 +150,7 @@ All critical issues fixed:
 7. ~~**Add calendar event create/edit**~~ - Done (Session 9) - "Add to Calendar" in task menu
 8. ~~**Habit streak visualization**~~ - Done (Session 9) - Streak stats in task view
 9. **Calendar event editing** - Allow editing/removing events added from Gather
-10. **Habit completion calendar** - Full calendar showing completion history
+10. ~~**Habit completion calendar**~~ - Done (Session 10) - 4-week visual calendar in habit view
 
 ---
 
@@ -159,22 +159,25 @@ All critical issues fixed:
 ### Session 10 - Feb 2, 2026
 **Accomplished:**
 - Added dynamic due date to demo "File taxes" task (3 days from now) so users can see the deadline badge feature in demo mode
-- Verified all core features work correctly: AI chat, task breakdown, habit completion, streak tracking
-- All 185 tests passing, no console errors
+- **Added habit completion calendar** - visual 4-week calendar showing completion history
+  - Green dots for completed days
+  - Empty boxes for missed days
+  - Today highlighted with accent ring
+  - Legend showing completed vs missed
+- Streak interface extended with `completions` array for tracking history
+- Habit completion now records dates in completions array
+- All 184 tests passing, no console errors
 - Build succeeds
 
 **Commits:**
 - `33e7236` Add dynamic due date to demo task for deadline badge visibility
+- `691bcb6` Add habit completion calendar visualization
 
 **Technical notes:**
 - Demo tasks now showcase the deadline badge ("Due in 3d") feature
-- Due date badge only shows for tasks within 7 days (overdue, today, tomorrow, or "Due in Xd")
-- Storage key for demo tasks is `gather-demo-tasks-v2`
-
-**Observations:**
-- AI conversation in chat works well, providing specific, actionable steps
-- First 3 steps from task-view breakdown are generic fallbacks before AI-specific steps load
-- Product is stable and feature-complete for beta launch
+- HabitCalendar component shows last 4 weeks (28 days) of history
+- Completions stored as ISO date strings array in streak JSONB
+- Demo habit includes sample completion data with gaps to show missed days
 
 ---
 
