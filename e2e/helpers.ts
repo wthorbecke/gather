@@ -77,6 +77,12 @@ export function setupApiErrorMonitoring(page: Page) {
  */
 export async function enterDemoMode(page: Page) {
   await page.goto('/')
+
+  // Set onboarding complete flag before clicking demo to skip onboarding modal
+  await page.evaluate(() => {
+    localStorage.setItem('gather-onboarding-complete', 'true')
+  })
+
   await page.getByRole('button', { name: /try the demo/i }).click()
   // Wait for the app to load
   await page.waitForTimeout(1000)

@@ -65,26 +65,31 @@ test.describe('Performance Fixes Verification', () => {
     // Wait for app to stabilize
     await page.waitForTimeout(2000)
 
-    // Check for running intervals
+    // Check for running intervals by monitoring the interval count
     const intervalInfo = await page.evaluate(async () => {
-      const intervals: number[] = []
-      const originalSetInterval = window.setInterval
+      let intervalCount = 0
 
-      // Track new intervals
-      (window as any).setInterval = function(...args: [TimerHandler, number?, ...any[]]) {
-        const id = originalSetInterval.apply(this, args)
-        intervals.push(id)
-        return id
-      }
+      // Patch setInterval to count calls
+      const desc = Object.getOwnPropertyDescriptor(window, 'setInterval')
+      const origSetInterval = desc?.value as typeof window.setInterval
+      Object.defineProperty(window, 'setInterval', {
+        value: (...args: Parameters<typeof window.setInterval>) => {
+          intervalCount++
+          return origSetInterval(...args)
+        },
+        configurable: true,
+      })
 
       // Wait and see how many intervals are created
       await new Promise(resolve => setTimeout(resolve, 1000))
 
       // Restore
-      window.setInterval = originalSetInterval
+      if (desc) {
+        Object.defineProperty(window, 'setInterval', desc)
+      }
 
       return {
-        newIntervals: intervals.length,
+        newIntervals: intervalCount,
       }
     })
 

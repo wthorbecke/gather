@@ -330,7 +330,8 @@ test.describe('Real AI Integration', () => {
       expect(content!.length).toBeLessThan(500)
 
       // Should not have excessive punctuation or emojis
-      const emojiCount = (content!.match(/[\u{1F300}-\u{1F9FF}]/gu) || []).length
+      // Use simple emoji detection without unicode flag
+      const emojiCount = (content!.match(/[\uD83C-\uDBFF][\uDC00-\uDFFF]/g) || []).length
       expect(emojiCount).toBeLessThan(3)
 
       // Should not have apologetic language

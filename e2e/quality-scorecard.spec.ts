@@ -318,6 +318,10 @@ test.describe('UX', () => {
     // Mock time to afternoon for consistent "open" / "add something whenever" state
     await setMockTime(page, 14)
     await page.goto('/')
+    // Skip onboarding for faster test
+    await page.evaluate(() => {
+      localStorage.setItem('gather-onboarding-complete', 'true')
+    })
     await page.getByRole('button', { name: /try the demo/i }).click()
     await page.waitForLoadState('networkidle')
 
@@ -589,7 +593,7 @@ test.describe('Polish', () => {
     const hasTransitions = await page.evaluate(() => {
       const elements = document.querySelectorAll('*')
       let transitionCount = 0
-      for (const el of elements) {
+      for (const el of Array.from(elements)) {
         const style = getComputedStyle(el)
         if (style.transition && style.transition !== 'none' && style.transition !== 'all 0s ease 0s') {
           transitionCount++
@@ -618,7 +622,7 @@ test.describe('Polish', () => {
     const borderRadii = await page.evaluate(() => {
       const radii = new Set<string>()
       const elements = document.querySelectorAll('*')
-      for (const el of elements) {
+      for (const el of Array.from(elements)) {
         const style = getComputedStyle(el)
         if (style.borderRadius && style.borderRadius !== '0px') {
           radii.add(style.borderRadius)
@@ -659,7 +663,7 @@ test.describe('Polish', () => {
     const smallButtons = await page.evaluate(() => {
       const buttons = document.querySelectorAll('button')
       let small = 0
-      for (const btn of buttons) {
+      for (const btn of Array.from(buttons)) {
         const rect = btn.getBoundingClientRect()
         if (rect.width < 44 || rect.height < 44) small++
       }

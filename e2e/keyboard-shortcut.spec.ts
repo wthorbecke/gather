@@ -12,7 +12,7 @@ test.describe('Keyboard Shortcuts', () => {
   test('Cmd+K focuses the main input in StackView', async ({ page }) => {
     // Make sure we're in Stack View (default)
     // The input may have "Add something..." or "What's next?" placeholder
-    const input = page.locator('input[placeholder*="Add" i], input[placeholder*="next" i]')
+    const input = page.locator('input[placeholder*="done" i], input[placeholder*="Add" i], input[placeholder*="next" i]')
 
     // Press Cmd+K (or Ctrl+K on non-Mac)
     await page.keyboard.press('Meta+k')
@@ -26,7 +26,7 @@ test.describe('Keyboard Shortcuts', () => {
     // First add a task to ensure stack has content
     await page.keyboard.press('Meta+k')
 
-    const input = page.locator('input[placeholder*="Add" i], input[placeholder*="next" i]')
+    const input = page.locator('input[placeholder*="done" i], input[placeholder*="Add" i], input[placeholder*="next" i]')
     await expect(input.first()).toBeVisible({ timeout: 3000 })
 
     // The input should be focused
@@ -72,7 +72,7 @@ test.describe('Keyboard Shortcuts', () => {
     await page.keyboard.press('Control+k')
 
     // Input should appear and be focused
-    const input = page.locator('input[placeholder*="Add" i], input[placeholder*="next" i]')
+    const input = page.locator('input[placeholder*="done" i], input[placeholder*="Add" i], input[placeholder*="next" i]')
     await expect(input.first()).toBeVisible({ timeout: 3000 })
     await expect(input.first()).toBeFocused()
   })
@@ -86,7 +86,7 @@ test.describe('Keyboard Shortcuts', () => {
 
     // The input should be visible - if default wasn't prevented,
     // the browser might have opened its own search/address bar
-    const input = page.locator('input[placeholder*="Add" i], input[placeholder*="next" i]')
+    const input = page.locator('input[placeholder*="done" i], input[placeholder*="Add" i], input[placeholder*="next" i]')
     await expect(input.first()).toBeVisible({ timeout: 3000 })
   })
 })

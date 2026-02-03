@@ -123,7 +123,7 @@ const FORBIDDEN_PATTERNS = {
 
 // ============ SELECTORS ============
 const selectors = {
-  mainInput: 'input[placeholder*="next" i], input[placeholder*="Add" i], input[placeholder*="done" i]',
+  mainInput: 'input[placeholder*="done" i], input[placeholder*="next" i], input[placeholder*="Add" i]',
   taskCard: '[class*="TaskCard"], [class*="task-card"], [data-testid*="task"]',
   aiCard: '[class*="AICard"], [class*="ai-card"]',
   button: 'button',
@@ -836,7 +836,7 @@ test.describe('MAJOR: Edge Cases', () => {
       const issues: string[] = []
       const elements = document.querySelectorAll('h1, h2, h3, p, span, div')
 
-      for (const el of elements) {
+      for (const el of Array.from(elements)) {
         const style = getComputedStyle(el)
 
         // Skip invisible elements
@@ -942,6 +942,10 @@ test.describe('MINOR: Visual Polish', () => {
     for (const { hour, expected } of times) {
       await setMockTime(page, hour)
       await page.goto('/')
+      // Skip onboarding for faster test
+      await page.evaluate(() => {
+        localStorage.setItem('gather-onboarding-complete', 'true')
+      })
       await page.getByRole('button', { name: /try the demo/i }).click()
       await page.waitForLoadState('networkidle')
 
@@ -1032,7 +1036,7 @@ test.describe('MAJOR: Layout Cohesion', () => {
       const mainRect = mainContent.getBoundingClientRect()
       const mainCenter = mainRect.left + mainRect.width / 2
 
-      for (const el of interactiveElements) {
+      for (const el of Array.from(interactiveElements)) {
         const rect = el.getBoundingClientRect()
         if (rect.width === 0 || rect.height === 0) continue
 
@@ -1076,7 +1080,7 @@ test.describe('MAJOR: Layout Cohesion', () => {
       const issues: string[] = []
       const textElements = document.querySelectorAll('div, span, p')
 
-      for (const el of textElements) {
+      for (const el of Array.from(textElements)) {
         // Only check leaf nodes (no children with text)
         if (el.children.length > 0) continue
 

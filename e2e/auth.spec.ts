@@ -20,6 +20,11 @@ test.describe('Authentication', () => {
   test('can enter demo mode', async ({ page }) => {
     await page.goto('/')
 
+    // Skip onboarding for faster test
+    await page.evaluate(() => {
+      localStorage.setItem('gather-onboarding-complete', 'true')
+    })
+
     await page.getByRole('button', { name: /try the demo/i }).click()
 
     // Demo mode goes directly into the app with the Gather header
@@ -30,6 +35,11 @@ test.describe('Authentication', () => {
 
   test('can exit demo mode', async ({ page }) => {
     await page.goto('/')
+
+    // Skip onboarding for faster test
+    await page.evaluate(() => {
+      localStorage.setItem('gather-onboarding-complete', 'true')
+    })
 
     // Enter demo mode
     await page.getByRole('button', { name: /try the demo/i }).click()
