@@ -184,7 +184,8 @@ All critical issues fixed:
 - ~~"Help me pick" / task randomizer~~ - Done (Session 15) - Shuffle-based selection with limited re-picks
 - ~~Quick Voice Input~~ - Done (Session 15) - Microphone button in UnifiedInput using Web Speech API
 - ~~Completion Insights~~ - Done (Session 15) - Peak productivity patterns in StatsCard
-- Voice notifications - Audio guidance during focus sessions
+- ~~Body doubling / virtual coworking~~ - Done (Session 15) - Work-along mode with spoken check-ins
+- ~~Context preservation notes~~ - Done (Session 15) - "Where I left off" notes for task resumption
 - Mood tracking with productivity correlation
 
 **Refactoring Opportunities (StackView.tsx - started at 1054 lines, now 957 lines):**
@@ -265,6 +266,26 @@ All critical issues fixed:
   - Visual feedback: accent color and pulse animation while listening
   - 44px touch target for mobile accessibility
 
+- **Bug fixes from architecture review:**
+  - Fixed SSR hydration mismatch in BrainDumpModal (navigator.platform → useEffect pattern)
+  - Added 30s timeout to brain-dump API route with AbortController
+  - Fixed HelpMePick re-picking same task by tracking previousPicks array
+- **Body Doubling / Work-Along Mode** - Virtual coworking experience for accountability
+  - Extended useAmbientSound hook with SpeechSynthesis-based check-ins
+  - 9 gentle messages: "Still going strong?", "You've got this", etc.
+  - Random check-ins every 10-15 minutes
+  - Calm speech settings (rate: 0.85, pitch: 0.9, volume: 0.7)
+  - Toggle with 'W' key or UI button in FocusMode header
+- **Context Capture Modal** - Task context preservation for resumption
+  - ContextCaptureModal.tsx for capturing "where I left off" notes
+  - Reduces task-switching cost for ADHD users
+  - Integrates with TaskView for context display and editing
+- **Shared CloseButton component** - Code deduplication refactoring
+  - Extracted common X close button pattern to CloseButton.tsx
+  - Refactored BrainDumpModal, HelpMePick, FocusLauncher to use it
+  - Eliminates ~25 lines of duplicated code
+- **E2E tests** - Added tests for Hour Timeline and Brain Dump features
+
 **Commits:**
 - `6b6be09` Extract dismiss count utilities from StackView.tsx
 - `9839189` Add Focus Launcher and refactor StackView component
@@ -276,6 +297,13 @@ All critical issues fixed:
 - `928d2c1` Update STATE.md with Brain Dump and Hour Timeline features
 - `7f16482` Add Completion Insights to StatsCard
 - `bb686ba` Add Quick Voice Input to UnifiedInput
+- `e4906f5` Fix SSR hydration and add API timeout
+- `12d7351` Fix HelpMePick to avoid re-picking same task
+- `a3f3e66` Extract shared CloseButton component
+- `3ec5776` Add Body Doubling / Work-Along Mode to Focus Mode
+- `f807638` Add context notes feature integration
+- `458d4ed` Add e2e tests for Hour Timeline and Brain Dump features
+- `ec91614` Add Context Capture Modal for task context preservation
 
 ---
 
