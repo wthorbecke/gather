@@ -138,10 +138,11 @@ All critical issues fixed:
 
 ## Next Session Priorities
 
-1. **Integrate UpgradeModal into app** - Add upgrade prompts where appropriate
-2. **Fix test user credentials** - Update TEST_USER_PASSWORD to valid credentials
-3. **PWA offline support** - Cache for offline use
-4. **Create Stripe products** - Set up products/prices in Stripe Dashboard for testing
+1. ~~**Integrate UpgradeModal into app**~~ - Done (Session 7)
+2. **Fix test user credentials** - Update TEST_USER_PASSWORD in Supabase
+3. ~~**PWA offline support**~~ - Already implemented (service worker, manifest, icons)
+4. **Create Stripe products** - Set up products/prices in Stripe Dashboard
+5. **Add subscription gating** - Lock premium features for non-subscribers
 
 ---
 
