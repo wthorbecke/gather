@@ -257,6 +257,7 @@ All critical issues fixed:
 - **Added "Clear all" for completed tasks** - Batch delete finished work
   - "Clear all" button appears in expanded completed tasks section
   - Deletes all tasks that have 100% step completion
+  - Confirmation dialog shows count of tasks to be deleted
   - Reduces clutter without manually deleting each task
 - All 173 tests passing, build succeeds
 
@@ -275,6 +276,7 @@ All critical issues fixed:
 - `fcad9ab` Add visual recurrence icon to task list items
 - `708f39d` Add task duplication and fix build issues
 - `838ff55` Add "Clear all" button for completed tasks
+- `93bb9ab` Add confirmation dialog before clearing completed tasks
 
 **Technical notes:**
 - Quick actions feature (from Future Ideas) partially addressed - snooze was the highest-impact quick action
