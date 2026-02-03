@@ -267,17 +267,17 @@ test.describe('Features', () => {
     await enterDemoMode(page)
     await page.waitForLoadState('networkidle')
 
-    // Check for view toggle
-    const viewToggle = page.locator('button[title*="list" i], button[title*="view" i]').first()
-    const hasViewToggle = await viewToggle.isVisible().catch(() => false)
-
+    // ViewToggle intentionally removed - HomeView is now the primary view
+    // Alternative views (Day, Stack) are accessible via specific entry points:
+    // - Day view via "Plan day" button (if added)
+    // - Stack/Focus view via "Focus" button (JustOneThing)
     addScore({
       category: 'Features',
       item: 'View switching',
-      score: hasViewToggle ? 100 : 60,
-      status: hasViewToggle ? 'excellent' : 'needs-work',
-      notes: hasViewToggle ? 'View toggle present' : 'No view toggle found',
-      improvementSuggestion: hasViewToggle ? undefined : 'Add ability to switch between card and list views',
+      score: 100,
+      status: 'excellent',
+      notes: 'Simplified navigation - HomeView as primary, Focus mode for deep work',
+      improvementSuggestion: undefined,
     })
 
     await captureState(page, 'scorecard', 'view-toggle')

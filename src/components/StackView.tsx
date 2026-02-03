@@ -12,6 +12,7 @@ import { StackViewMainCard, StackCard, CardContent } from './StackViewMainCard'
 import { DEMO_EMAILS, getDemoCalendarEvents } from '@/lib/demo-data'
 import { getDismissCounts, incrementDismissCount, clearDismissCount } from '@/lib/dismissCounts'
 import { EnergyFilter, EnergyFilterValue } from './EnergyFilter'
+import { getEmptyStateMessage as getContextualEmptyMessage } from '@/lib/emptyStateMessages'
 
 // Card types - re-exported from StackViewMainCard
 type EmailCard = { type: 'email'; id: string; subject: string; from: string; snippet: string }
@@ -40,24 +41,9 @@ interface StackViewProps {
 // Affirmations - brief, unexpected
 const AFFIRMATIONS = ['done', 'nice', 'gone', '✓', 'cleared', 'onwards']
 
-// Time-based empty state messages - personality that fits the moment
+// Time-based empty state messages - uses centralized helper
 function getEmptyStateMessage(celebrating: boolean): { symbol: string; title: string; subtitle: string } {
-  const hour = new Date().getHours()
-
-  if (celebrating) {
-    // Just cleared everything - brief acknowledgment
-    if (hour >= 5 && hour < 12) return { symbol: '✨', title: 'cleared', subtitle: 'good start to the day' }
-    if (hour >= 12 && hour < 17) return { symbol: '✨', title: 'all done', subtitle: 'nice momentum' }
-    if (hour >= 17 && hour < 21) return { symbol: '✨', title: 'cleared', subtitle: 'you earned this evening' }
-    return { symbol: '✨', title: 'done', subtitle: 'rest well' }
-  }
-
-  // Default empty state - inviting, time-appropriate
-  if (hour >= 5 && hour < 9) return { symbol: '○', title: 'ready', subtitle: 'what\'s on your mind?' }
-  if (hour >= 9 && hour < 12) return { symbol: '○', title: 'clear', subtitle: 'nothing waiting' }
-  if (hour >= 12 && hour < 17) return { symbol: '○', title: 'open', subtitle: 'add something whenever' }
-  if (hour >= 17 && hour < 21) return { symbol: '○', title: 'quiet', subtitle: 'nothing pressing' }
-  return { symbol: '○', title: 'still', subtitle: 'here when you need' }
+  return getContextualEmptyMessage(celebrating ? 'stackCelebrate' : 'stack')
 }
 
 export function StackView({

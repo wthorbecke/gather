@@ -1,0 +1,19 @@
+{
+  "agents": {
+    "agent-1770098506844-cdjf6v": {
+      "agentId": "agent-1770098506844-cdjf6v",
+      "agentType": "researcher",
+      "status": "idle",
+      "health": 1,
+      "taskCount": 0,
+      "config": {
+        "provider": "anthropic",
+        "task": "List the files in the src/components directory and count how many there are"
+      },
+      "createdAt": "2026-02-03T06:01:46.852Z",
+      "model": "haiku",
+      "modelRoutedBy": "router"
+    }
+  },
+  "version": "3.0.0"
+}

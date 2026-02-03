@@ -1,9 +1,9 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState } from 'react'
 import { useRewards, RewardsCatalogItem } from '@/hooks/useRewards'
 import { ProgressGarden } from './ProgressGarden'
-import { MomentumPoints, LevelUpCelebration } from './MomentumPoints'
+import { LevelUpCelebration } from './MomentumPoints'
 import { Modal } from './Modal'
 import { CloseButton } from './CloseButton'
 
@@ -12,76 +12,44 @@ interface GamificationCardProps {
   isDemo?: boolean
 }
 
-export function GamificationCard({ userId, isDemo = false }: GamificationCardProps) {
+// Minimal inline indicator - subtle, not card-like
+export function GamificationIndicator({ userId, isDemo = false }: GamificationCardProps) {
   const rewards = useRewards(userId, isDemo)
   const [showRewardsModal, setShowRewardsModal] = useState(false)
   const [levelUpEvent, setLevelUpEvent] = useState<{ level: number; message: string } | null>(null)
 
-  // Don't show if still loading or there was an error
+  // Don't show if still loading
   if (rewards.isLoading) {
     return (
-      <div className="animate-pulse flex items-center gap-3 p-3 rounded-xl bg-card">
-        <div className="w-12 h-12 rounded-full bg-border" />
-        <div className="flex-1 space-y-2">
-          <div className="h-4 w-20 rounded bg-border" />
-          <div className="h-3 w-32 rounded bg-border" />
-        </div>
+      <div className="animate-pulse flex items-center gap-2">
+        <div className="h-4 w-12 rounded bg-border" />
+        <div className="h-4 w-16 rounded bg-border" />
       </div>
     )
   }
 
   return (
     <>
-      {/* Compact inline display */}
-      <div
-        className="
-          flex items-center gap-3 p-3
-          rounded-xl bg-card border border-border-subtle
-          cursor-pointer
-          transition-all duration-200
-          hover:bg-card-hover hover:border-border
-        "
+      {/* Minimal inline indicator */}
+      <button
         onClick={() => setShowRewardsModal(true)}
-        role="button"
-        tabIndex={0}
-        onKeyDown={(e) => e.key === 'Enter' && setShowRewardsModal(true)}
-        aria-label="View your rewards and progress"
+        className="
+          flex items-center gap-2 text-sm text-text-muted
+          hover:text-text transition-colors duration-150
+          py-1 px-2 -mx-2 rounded-md hover:bg-surface
+        "
+        aria-label="View your progress and rewards"
       >
-        <ProgressGarden
-          stage={rewards.gardenStage}
-          level={rewards.level}
-          progress={rewards.levelProgress.progress}
-          size="sm"
-        />
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-text">
-              Level {rewards.level}
-            </span>
-            <span className="text-xs text-text-muted">
-              · {rewards.formattedPoints} pts
-            </span>
-          </div>
-          <div className="flex items-center gap-2 mt-0.5">
-            <div className="flex-1 h-1.5 rounded-full bg-border overflow-hidden max-w-[100px]">
-              <div
-                className="h-full bg-success rounded-full transition-all duration-300"
-                style={{ width: `${rewards.levelProgress.progress}%` }}
-              />
-            </div>
-            {rewards.levelProgress.pointsToNext && (
-              <span className="text-[10px] text-text-muted">
-                {rewards.levelProgress.pointsToNext} to next
-              </span>
-            )}
-          </div>
-        </div>
-        <span className="text-text-muted">
-          <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M9 18l6-6-6-6" />
-          </svg>
-        </span>
-      </div>
+        <span className="font-medium text-text-soft">Lvl {rewards.level}</span>
+        <span className="text-xs opacity-60">·</span>
+        <span className="text-text-muted">{rewards.formattedPoints} pts</span>
+        {rewards.momentumDays > 0 && (
+          <>
+            <span className="text-xs opacity-60">·</span>
+            <span className="text-text-muted">{rewards.momentumDays}d streak</span>
+          </>
+        )}
+      </button>
 
       {/* Level up celebration */}
       {levelUpEvent && (
@@ -92,11 +60,11 @@ export function GamificationCard({ userId, isDemo = false }: GamificationCardPro
         />
       )}
 
-      {/* Rewards modal */}
+      {/* Full details modal - garden visualization accessible here */}
       <Modal
         isOpen={showRewardsModal}
         onClose={() => setShowRewardsModal(false)}
-        title="Your Garden"
+        title="Your Progress"
       >
         <RewardsModalContent
           rewards={rewards}
@@ -105,6 +73,11 @@ export function GamificationCard({ userId, isDemo = false }: GamificationCardPro
       </Modal>
     </>
   )
+}
+
+// Keep the card version for backwards compatibility
+export function GamificationCard({ userId, isDemo = false }: GamificationCardProps) {
+  return <GamificationIndicator userId={userId} isDemo={isDemo} />
 }
 
 // Modal content component
@@ -207,7 +180,7 @@ function RewardsModalContent({
 
           {/* How to earn points */}
           <div className="space-y-2">
-            <div className="text-xs font-medium text-text-muted uppercase tracking-wider">
+            <div className="text-xs font-medium text-text-muted uppercase tracking-wide mb-3">
               How to earn points
             </div>
             <div className="space-y-1.5 text-sm">
@@ -301,7 +274,7 @@ function RewardGroup({
 
   return (
     <div>
-      <div className="text-xs font-medium text-text-muted uppercase tracking-wider mb-2">
+      <div className="text-xs font-medium text-text-muted uppercase tracking-wide mb-3">
         {title}
       </div>
       <div className="grid grid-cols-2 gap-2">

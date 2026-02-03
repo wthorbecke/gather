@@ -5,6 +5,8 @@ import { Modal } from './Modal'
 import { useAuth } from './AuthProvider'
 import { useSubscription } from '@/hooks/useSubscription'
 import { UpgradeModal } from './UpgradeModal'
+import { areSoundsEnabled, setSoundsEnabled } from '@/lib/sounds'
+import { areHapticsEnabled, setHapticsEnabled, hapticLight } from '@/lib/haptics'
 
 interface IntegrationSettingsProps {
   isOpen: boolean
@@ -38,6 +40,30 @@ export function IntegrationSettings({ isOpen, onClose }: IntegrationSettingsProp
   const [error, setError] = useState<string | null>(null)
   const [insightFrequency, setInsightFrequency] = useState<InsightFrequency>('normal')
   const [showUpgradeModal, setShowUpgradeModal] = useState(false)
+  const [soundsEnabled, setSoundsEnabledState] = useState(false)
+  const [hapticsEnabled, setHapticsEnabledState] = useState(true)
+
+  // Load sounds & haptics preferences on mount
+  useEffect(() => {
+    setSoundsEnabledState(areSoundsEnabled())
+    setHapticsEnabledState(areHapticsEnabled())
+  }, [])
+
+  // Handle sounds toggle
+  const handleSoundsToggle = useCallback((enabled: boolean) => {
+    setSoundsEnabled(enabled)
+    setSoundsEnabledState(enabled)
+  }, [])
+
+  // Handle haptics toggle
+  const handleHapticsToggle = useCallback((enabled: boolean) => {
+    setHapticsEnabled(enabled)
+    setHapticsEnabledState(enabled)
+    // Preview haptic when enabling
+    if (enabled) {
+      hapticLight()
+    }
+  }, [])
 
   // Subscription state
   const {
@@ -578,6 +604,81 @@ export function IntegrationSettings({ isOpen, onClose }: IntegrationSettingsProp
                     {freq === 'off' ? 'Off' : freq === 'minimal' ? 'Weekly' : freq === 'normal' ? 'Every few days' : 'Daily'}
                   </button>
                 ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Sounds & Haptics Settings */}
+        <div className="p-4 bg-surface rounded-xl border border-border">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-lg bg-card flex items-center justify-center">
+              <svg width={20} height={20} viewBox="0 0 24 24" className="text-accent">
+                <path
+                  d="M11 5L6 9H2v6h4l5 4V5zM15.54 8.46a5 5 0 010 7.07M19.07 4.93a10 10 0 010 14.14"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  fill="none"
+                />
+              </svg>
+            </div>
+            <div className="flex-1 min-w-0 space-y-3">
+              <h3 className="font-medium text-text">Sounds & Haptics</h3>
+
+              {/* Sounds toggle */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-text">Completion sounds</p>
+                  <p className="text-xs text-text-muted">Play sounds when completing tasks</p>
+                </div>
+                <button
+                  onClick={() => handleSoundsToggle(!soundsEnabled)}
+                  className={`
+                    relative w-11 h-7 rounded-full transition-colors duration-150 ease-out
+                    ${soundsEnabled ? 'bg-accent' : 'bg-border'}
+                    flex items-center
+                  `}
+                  aria-label={soundsEnabled ? 'Disable sounds' : 'Enable sounds'}
+                  role="switch"
+                  aria-checked={soundsEnabled}
+                >
+                  <span
+                    className={`
+                      absolute top-1 left-1 w-5 h-5 rounded-full bg-white
+                      transition-transform duration-200 ease-out shadow-sm
+                      ${soundsEnabled ? 'translate-x-4' : ''}
+                    `}
+                  />
+                </button>
+              </div>
+
+              {/* Haptics toggle */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-text">Haptic feedback</p>
+                  <p className="text-xs text-text-muted">Vibrate on completions (mobile)</p>
+                </div>
+                <button
+                  onClick={() => handleHapticsToggle(!hapticsEnabled)}
+                  className={`
+                    relative w-11 h-7 rounded-full transition-colors duration-150 ease-out
+                    ${hapticsEnabled ? 'bg-accent' : 'bg-border'}
+                    flex items-center
+                  `}
+                  aria-label={hapticsEnabled ? 'Disable haptics' : 'Enable haptics'}
+                  role="switch"
+                  aria-checked={hapticsEnabled}
+                >
+                  <span
+                    className={`
+                      absolute top-1 left-1 w-5 h-5 rounded-full bg-white
+                      transition-transform duration-200 ease-out shadow-sm
+                      ${hapticsEnabled ? 'translate-x-4' : ''}
+                    `}
+                  />
+                </button>
               </div>
             </div>
           </div>

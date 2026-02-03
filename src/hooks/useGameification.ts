@@ -1,6 +1,8 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { playSound } from '@/lib/sounds'
+import { hapticLevelUp } from '@/lib/haptics'
 
 // XP rewards
 const XP_REWARDS = {
@@ -349,6 +351,9 @@ export function useGameification() {
       // Check for level up
       if (levelInfo.level > oldLevel) {
         setLevelUp({ oldLevel, newLevel: levelInfo.level, title: levelInfo.title })
+        // Play celebratory level up sound and haptic
+        playSound('levelUp')
+        hapticLevelUp()
       }
 
       // Check for new achievements

@@ -6,6 +6,7 @@ import { content } from '@/config/content'
 import { User } from '@supabase/supabase-js'
 import { safeGetJSON, safeSetJSON, safeRemoveItem } from '@/lib/storage'
 import { TaskCategory, TaskSource, TaskType, RecurrenceFrequency, IntegrationProvider, EnergyLevel, type ActiveTaskCategory } from '@/lib/constants'
+import type { LocationTrigger } from '@/lib/location'
 
 // Demo starter tasks with pre-generated AI steps
 // These showcase the app's value without requiring API calls
@@ -267,6 +268,8 @@ export interface Task {
   calendar_event_id?: string | null  // Google Calendar event ID if added to calendar
   pinned?: boolean                 // Keep at top of list
   energy?: EnergyLevel | null     // Energy level required (low/medium/high)
+  // Location-based reminders (v19)
+  locationTrigger?: LocationTrigger | null  // Trigger reminder at specific location
 }
 
 export interface TaskAction {

@@ -13,10 +13,13 @@ import { getDeadlineUrgency } from './DeadlineBadge'
 import { CalendarWidget } from './CalendarSidebar'
 import { EmailTasksCard } from './EmailTasksCard'
 import { StatsCard } from './StatsCard'
-import { GamificationCard } from './GamificationCard'
+import { GamificationIndicator } from './GamificationCard'
+import { CollapsibleSection } from './CollapsibleSection'
 import { content, OTHER_SPECIFY_OPTION } from '@/config/content'
 import { TaskInsight } from './TaskInsight'
 import { EnergySuggestions } from './EnergySuggestions'
+import { PatternInsights } from './PatternInsights'
+import { getEmptyStateMessage } from '@/lib/emptyStateMessages'
 
 // Time-based ambient style - shared atmosphere with StackView
 function getAmbientStyle(taskCount: number, isDark: boolean) {
@@ -67,6 +70,7 @@ interface HomeViewProps {
   isDemoUser?: boolean
   onOpenTemplates?: () => void
   onOpenBrainDump?: () => void
+  onOpenJustOneThing?: () => void
   userId?: string | null
 }
 
@@ -93,6 +97,7 @@ export function HomeView({
   isDemoUser = false,
   onOpenTemplates,
   onOpenBrainDump,
+  onOpenJustOneThing,
   userId = null,
 }: HomeViewProps) {
   // State for task list visibility
@@ -247,40 +252,50 @@ export function HomeView({
           )
         })()}
 
+        {/* Slash command hints - only show when not in question flow */}
+        {!isQuestionFlow && (
+          <p className="text-[11px] text-text-muted/50 mt-1.5 text-center tracking-wide">
+            <span className="font-mono">/t</span> templates
+            <span className="mx-1.5 opacity-50">·</span>
+            <span className="font-mono">/dump</span> brain dump
+            <span className="mx-1.5 opacity-50">·</span>
+            <span className="font-mono">?</span> help
+          </p>
+        )}
+
         {/* Task Intelligence Insight - only show when there are tasks and no AI conversation */}
         {!aiCard && activeTasks.length > 0 && (
           <TaskInsight onGoToTask={onGoToTask} />
         )}
 
-        {/* Calendar Widget */}
-        <CalendarWidget
-          isDemoUser={isDemoUser}
-          tasks={tasks}
-          onSelectTask={(task) => onGoToTask(task.id)}
-        />
-
-        {/* Email Tasks */}
-        <EmailTasksCard
-          onAddTask={(title, context, dueDate) => {
-            // Use the quick add with the title, ignoring context/dueDate for now
-            onQuickAdd(title)
-          }}
-          isDemoUser={isDemoUser}
-        />
-
-        {/* Weekly Stats - only show when not in AI conversation */}
-        {!aiCard && <StatsCard tasks={tasks} moodEntries={moodEntries} />}
-
-        {/* Gamification - Garden and points */}
-        {!aiCard && <GamificationCard userId={userId} isDemo={isDemoUser} />}
-
         {/* FOCUS: The ONE thing to do now - prominent, impossible to miss */}
         {nextStep && (
           <div className="mb-8">
             {/* Header with accent styling */}
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-2 h-2 rounded-full bg-accent animate-pulse" />
-              <span className="text-sm font-semibold text-accent uppercase tracking-wide">Do this now</span>
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-accent animate-pulse" />
+                <span className="text-sm font-semibold text-accent uppercase tracking-wide">Do this now</span>
+              </div>
+              {onOpenJustOneThing && (
+                <button
+                  onClick={onOpenJustOneThing}
+                  className="
+                    text-xs text-text-muted hover:text-accent
+                    transition-colors duration-150 ease-out
+                    flex items-center gap-1.5
+                    px-2 py-1 -mr-2
+                    rounded-md hover:bg-surface
+                  "
+                  title="Focus on just one thing"
+                >
+                  <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <circle cx="12" cy="12" r="10" />
+                    <circle cx="12" cy="12" r="3" />
+                  </svg>
+                  Focus mode
+                </button>
+              )}
             </div>
 
             {/* Main focus card - elevated, accented */}
@@ -406,28 +421,31 @@ export function HomeView({
           />
         )}
 
-        {/* All done state */}
-        {!nextStep && tasks.length > 0 && totalSteps > 0 && incompleteSteps === 0 && (
-          <div className="mb-6 p-6 bg-success-soft rounded-md text-center">
-            <div className="w-12 h-12 rounded-full bg-success/20 flex items-center justify-center mx-auto mb-3">
-              <svg width={24} height={24} viewBox="0 0 24 24" className="text-success">
-                <path
-                  d="M5 12l5 5L20 7"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  fill="none"
-                />
-              </svg>
+        {/* All done state - contextual, time-aware */}
+        {!nextStep && tasks.length > 0 && totalSteps > 0 && incompleteSteps === 0 && (() => {
+          const emptyMessage = getEmptyStateMessage('homeAllDone')
+          return (
+            <div className="mb-6 p-6 bg-success-soft rounded-xl text-center">
+              <div className="w-12 h-12 rounded-full bg-success/20 flex items-center justify-center mx-auto mb-3">
+                <svg width={24} height={24} viewBox="0 0 24 24" className="text-success">
+                  <path
+                    d="M5 12l5 5L20 7"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    fill="none"
+                  />
+                </svg>
+              </div>
+              <div className="text-base font-medium text-text mb-1">{emptyMessage.title}</div>
+              <div className="text-sm text-text-soft">{emptyMessage.subtitle}</div>
             </div>
-            <div className="text-base font-medium text-text mb-1">{content.emptyStates.homeAllCaughtUpTitle}</div>
-            <div className="text-sm text-text-soft">{content.emptyStates.homeAllCaughtUpBody}</div>
-          </div>
-        )}
+          )
+        })()}
 
         {!nextStep && tasks.length > 0 && totalSteps === 0 && (
-          <div className="mb-6 p-6 bg-subtle rounded-md text-center">
+          <div className="mb-6 p-6 bg-subtle rounded-xl text-center">
             <div className="text-base font-medium text-text mb-1">{content.emptyStates.homeNoStepsTitle}</div>
             <div className="text-sm text-text-soft">{content.emptyStates.homeNoStepsBody}</div>
           </div>
@@ -610,6 +628,39 @@ export function HomeView({
             </div>
           )
         })()}
+
+        {/* Collapsible secondary sections - reduce cognitive load for ADHD users */}
+        {!aiCard && (
+          <>
+            {/* Overview section - calendar, email, stats */}
+            <CollapsibleSection title="Overview" storageKey="overview" defaultOpen={false}>
+              <div className="space-y-4">
+                <CalendarWidget
+                  isDemoUser={isDemoUser}
+                  tasks={tasks}
+                  onSelectTask={(task) => onGoToTask(task.id)}
+                />
+                <EmailTasksCard
+                  onAddTask={(title) => {
+                    onQuickAdd(title)
+                  }}
+                  isDemoUser={isDemoUser}
+                />
+                <StatsCard tasks={tasks} moodEntries={moodEntries} />
+              </div>
+            </CollapsibleSection>
+
+            {/* Progress section - minimal gamification indicator + patterns */}
+            <CollapsibleSection
+              title="Progress"
+              storageKey="progress"
+              defaultOpen={false}
+              rightElement={<GamificationIndicator userId={userId} isDemo={isDemoUser} />}
+            >
+              <PatternInsights tasks={tasks} />
+            </CollapsibleSection>
+          </>
+        )}
 
       </div>
     </div>

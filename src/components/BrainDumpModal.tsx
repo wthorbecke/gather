@@ -246,7 +246,7 @@ need to call mom back, also gotta schedule that dentist appointment, taxes are d
               {/* Grouped tasks */}
               {groupedTasks && groupedTasks.map((group, groupIndex) => (
                 <div key={group.name} className="mb-4">
-                  <div className="text-xs font-medium text-text-muted uppercase tracking-wide mb-2">
+                  <div className="text-xs font-medium text-text-muted uppercase tracking-wide mb-3">
                     {group.name}
                   </div>
                   <div className="space-y-2">
@@ -268,7 +268,7 @@ need to call mom back, also gotta schedule that dentist appointment, taxes are d
               {ungroupedTasks.length > 0 && (
                 <div className={groupedTasks && groupedTasks.length > 0 ? 'mt-4' : ''}>
                   {groupedTasks && groupedTasks.length > 0 && ungroupedTasks.length > 0 && (
-                    <div className="text-xs font-medium text-text-muted uppercase tracking-wide mb-2">
+                    <div className="text-xs font-medium text-text-muted uppercase tracking-wide mb-3">
                       Other
                     </div>
                   )}

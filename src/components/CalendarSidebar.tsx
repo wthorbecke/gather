@@ -243,7 +243,7 @@ export function CalendarSidebar({ onLinkToTask, onSelectTask, tasks = [], classN
             .sort(([a], [b]) => a.localeCompare(b))
             .map(([date, dateItems]) => (
               <div key={date}>
-                <div className="text-xs font-medium text-text-muted uppercase tracking-wide mb-2">
+                <div className="text-xs font-medium text-text-muted uppercase tracking-wide mb-3">
                   {formatDateHeader(date)}
                 </div>
                 <div className="space-y-2">
@@ -476,7 +476,7 @@ export function CalendarWidget({ className = '', isDemoUser, tasks = [], onSelec
         </svg>
         Coming up
       </div>
-      <div className="bg-card rounded-lg border border-border overflow-hidden">
+      <div className="bg-card rounded-xl border border-border-subtle overflow-hidden">
         {allItems.slice(0, 4).map((item, idx) => (
           <div
             key={item.id}

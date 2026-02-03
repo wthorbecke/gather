@@ -125,7 +125,7 @@ export function SnoozeMenu({ onSnooze, onCancel }: SnoozeMenuProps) {
               {quickOptions.length > 0 && (
                 <>
                   {hasTodayOptions && (
-                    <div className="text-xs text-text-muted font-medium uppercase tracking-wide mb-1">
+                    <div className="text-xs font-medium text-text-muted uppercase tracking-wide mb-3">
                       Later today
                     </div>
                   )}
@@ -162,7 +162,7 @@ export function SnoozeMenu({ onSnooze, onCancel }: SnoozeMenuProps) {
                       <span className="text-sm text-success/70">{option.time}</span>
                     </button>
                   ))}
-                  <div className="text-xs text-text-muted font-medium uppercase tracking-wide mt-3 mb-1">
+                  <div className="text-xs font-medium text-text-muted uppercase tracking-wide mt-3 mb-3">
                     Later this week
                   </div>
                 </>

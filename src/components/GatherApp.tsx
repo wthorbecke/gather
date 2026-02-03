@@ -24,7 +24,6 @@ import { DayView } from './DayView'
 import { TaskView } from './TaskView'
 import { ErrorBoundary } from './ErrorBoundary'
 import { ChatModal } from './ChatModal'
-import { ViewToggle } from './ViewToggle'
 import { calculateNewStreak, isHabitCompletedToday } from '@/lib/taskTypes'
 import { authFetch } from '@/lib/supabase'
 import { EnergyLevel } from '@/lib/constants'
@@ -67,6 +66,10 @@ const BrainDumpModal = dynamic(() => import('./BrainDumpModal').then(mod => ({ d
   loading: () => null,
 })
 const ContextCaptureModal = dynamic(() => import('./ContextCaptureModal').then(mod => ({ default: mod.ContextCaptureModal })), {
+  ssr: false,
+  loading: () => null,
+})
+const JustOneThing = dynamic(() => import('./JustOneThing').then(mod => ({ default: mod.JustOneThing })), {
   ssr: false,
   loading: () => null,
 })
@@ -132,6 +135,9 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
 
   // Brain dump modal state
   const [showBrainDump, setShowBrainDump] = useState(false)
+
+  // Just One Thing mode state
+  const [showJustOneThing, setShowJustOneThing] = useState(false)
 
   // Context capture modal state (for "where I left off" notes)
   const [showContextCapture, setShowContextCapture] = useState(false)
@@ -726,8 +732,6 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
               <div className="flex justify-between items-center">
                 <h1 className="text-3xl font-display font-semibold tracking-tight text-text">Gather</h1>
                 <div className="flex items-center gap-1">
-                  {/* View toggle - list/day/stack */}
-                  <ViewToggle currentView={viewMode} onViewChange={setViewMode} />
                   <button
                     onClick={() => setShowIntegrationSettings(true)}
                     className="p-3 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg text-text-muted hover:text-text hover:bg-surface transition-colors"
@@ -817,6 +821,7 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
                 isDemoUser={isDemoUser}
                 onOpenTemplates={() => setShowTemplateModal(true)}
                 onOpenBrainDump={() => setShowBrainDump(true)}
+                onOpenJustOneThing={() => setShowJustOneThing(true)}
                 userId={isDemoUser ? null : user.id}
               />
             </ErrorBoundary>
@@ -943,6 +948,33 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
         onAddTasks={handleBrainDumpTasks}
       />
 
+      {/* Just One Thing - maximum focus mode */}
+      {showJustOneThing && (
+        <JustOneThing
+          task={(() => {
+            // Get the most important task using the same logic as HomeView
+            const today = new Date().toISOString().split('T')[0]
+            const activeTasks = tasks.filter(task => {
+              if (task.snoozed_until && task.snoozed_until > today) return false
+              const steps = task.steps || []
+              return steps.some(s => !s.done)
+            })
+            if (activeTasks.length === 0) return null
+            // Pinned tasks first
+            const pinned = activeTasks.find(t => t.pinned)
+            if (pinned) return pinned
+            // Then due today or overdue
+            const dueToday = activeTasks.find(t => t.due_date && t.due_date <= today)
+            if (dueToday) return dueToday
+            // Fall back to first incomplete task
+            return activeTasks[0] || null
+          })()}
+          onComplete={handleToggleStep}
+          onExit={() => setShowJustOneThing(false)}
+          onGoToTask={goToTask}
+        />
+      )}
+
       {/* Context Capture Modal - "Where I left off" notes */}
       {contextCaptureTask && (
         <ContextCaptureModal
@@ -952,35 +984,6 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
           onSkip={handleSkipContextNote}
         />
       )}
-
-      {/* Chat FAB - floating action button */}
-      <button
-        onClick={() => setShowChatModal(true)}
-        className="
-          fixed z-40
-          w-14 h-14
-          flex items-center justify-center
-          bg-accent text-white
-          rounded-full
-          shadow-lg hover:shadow-xl
-          hover:bg-accent/90
-          active:scale-95
-          transition-all duration-150
-          bottom-6 right-6
-        "
-        aria-label="Open chat"
-        title="Chat with AI"
-      >
-        <svg width={24} height={24} viewBox="0 0 24 24" fill="none">
-          <path
-            d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2v10z"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-      </button>
     </div>
   )
 }

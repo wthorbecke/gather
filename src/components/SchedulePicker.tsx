@@ -138,7 +138,7 @@ export function SchedulePicker({ currentSchedule, onSchedule, onCancel }: Schedu
 
         {/* Custom datetime picker */}
         <div className="mb-4">
-          <label className="text-xs text-text-muted font-medium uppercase tracking-wide mb-2 block">
+          <label className="text-xs font-medium text-text-muted uppercase tracking-wide mb-3 block">
             Or pick a time
           </label>
           <input

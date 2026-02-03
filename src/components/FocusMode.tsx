@@ -7,6 +7,106 @@ import { splitStepText } from '@/lib/stepText'
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
 import { useAmbientSound, AmbientSoundType } from '@/hooks/useAmbientSound'
 
+/**
+ * Visual shrinking ring timer component
+ * Shows time as a visual ring that shrinks as time passes - helps with time blindness
+ */
+interface TimerRingProps {
+  timeRemaining: number // seconds remaining
+  totalTime: number // total seconds for this phase
+  isRunning: boolean
+  phase: 'work' | 'shortBreak' | 'longBreak'
+  onTogglePause: () => void
+  pomodoroCount?: number
+}
+
+function TimerRing({ timeRemaining, totalTime, isRunning, phase, onTogglePause, pomodoroCount = 0 }: TimerRingProps) {
+  const size = 180
+  const strokeWidth = 10
+  const radius = (size - strokeWidth) / 2
+  const circumference = 2 * Math.PI * radius
+
+  // Calculate progress (1 = full, 0 = empty)
+  const progress = totalTime > 0 ? timeRemaining / totalTime : 1
+  const strokeDashoffset = circumference * (1 - progress)
+
+  // Format time as mm:ss
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60)
+    const secs = seconds % 60
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
+  }
+
+  // Color based on phase
+  const ringColor = phase === 'work' ? 'var(--accent)' : 'var(--success)'
+  const isPaused = !isRunning
+
+  return (
+    <div className="relative flex items-center justify-center mb-6">
+      <svg
+        width={size}
+        height={size}
+        className="transform -rotate-90"
+        style={{ filter: isPaused ? 'grayscale(0.3)' : 'none' }}
+      >
+        {/* Background ring */}
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          stroke="var(--surface)"
+          strokeWidth={strokeWidth}
+          className="opacity-50"
+        />
+        {/* Progress ring */}
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          stroke={ringColor}
+          strokeWidth={strokeWidth}
+          strokeDasharray={circumference}
+          strokeDashoffset={strokeDashoffset}
+          strokeLinecap="round"
+          className="transition-all duration-1000 ease-linear"
+          style={{
+            opacity: isPaused ? 0.5 : 1,
+          }}
+        />
+      </svg>
+
+      {/* Time display in center */}
+      <button
+        onClick={onTogglePause}
+        className={`
+          absolute inset-0 flex flex-col items-center justify-center
+          rounded-full transition-all duration-150 ease-out
+          hover:bg-surface/30
+          ${isPaused ? 'opacity-80' : ''}
+        `}
+        aria-label={isPaused ? 'Resume timer' : 'Pause timer'}
+      >
+        <span
+          className="font-mono text-4xl font-semibold tabular-nums"
+          style={{ color: ringColor }}
+        >
+          {formatTime(timeRemaining)}
+        </span>
+        <span className="text-sm text-text-muted mt-2">
+          {isPaused ? 'paused - tap to resume' : phase === 'work' ? 'focus time' : 'break time'}
+        </span>
+        {pomodoroCount > 0 && (
+          <span className="text-xs text-text-muted mt-1">
+            {pomodoroCount} pomodoro{pomodoroCount !== 1 ? 's' : ''} done
+          </span>
+        )}
+      </button>
+    </div>
+  )
+}
+
 // Sound type labels for display
 const SOUND_LABELS: Record<AmbientSoundType, string> = {
   off: 'Sound off',
@@ -29,7 +129,15 @@ const POMODORO_SHORT_BREAK_SECONDS = 5 * 60 // 5 minutes
 const POMODORO_LONG_BREAK_SECONDS = 15 * 60 // 15 minutes
 const POMODOROS_UNTIL_LONG_BREAK = 4
 
-type TimerMode = 'stopwatch' | 'pomodoro'
+// Preset durations for quick selection
+const PRESET_DURATIONS = [
+  { label: '5 min', minutes: 5 },
+  { label: '15 min', minutes: 15 },
+  { label: '25 min', minutes: 25 },
+  { label: '45 min', minutes: 45 },
+]
+
+type TimerMode = 'stopwatch' | 'pomodoro' | 'countdown'
 type PomodoroPhase = 'work' | 'shortBreak' | 'longBreak'
 
 interface FocusModeProps {
@@ -61,7 +169,9 @@ export function FocusMode({
 }: FocusModeProps) {
   const [showDetails, setShowDetails] = useState(false)
   const [elapsedTime, setElapsedTime] = useState(0)
-  const [isTimerRunning, setIsTimerRunning] = useState(true)
+  const [isTimerRunning, setIsTimerRunning] = useState(false)
+  const [showDurationPicker, setShowDurationPicker] = useState(true)
+  const [countdownTime, setCountdownTime] = useState(0)
 
   // Ambient sound and work-along mode
   const { soundType, toggleSound, workAlongEnabled, toggleWorkAlong } = useAmbientSound()
@@ -79,6 +189,23 @@ export function FocusMode({
     if (!isTimerRunning || timerMode !== 'stopwatch') return
     const interval = setInterval(() => {
       setElapsedTime(prev => prev + 1)
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [isTimerRunning, timerMode])
+
+  // Timer that counts down (countdown mode - preset durations)
+  useEffect(() => {
+    if (!isTimerRunning || timerMode !== 'countdown') return
+    const interval = setInterval(() => {
+      setCountdownTime(prev => {
+        if (prev <= 1) {
+          setIsTimerRunning(false)
+          setIsPulsing(true)
+          setTimeout(() => setIsPulsing(false), 3000)
+          return 0
+        }
+        return prev - 1
+      })
     }, 1000)
     return () => clearInterval(interval)
   }, [isTimerRunning, timerMode])
@@ -127,7 +254,23 @@ export function FocusMode({
     setIsTimerRunning(true)
   }, [])
 
-  // Toggle timer mode
+  // Start timer with preset duration
+  const startWithPreset = useCallback((minutes: number) => {
+    setShowDurationPicker(false)
+    setTimerMode('countdown')
+    setCountdownTime(minutes * 60)
+    setIsTimerRunning(true)
+  }, [])
+
+  // Start stopwatch (no time limit)
+  const startStopwatch = useCallback(() => {
+    setShowDurationPicker(false)
+    setTimerMode('stopwatch')
+    setElapsedTime(0)
+    setIsTimerRunning(true)
+  }, [])
+
+  // Toggle timer mode (cycles through: stopwatch -> pomodoro -> countdown -> stopwatch)
   const toggleTimerMode = useCallback(() => {
     setTimerMode(prev => {
       if (prev === 'stopwatch') {
@@ -135,8 +278,13 @@ export function FocusMode({
         setPomodoroTime(POMODORO_WORK_SECONDS)
         setPomodoroPhase('work')
         return 'pomodoro'
+      } else if (prev === 'pomodoro') {
+        // Switching to countdown, show duration picker
+        setShowDurationPicker(true)
+        setIsTimerRunning(false)
+        return 'countdown'
       } else {
-        // Switching to stopwatch
+        // Switching back to stopwatch
         return 'stopwatch'
       }
     })
@@ -176,7 +324,11 @@ export function FocusMode({
     },
     {
       key: ' ',
-      action: () => setIsTimerRunning(prev => !prev),
+      action: () => {
+        if (!showDurationPicker) {
+          setIsTimerRunning(prev => !prev)
+        }
+      },
       description: 'Pause/resume timer',
     },
     {
@@ -194,9 +346,9 @@ export function FocusMode({
       action: toggleWorkAlong,
       description: 'Toggle work-along mode',
     },
-  ], [onExit, onToggleStep, onNext, onPrevious, step.done, toggleTimerMode, toggleSound, toggleWorkAlong])
+  ], [onExit, onToggleStep, onNext, onPrevious, step.done, toggleTimerMode, toggleSound, toggleWorkAlong, showDurationPicker])
 
-  useKeyboardShortcuts({ shortcuts, enabled: !showBreakPrompt })
+  useKeyboardShortcuts({ shortcuts, enabled: !showBreakPrompt && !showDurationPicker })
 
   // Format time as mm:ss
   const formatTime = (seconds: number) => {
@@ -234,33 +386,41 @@ export function FocusMode({
             className={`
               px-2 py-1 min-h-[36px] rounded-lg text-xs font-medium
               transition-all duration-150 ease-out
-              ${timerMode === 'pomodoro'
+              ${timerMode !== 'stopwatch'
                 ? 'bg-accent/20 text-accent'
                 : 'text-text-muted hover:text-text hover:bg-surface'
               }
             `}
-            aria-label={timerMode === 'pomodoro' ? 'Switch to stopwatch' : 'Switch to pomodoro'}
-            title="Press P to toggle"
+            aria-label={
+              timerMode === 'stopwatch' ? 'Switch to pomodoro' :
+              timerMode === 'pomodoro' ? 'Switch to countdown' : 'Switch to stopwatch'
+            }
+            title="Press P to toggle timer mode"
           >
-            {timerMode === 'pomodoro' ? '🍅' : '⏱️'}
+            {timerMode === 'pomodoro' ? '🍅' : timerMode === 'countdown' ? '⏳' : '⏱️'}
           </button>
 
           {/* Timer display */}
           <button
-            onClick={() => setIsTimerRunning(prev => !prev)}
+            onClick={() => {
+              if (showDurationPicker) return
+              setIsTimerRunning(prev => !prev)
+            }}
             className={`
               font-mono text-sm tabular-nums min-w-[60px] min-h-[44px]
               flex items-center justify-center rounded-lg
               hover:bg-surface transition-all duration-150 ease-out
               ${isPulsing ? 'animate-pulse bg-accent/20' : ''}
-              ${isTimerRunning
-                ? timerMode === 'pomodoro' && pomodoroPhase !== 'work' ? 'text-success' : 'text-accent'
-                : 'text-text-muted'
+              ${showDurationPicker ? 'text-text-muted' :
+                isTimerRunning
+                  ? timerMode === 'pomodoro' && pomodoroPhase !== 'work' ? 'text-success' : 'text-accent'
+                  : 'text-text-muted'
               }
             `}
             aria-label={isTimerRunning ? 'Pause timer' : 'Resume timer'}
           >
-            {timerMode === 'pomodoro' ? formatTime(pomodoroTime) : formatTime(elapsedTime)}
+            {timerMode === 'pomodoro' ? formatTime(pomodoroTime) :
+             timerMode === 'countdown' ? formatTime(countdownTime) : formatTime(elapsedTime)}
           </button>
 
           {/* Pomodoro count */}
@@ -346,10 +506,28 @@ export function FocusMode({
       {/* Main content */}
       <div className="flex-1 flex flex-col items-center justify-center p-8 max-w-xl mx-auto">
         {/* Task title */}
-        <div className="text-sm text-text-muted mb-8 text-center">{taskTitle}</div>
+        <div className="text-sm text-text-muted mb-6 text-center">{taskTitle}</div>
+
+        {/* Visual timer ring for pomodoro mode */}
+        {timerMode === 'pomodoro' && (
+          <TimerRing
+            timeRemaining={pomodoroTime}
+            totalTime={
+              pomodoroPhase === 'work'
+                ? POMODORO_WORK_SECONDS
+                : pomodoroPhase === 'shortBreak'
+                ? POMODORO_SHORT_BREAK_SECONDS
+                : POMODORO_LONG_BREAK_SECONDS
+            }
+            isRunning={isTimerRunning}
+            phase={pomodoroPhase}
+            onTogglePause={() => setIsTimerRunning(prev => !prev)}
+            pomodoroCount={pomodoroCount}
+          />
+        )}
 
         {/* Step content */}
-        <div className="text-center mb-8">
+        <div className="text-center mb-6">
           <h1 className="text-2xl md:text-3xl font-semibold text-text leading-relaxed mb-4">
             {title}
           </h1>
@@ -528,6 +706,46 @@ export function FocusMode({
                 Skip break, keep going
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Duration Picker Modal */}
+      {showDurationPicker && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-canvas/95 backdrop-blur-sm animate-fade-in">
+          <div className="bg-elevated border border-border rounded-2xl p-8 max-w-md mx-4 text-center shadow-modal">
+            <h2 className="text-xl font-semibold text-text mb-2">
+              How long do you want to focus?
+            </h2>
+            <p className="text-text-soft mb-6">
+              Pick a duration or just start the timer
+            </p>
+
+            <div className="flex gap-2 justify-center flex-wrap mb-6">
+              {PRESET_DURATIONS.map(({ label, minutes }) => (
+                <button
+                  key={minutes}
+                  onClick={() => startWithPreset(minutes)}
+                  className={`
+                    px-4 py-2 rounded-full font-medium
+                    transition-all duration-200 ease-out btn-press
+                    ${minutes === 25
+                      ? 'bg-accent text-white hover:bg-accent/90'
+                      : 'bg-surface hover:bg-accent/10 text-text'
+                    }
+                  `}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            <button
+              onClick={startStopwatch}
+              className="text-sm text-text-muted hover:text-text transition-colors duration-150 ease-out"
+            >
+              or just start without a timer
+            </button>
           </div>
         </div>
       )}

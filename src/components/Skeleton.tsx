@@ -35,7 +35,7 @@ export function TaskListSkeleton({ count = 3 }: { count?: number }) {
       {Array.from({ length: count }).map((_, i) => (
         <div
           key={i}
-          className="bg-card rounded-md border border-border p-4"
+          className="bg-card rounded-xl border border-border-subtle p-4"
           style={{ opacity: 1 - i * 0.2 }}
         >
           <div className="flex items-center gap-3">
@@ -60,7 +60,7 @@ export function StepSkeleton({ count = 3 }: { count?: number }) {
       {Array.from({ length: count }).map((_, i) => (
         <div
           key={i}
-          className="bg-card rounded-md border border-border p-3"
+          className="bg-card rounded-xl border border-border-subtle p-3"
           style={{ opacity: 1 - i * 0.15 }}
         >
           <div className="flex items-start gap-3">

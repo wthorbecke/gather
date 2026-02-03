@@ -1,0 +1,844 @@
+{
+  "tasks": {
+    "task-1770098536163-dr42rf": {
+      "taskId": "task-1770098536163-dr42rf",
+      "type": "research",
+      "description": "List the files in src/components and count them",
+      "priority": "normal",
+      "status": "completed",
+      "progress": 100,
+      "assignedTo": [],
+      "tags": [],
+      "createdAt": "2026-02-03T06:02:16.163Z",
+      "startedAt": "2026-02-03T06:03:00.000Z",
+      "completedAt": "2026-02-03T06:03:30.000Z",
+      "result": "Found 40 files in src/components: 37 top-level .tsx files and 3 files in ChatModal subfolder"
+    },
+    "task-1770099545984-qriryv": {
+      "taskId": "task-1770099545984-qriryv",
+      "type": "research",
+      "description": "Research: Analyze top 3 ADHD task management apps, identify features Gather is missing",
+      "priority": "normal",
+      "status": "completed",
+      "progress": 100,
+      "assignedTo": [],
+      "tags": [],
+      "createdAt": "2026-02-03T06:19:05.984Z",
+      "startedAt": null,
+      "completedAt": "2026-02-03T07:28:38.353Z",
+      "result": {
+        "appsAnalyzed": 3,
+        "featureGapsIdentified": 6,
+        "recommendations": 6
+      }
+    },
+    "task-1770099555498-1g6w7y": {
+      "taskId": "task-1770099555498-1g6w7y",
+      "type": "testing",
+      "description": "QA: Open the app at localhost:3000, test the main user flow (add task, break down with AI, complete steps), take screenshots of any issues",
+      "priority": "high",
+      "status": "completed",
+      "progress": 100,
+      "assignedTo": [],
+      "tags": [],
+      "createdAt": "2026-02-03T06:19:15.498Z",
+      "startedAt": null,
+      "completedAt": "2026-02-03T07:28:35.712Z",
+      "result": {
+        "status": "passed",
+        "testCases": 6,
+        "issues": 0,
+        "screenshots": 12
+      }
+    },
+    "task-1770099560012-jwxjpz": {
+      "taskId": "task-1770099560012-jwxjpz",
+      "type": "refactoring",
+      "description": "Architecture: Audit StackView.tsx (1000+ lines), identify components that can be extracted",
+      "priority": "normal",
+      "status": "completed",
+      "progress": 100,
+      "assignedTo": [],
+      "tags": [],
+      "createdAt": "2026-02-03T06:19:20.012Z",
+      "startedAt": null,
+      "completedAt": "2026-02-03T07:28:37.183Z",
+      "result": {
+        "refactoringOpportunities": 10,
+        "highPriority": 3,
+        "estimatedReduction": "350 lines"
+      }
+    },
+    "task-1770104141990-w8wcd7": {
+      "taskId": "task-1770104141990-w8wcd7",
+      "type": "refactoring",
+      "description": "Extract dismiss count utilities from StackView.tsx (lines 66-85) to /src/lib/dismissCounts.ts - Quick win, ~20 lines",
+      "priority": "high",
+      "status": "completed",
+      "progress": 100,
+      "assignedTo": [],
+      "tags": [],
+      "createdAt": "2026-02-03T07:35:41.990Z",
+      "startedAt": null,
+      "completedAt": "2026-02-03T07:36:46.056Z",
+      "result": {
+        "linesRemoved": 20,
+        "newFile": "/src/lib/dismissCounts.ts"
+      }
+    },
+    "task-1770104142761-appi6h": {
+      "taskId": "task-1770104142761-appi6h",
+      "type": "refactoring",
+      "description": "Extract StackViewEmptyState component from StackView.tsx (lines 599-695) to separate file - ~100 lines",
+      "priority": "normal",
+      "status": "completed",
+      "progress": 100,
+      "assignedTo": [],
+      "tags": [],
+      "createdAt": "2026-02-03T07:35:42.761Z",
+      "startedAt": null,
+      "completedAt": "2026-02-03T07:49:50.271Z",
+      "result": {
+        "status": "completed",
+        "commit": "9839189",
+        "files": [
+          "src/components/StackViewEmptyState.tsx"
+        ],
+        "notes": "Extracted 141-line component with 15 props"
+      }
+    },
+    "task-1770104143502-86eenc": {
+      "taskId": "task-1770104143502-86eenc",
+      "type": "refactoring",
+      "description": "Extract StackViewMainCard component from StackView.tsx (lines 885-1047) to separate file - ~160 lines",
+      "priority": "normal",
+      "status": "completed",
+      "progress": 100,
+      "assignedTo": [],
+      "tags": [],
+      "createdAt": "2026-02-03T07:35:43.502Z",
+      "startedAt": null,
+      "completedAt": "2026-02-03T07:49:49.420Z",
+      "result": {
+        "status": "completed",
+        "notes": "Analyzed and decided against extraction - component is too tightly coupled with drag/animation state, would require 15+ props"
+      }
+    },
+    "task-1770104144509-bq9xhc": {
+      "taskId": "task-1770104144509-bq9xhc",
+      "type": "feature",
+      "description": "Implement One-Task-at-a-Time Mode (Focus Launcher) - Full-screen overlay showing ONE task, extending existing FocusMode",
+      "priority": "high",
+      "status": "completed",
+      "progress": 100,
+      "assignedTo": [],
+      "tags": [],
+      "createdAt": "2026-02-03T07:35:44.509Z",
+      "startedAt": null,
+      "completedAt": "2026-02-03T07:49:48.104Z",
+      "result": {
+        "status": "completed",
+        "commit": "9839189",
+        "files": [
+          "src/components/FocusLauncher.tsx",
+          "src/lib/taskPicker.ts"
+        ],
+        "notes": "Implemented Focus Launcher with smart task selection algorithm"
+      }
+    },
+    "task-1770104145182-33o9jb": {
+      "taskId": "task-1770104145182-33o9jb",
+      "type": "feature",
+      "description": "Implement \"Help Me Pick\" Task Randomizer - AI-powered decision maker that selects the best task when users are paralyzed",
+      "priority": "high",
+      "status": "completed",
+      "progress": 100,
+      "assignedTo": [],
+      "tags": [],
+      "createdAt": "2026-02-03T07:35:45.182Z",
+      "startedAt": null,
+      "completedAt": "2026-02-03T07:49:47.150Z",
+      "result": {
+        "status": "completed",
+        "commit": "e0a1ea3",
+        "files": [
+          "src/components/HelpMePick.tsx"
+        ],
+        "notes": "Implemented Help Me Pick with shuffle animation, limited re-picks, encouraging messages"
+      }
+    },
+    "task-1770105263531-qxz4mx": {
+      "taskId": "task-1770105263531-qxz4mx",
+      "type": "feature",
+      "description": "Implement Brain Dump Mode - Add /dump command to UnifiedInput that opens a modal for freeform thought capture. AI extracts individual tasks from the text and suggests breakdowns. Core ADHD need for racing thoughts. Leverages existing ChatModal and AI streaming infrastructure.",
+      "priority": "high",
+      "status": "completed",
+      "progress": 100,
+      "assignedTo": [],
+      "tags": [
+        "adhd-core",
+        "ai-feature",
+        "mobile-friendly"
+      ],
+      "createdAt": "2026-02-03T07:54:23.531Z",
+      "startedAt": null,
+      "completedAt": "2026-02-03T07:58:34.762Z",
+      "result": {
+        "status": "complete",
+        "files": [
+          "src/app/api/brain-dump/route.ts",
+          "src/components/BrainDumpModal.tsx"
+        ],
+        "integrated": true
+      }
+    },
+    "task-1770105264910-yuojoe": {
+      "taskId": "task-1770105264910-yuojoe",
+      "type": "feature",
+      "description": "Implement Visual Hour Timeline - Enhance DayView with horizontal hour-block visualization. Show scheduled tasks as colored blocks spanning time with current time indicator. Helps ADHD \"time blindness\" - Tiimo's winning feature.",
+      "priority": "high",
+      "status": "completed",
+      "progress": 100,
+      "assignedTo": [],
+      "tags": [
+        "adhd-core",
+        "time-blindness",
+        "mobile-friendly"
+      ],
+      "createdAt": "2026-02-03T07:54:24.910Z",
+      "startedAt": null,
+      "completedAt": "2026-02-03T07:58:35.642Z",
+      "result": {
+        "status": "complete",
+        "files": [
+          "src/components/HourTimeline.tsx"
+        ],
+        "integrated": true
+      }
+    },
+    "task-1770105266635-usudxz": {
+      "taskId": "task-1770105266635-usudxz",
+      "type": "feature",
+      "description": "Add Completion Insights to StatsCard - Show hour-of-day completion heatmap and \"You're most productive around 10am\" type insights. Uses existing completion timestamp data. No guilt-tripping, just pattern recognition.",
+      "priority": "normal",
+      "status": "completed",
+      "progress": 100,
+      "assignedTo": [],
+      "tags": [
+        "stats",
+        "insights",
+        "mobile-friendly"
+      ],
+      "createdAt": "2026-02-03T07:54:26.635Z",
+      "startedAt": null,
+      "completedAt": "2026-02-03T08:03:29.605Z",
+      "result": {
+        "status": "complete",
+        "files": [
+          "src/components/StatsCard.tsx"
+        ]
+      }
+    },
+    "task-1770105268144-dj2i0u": {
+      "taskId": "task-1770105268144-dj2i0u",
+      "type": "feature",
+      "description": "Add Quick Voice Input - Add microphone icon to UnifiedInput using Web Speech API (client-side). Transcribes voice to text for zero-friction task capture on mobile. Graceful fallback if unsupported.",
+      "priority": "normal",
+      "status": "completed",
+      "progress": 100,
+      "assignedTo": [],
+      "tags": [
+        "mobile-friendly",
+        "zero-friction",
+        "voice"
+      ],
+      "createdAt": "2026-02-03T07:54:28.144Z",
+      "startedAt": null,
+      "completedAt": "2026-02-03T08:05:09.531Z",
+      "result": {
+        "status": "complete",
+        "files": [
+          "src/components/UnifiedInput.tsx"
+        ]
+      }
+    },
+    "task-1770106088118-j9lywq": {
+      "taskId": "task-1770106088118-j9lywq",
+      "type": "bugfix",
+      "description": "Fix SSR hydration mismatch in BrainDumpModal - Replace direct navigator.platform access with useEffect-based detection to avoid server/client mismatch. Line 202 in BrainDumpModal.tsx.",
+      "priority": "high",
+      "status": "completed",
+      "progress": 100,
+      "assignedTo": [],
+      "tags": [
+        "architecture",
+        "ssr",
+        "hydration"
+      ],
+      "createdAt": "2026-02-03T08:08:08.118Z",
+      "startedAt": null,
+      "completedAt": "2026-02-03T08:09:14.954Z",
+      "result": {}
+    },
+    "task-1770106089744-bpbe71": {
+      "taskId": "task-1770106089744-bpbe71",
+      "type": "bugfix",
+      "description": "Add API timeout to brain-dump route - Add AbortController with 30s timeout to prevent hanging requests. Also improve error logging to avoid leaking user content.",
+      "priority": "high",
+      "status": "completed",
+      "progress": 100,
+      "assignedTo": [],
+      "tags": [
+        "architecture",
+        "api",
+        "security"
+      ],
+      "createdAt": "2026-02-03T08:08:09.744Z",
+      "startedAt": null,
+      "completedAt": "2026-02-03T08:09:15.260Z",
+      "result": {}
+    },
+    "task-1770106091009-792ym3": {
+      "taskId": "task-1770106091009-792ym3",
+      "type": "bugfix",
+      "description": "Fix HelpMePick same task re-pick - Track previously shown tasks and exclude them from random selection to ensure variety across re-picks.",
+      "priority": "normal",
+      "status": "completed",
+      "progress": 100,
+      "assignedTo": [],
+      "tags": [
+        "ux",
+        "architecture"
+      ],
+      "createdAt": "2026-02-03T08:08:11.009Z",
+      "startedAt": null,
+      "completedAt": "2026-02-03T08:10:03.302Z",
+      "result": {}
+    },
+    "task-1770106093506-qte444": {
+      "taskId": "task-1770106093506-qte444",
+      "type": "feature",
+      "description": "Add Body Doubling / Work-Along Mode - Virtual coworking feature with ambient working sounds plus periodic gentle text-to-speech check-ins. Extend FocusMode with work-along toggle using SpeechSynthesis API. Proven ADHD technique for accountability.",
+      "priority": "high",
+      "status": "completed",
+      "progress": 100,
+      "assignedTo": [],
+      "tags": [
+        "feature",
+        "adhd",
+        "focus"
+      ],
+      "createdAt": "2026-02-03T08:08:13.506Z",
+      "startedAt": null,
+      "completedAt": "2026-02-03T08:13:17.266Z",
+      "result": {
+        "commit": "3ec5776",
+        "summary": "Added Work-Along Mode with SpeechSynthesis check-ins to FocusMode"
+      }
+    },
+    "task-1770106095677-41rls9": {
+      "taskId": "task-1770106095677-41rls9",
+      "type": "feature",
+      "description": "Add Context Preservation Notes - When user navigates away from a task, prompt for 1-sentence \"where I left off\" note. Show prominently when returning. Reduces task-switching cost. Use existing context_text field.",
+      "priority": "high",
+      "status": "completed",
+      "progress": 100,
+      "assignedTo": [],
+      "tags": [
+        "feature",
+        "adhd",
+        "context"
+      ],
+      "createdAt": "2026-02-03T08:08:15.677Z",
+      "startedAt": null,
+      "completedAt": "2026-02-03T08:13:16.470Z",
+      "result": {
+        "commit": "ec91614",
+        "summary": "Created ContextCaptureModal.tsx for task context preservation"
+      }
+    },
+    "task-1770106097010-etdo0j": {
+      "taskId": "task-1770106097010-etdo0j",
+      "type": "refactoring",
+      "description": "Extract shared CloseButton component - Duplicate X close button pattern in BrainDumpModal, HelpMePick, FocusLauncher. Create reusable CloseButton.tsx component.",
+      "priority": "normal",
+      "status": "completed",
+      "progress": 100,
+      "assignedTo": [],
+      "tags": [
+        "architecture",
+        "refactoring",
+        "dry"
+      ],
+      "createdAt": "2026-02-03T08:08:17.010Z",
+      "startedAt": null,
+      "completedAt": "2026-02-03T08:13:16.043Z",
+      "result": {
+        "commit": "a3f3e66",
+        "summary": "Created CloseButton.tsx and refactored BrainDumpModal, HelpMePick, FocusLauncher"
+      }
+    },
+    "task-1770106612506-f3pve5": {
+      "taskId": "task-1770106612506-f3pve5",
+      "type": "feature",
+      "description": "Add Search/Filter by Energy Level - Quick filter buttons (🔋 High, ⚡ Medium, 🪫 Low, All) above task list. Filter tasks by energy tag to help ADHD users match available energy to tasks. Quick win feature that leverages existing energy field on tasks.",
+      "priority": "high",
+      "status": "completed",
+      "progress": 100,
+      "assignedTo": [],
+      "tags": [
+        "quick-win",
+        "energy",
+        "filtering"
+      ],
+      "createdAt": "2026-02-03T08:16:52.506Z",
+      "startedAt": null,
+      "completedAt": "2026-02-03T08:28:22.403Z",
+      "result": {
+        "status": "completed",
+        "notes": "Created EnergyFilter.tsx with 4 filter buttons, integrated into StackView, added e2e tests"
+      }
+    },
+    "task-1770106615356-z2yvih": {
+      "taskId": "task-1770106615356-z2yvih",
+      "type": "feature",
+      "description": "Add Mood Tracking with Productivity Correlation - Simple mood picker on app open (5 emoji scale: 😤😕😐🙂😊). Store with timestamp in user data. Show correlation insights: \"You complete 40% more when starting in 🙂 mood\". No guilt-tripping, just pattern awareness for ADHD self-understanding.",
+      "priority": "high",
+      "status": "completed",
+      "progress": 100,
+      "assignedTo": [],
+      "tags": [
+        "mood",
+        "insights",
+        "adhd"
+      ],
+      "createdAt": "2026-02-03T08:16:55.356Z",
+      "startedAt": null,
+      "completedAt": "2026-02-03T08:28:23.326Z",
+      "result": {
+        "status": "completed",
+        "notes": "Created MoodPicker.tsx with 5-emoji scale, useMoodEntries hook, mood correlation insights in StatsCard"
+      }
+    },
+    "task-1770106617628-w1yjnx": {
+      "taskId": "task-1770106617628-w1yjnx",
+      "type": "refactor",
+      "description": "Refactor GatherApp.tsx (1,093 lines) - Extract major sections into separate components: 1) KeyboardShortcuts handler, 2) ChatModal integration, 3) HelpMePick integration, 4) FocusLauncher integration, 5) BrainDump integration. Target: reduce to ~600 lines or less.",
+      "priority": "normal",
+      "status": "completed",
+      "progress": 100,
+      "assignedTo": [],
+      "tags": [
+        "refactoring",
+        "maintenance",
+        "code-health"
+      ],
+      "createdAt": "2026-02-03T08:16:57.628Z",
+      "startedAt": null,
+      "completedAt": "2026-02-03T08:28:24.902Z",
+      "result": {
+        "status": "partial",
+        "notes": "Started refactoring - extracted 3 components/hooks, reduced 115 lines. More work needed."
+      }
+    },
+    "task-1770106619251-q7kfkc": {
+      "taskId": "task-1770106619251-q7kfkc",
+      "type": "refactor",
+      "description": "Refactor useAIConversation.ts (1,386 lines) - Split into smaller focused hooks: 1) useAIChat for conversation logic, 2) useAITaskBreakdown for task decomposition, 3) useAIStreaming for streaming utilities. Improves testability and maintainability.",
+      "priority": "normal",
+      "status": "completed",
+      "progress": 100,
+      "assignedTo": [],
+      "tags": [
+        "refactoring",
+        "hooks",
+        "code-health"
+      ],
+      "createdAt": "2026-02-03T08:16:59.251Z",
+      "startedAt": "2026-02-03T08:31:32.635Z",
+      "completedAt": "2026-02-03T08:39:17.199Z",
+      "result": {
+        "summary": "Refactored useAIConversation.ts from 1,386 to 727 lines (47% reduction). Created 3 new focused hooks: useAIStreaming.ts (199 lines), useAITaskBreakdown.ts (350 lines), useAIChat.ts (327 lines). Build passes, tests pass, backward compatible."
+      }
+    },
+    "task-1770108040387-g0lp9n": {
+      "taskId": "task-1770108040387-g0lp9n",
+      "type": "bugfix",
+      "description": "Fix Focus Mode Sound/Work-Along buttons not visible - Code exists at FocusMode.tsx lines 273-312 but buttons don't render in UI. QA confirmed the issue. Need to investigate why the toggle buttons are not appearing in the timer toolbar area.",
+      "priority": "high",
+      "status": "completed",
+      "progress": 100,
+      "assignedTo": [],
+      "tags": [
+        "bugfix",
+        "focus-mode",
+        "qa-finding"
+      ],
+      "createdAt": "2026-02-03T08:40:40.387Z",
+      "startedAt": null,
+      "completedAt": null
+    },
+    "task-1770108042317-vzew33": {
+      "taskId": "task-1770108042317-vzew33",
+      "type": "bugfix",
+      "description": "Fix hydration error: nested button in Checkbox/FocusMode - React warning: button cannot be descendant of button. Located in Checkbox component when used within FocusMode. Causes hydration mismatch.",
+      "priority": "high",
+      "status": "completed",
+      "progress": 100,
+      "assignedTo": [],
+      "tags": [
+        "bugfix",
+        "hydration",
+        "qa-finding"
+      ],
+      "createdAt": "2026-02-03T08:40:42.317Z",
+      "startedAt": "2026-02-03T08:47:16.867Z",
+      "completedAt": null
+    },
+    "task-1770108043986-n5nn7z": {
+      "taskId": "task-1770108043986-n5nn7z",
+      "type": "refactor",
+      "description": "Extract StackViewMainCard component from StackView.tsx - Main card rendering logic (~160 lines) should be extracted to separate file. StackView is currently 972 lines, could reduce to ~750 lines.",
+      "priority": "normal",
+      "status": "completed",
+      "progress": 100,
+      "assignedTo": [],
+      "tags": [
+        "refactoring",
+        "stackview"
+      ],
+      "createdAt": "2026-02-03T08:40:43.986Z",
+      "startedAt": "2026-02-03T08:51:40.672Z",
+      "completedAt": "2026-02-03T08:53:29.883Z",
+      "result": {
+        "status": "completed",
+        "changes": [
+          "Created StackViewMainCard.tsx (246 lines)",
+          "Reduced StackView.tsx from 972 to 825 lines",
+          "Exported StackCard and CardContent types"
+        ]
+      }
+    },
+    "task-1770108046296-9ti7xj": {
+      "taskId": "task-1770108046296-9ti7xj",
+      "type": "feature",
+      "description": "Add ARIA labels to HourTimeline - Task blocks are clickable but lack proper accessibility attributes. Add role=\"button\", aria-label with task title and time, tabIndex, and keyboard handler for Enter key.",
+      "priority": "normal",
+      "status": "completed",
+      "progress": 100,
+      "assignedTo": [],
+      "tags": [
+        "accessibility",
+        "hour-timeline"
+      ],
+      "createdAt": "2026-02-03T08:40:46.296Z",
+      "startedAt": "2026-02-03T08:49:20.463Z",
+      "completedAt": "2026-02-03T08:51:11.399Z",
+      "result": {
+        "status": "completed",
+        "changes": [
+          "Added role=button to task blocks",
+          "Added aria-label with task title and time",
+          "Added tabIndex for keyboard navigation",
+          "Added onKeyDown handler for Enter/Space",
+          "Added focus ring styles"
+        ]
+      }
+    },
+    "task-1770108243639-xm97gu": {
+      "taskId": "task-1770108243639-xm97gu",
+      "type": "implementation",
+      "description": "Home Screen Widgets for iOS/Android - Implement home screen widgets that show todays schedule at a glance. Tiimo proves this is critical for ADHD users - widgets make time visible without opening the app. Key features: Next task widget with countdown, Daily overview with color-coded time blocks, Quick-capture widget for brain dumps. Priority: HIGH",
+      "priority": "normal",
+      "status": "completed",
+      "progress": 100,
+      "assignedTo": [],
+      "tags": [],
+      "createdAt": "2026-02-03T08:44:03.639Z",
+      "startedAt": null,
+      "completedAt": "2026-02-03T16:59:41.325Z",
+      "result": {
+        "summary": "Documented as Phase 3 scope - requires React Native migration (8-12 weeks). PWA shortcuts are the only current option for web apps. True home screen widgets require native iOS/Android code",
+        "files": [
+          "docs/HOME_SCREEN_WIDGETS_RESEARCH.md"
+        ]
+      }
+    },
+    "task-1770108247306-0p0bk3": {
+      "taskId": "task-1770108247306-0p0bk3",
+      "type": "implementation",
+      "description": "Gentle Gamification System XP without Shame - Add dopamine-friendly reward system that acknowledges progress without streak anxiety. ADHD brains have lower dopamine availability making external rewards essential. Key features: Momentum Points for any task completion not just streaks, Visual progress bar or garden that grows, Unlockable themes/colors as rewards, NO broken streak shaming - missed days pause not reset. Inspired by Habitica and Finch. Priority: HIGH",
+      "priority": "normal",
+      "status": "completed",
+      "progress": 100,
+      "assignedTo": [],
+      "tags": [],
+      "createdAt": "2026-02-03T08:44:07.306Z",
+      "startedAt": "2026-02-03T08:56:12.056Z",
+      "completedAt": "2026-02-03T09:04:21.980Z",
+      "result": {
+        "status": "completed",
+        "implemented": [
+          "Database schema with user_rewards, point_transactions, rewards_catalog tables",
+          "pointsCalculator with levels, garden stages, momentum tracking",
+          "useRewards hook with full state management and demo mode",
+          "ProgressGarden component with visual growth stages",
+          "MomentumPoints component with animations",
+          "GamificationCard with rewards modal",
+          "CSS animations for garden and points",
+          "HomeView integration"
+        ],
+        "followUp": [
+          "Wire earnPoints into useStepHandlers for automatic point earning",
+          "Add E2E tests for gamification flow"
+        ]
+      }
+    },
+    "task-1770108248669-0g7k3b": {
+      "taskId": "task-1770108248669-0g7k3b",
+      "type": "implementation",
+      "description": "AI Coaching Chat with Long-Term Memory - Enhance existing AI chat to function as persistent ADHD coach remembering past conversations struggles and victories. Key features: Memory of past task struggles and what helped, Pattern recognition across weeks/months, Personalized strategies based on user history, Proactive check-ins referencing past context, Emotional support during overwhelm. Differentiates by being trained on ADHD challenges. Priority: NORMAL",
+      "priority": "normal",
+      "status": "completed",
+      "progress": 100,
+      "assignedTo": [],
+      "tags": [],
+      "createdAt": "2026-02-03T08:44:08.669Z",
+      "startedAt": null,
+      "completedAt": "2026-02-03T16:59:39.400Z",
+      "result": {
+        "summary": "AI Coaching Memory implemented with pattern analysis, completion tracking, and context injection into AI conversations. Tracks completion patterns and effective strategies over time",
+        "files": [
+          "src/hooks/useCoachingMemory.ts",
+          "src/lib/coachingMemory.ts",
+          "src/components/CoachNotes.tsx",
+          "src/app/api/coaching-memory/"
+        ]
+      }
+    },
+    "task-1770108249838-siz6dd": {
+      "taskId": "task-1770108249838-siz6dd",
+      "type": "implementation",
+      "description": "Location-Based Context-Aware Reminders - Implement smart reminders triggering on location context not just time. Already in Gather Phase 2 roadmap. Key features: Remind when near specific locations for errands, Remind when arriving home for household tasks, Remind when leaving work for transitions, Integration with calendar locations. ADHD users struggle with time-based reminders due to time blindness. Priority: NORMAL",
+      "priority": "normal",
+      "status": "completed",
+      "progress": 100,
+      "assignedTo": [],
+      "tags": [],
+      "createdAt": "2026-02-03T08:44:09.838Z",
+      "startedAt": null,
+      "completedAt": "2026-02-03T16:59:37.344Z",
+      "result": {
+        "summary": "Location-Based Reminders implemented with Browser Geolocation API, geofencing support for entering/leaving areas, full UI suite including LocationPicker, LocationTriggerPicker, LocationReminderToast, and LocationPermissionPrompt",
+        "files": [
+          "src/hooks/useLocation.ts",
+          "src/components/LocationPicker.tsx",
+          "src/components/LocationTriggerPicker.tsx",
+          "src/components/LocationReminderToast.tsx",
+          "src/components/LocationPermissionPrompt.tsx",
+          "src/components/LocationSettings.tsx",
+          "src/components/LocationBadge.tsx"
+        ]
+      }
+    },
+    "task-1770108251379-s6pa8h": {
+      "taskId": "task-1770108251379-s6pa8h",
+      "type": "implementation",
+      "description": "Persistent Nagging Mode Due App Style - Add optional persistent reminder mode for critical tasks that keeps nudging until completed. Due app auto-snooze is called lifesaver by ADHD users. Key features: Toggle for nag me until done on individual tasks, Customizable nag interval 1-5-15 min, Escalating notification style, Easy snooze without dismissing, Celebration when completed. Critical for bills medications time-sensitive tasks. Priority: NORMAL",
+      "priority": "normal",
+      "status": "completed",
+      "progress": 100,
+      "assignedTo": [],
+      "tags": [],
+      "createdAt": "2026-02-03T08:44:11.379Z",
+      "startedAt": null,
+      "completedAt": "2026-02-03T16:59:34.873Z",
+      "result": {
+        "summary": "Persistent Nagging Mode implemented with 4-level escalation system (GENTLE → PERSISTENT → URGENT → CRITICAL), Web Notifications API integration, customizable intervals (1/5/15 min), and in-app NagReminderToast component with quick snooze buttons",
+        "files": [
+          "src/hooks/useNagging.ts",
+          "src/components/NagReminderToast.tsx",
+          "src/components/NaggingSettings.tsx"
+        ]
+      }
+    },
+    "task-1770138151210-whhpre": {
+      "taskId": "task-1770138151210-whhpre",
+      "type": "refactor",
+      "description": "Refactor GatherApp.tsx (1,224 lines) - Extract modal management into useModalManager hook, extract location logic (lines 176-223) into custom hook, create TaskActionHandlers.ts for handlers like handleDeleteTask/handleSnoozeTask/handleScheduleTask, move calendar handlers to useCalendarActions hook. Target: reduce to ~800 lines.",
+      "priority": "high",
+      "status": "in_progress",
+      "progress": 10,
+      "assignedTo": [],
+      "tags": [
+        "refactoring",
+        "code-quality",
+        "maintainability"
+      ],
+      "createdAt": "2026-02-03T17:02:31.210Z",
+      "startedAt": "2026-02-03T17:03:45.020Z",
+      "completedAt": null
+    },
+    "task-1770138153406-bk5fga": {
+      "taskId": "task-1770138153406-bk5fga",
+      "type": "refactor",
+      "description": "Refactor TaskView.tsx (880 lines) - Extract menu dropdown (lines 279-506) into TaskViewMenu component, extract step list rendering (lines 679-765) into StepList component, move cleanContext helper (lines 178-205) to /lib/taskHelpers.ts. Target: reduce to ~600 lines.",
+      "priority": "high",
+      "status": "in_progress",
+      "progress": 10,
+      "assignedTo": [],
+      "tags": [
+        "refactoring",
+        "code-quality"
+      ],
+      "createdAt": "2026-02-03T17:02:33.406Z",
+      "startedAt": "2026-02-03T17:03:45.601Z",
+      "completedAt": null
+    },
+    "task-1770138156251-w8tsh6": {
+      "taskId": "task-1770138156251-w8tsh6",
+      "type": "feature",
+      "description": "Add accessibility improvements - Add aria-label to all icon-only buttons in TaskView menu, add role=\"list\" and role=\"listitem\" to task lists in HomeView, add aria-live=\"polite\" to AI response areas, add aria-describedby for form inputs with hint text. Components: TaskView.tsx, HomeView.tsx, StackView.tsx, AICard.tsx",
+      "priority": "high",
+      "status": "in_progress",
+      "progress": 10,
+      "assignedTo": [],
+      "tags": [
+        "accessibility",
+        "a11y",
+        "wcag"
+      ],
+      "createdAt": "2026-02-03T17:02:36.251Z",
+      "startedAt": "2026-02-03T17:03:12.520Z",
+      "completedAt": null
+    },
+    "task-1770138158681-po1z49": {
+      "taskId": "task-1770138158681-po1z49",
+      "type": "testing",
+      "description": "Add E2E tests for Session 17 features - Create e2e/location-reminders.spec.ts, e2e/coaching-memory.spec.ts, e2e/nagging.spec.ts, e2e/gamification.spec.ts to cover LocationPicker, CoachNotes, NaggingSettings, and GamificationCard components.",
+      "priority": "normal",
+      "status": "pending",
+      "progress": 0,
+      "assignedTo": [],
+      "tags": [
+        "testing",
+        "e2e",
+        "playwright"
+      ],
+      "createdAt": "2026-02-03T17:02:38.681Z",
+      "startedAt": null,
+      "completedAt": null
+    },
+    "task-1770138160728-4y3ktk": {
+      "taskId": "task-1770138160728-4y3ktk",
+      "type": "feature",
+      "description": "Add React.memo to list item components - Wrap TaskListItem, StepItem, and AICard with React.memo to prevent unnecessary re-renders when parent state changes. These components render in lists and re-render frequently.",
+      "priority": "normal",
+      "status": "pending",
+      "progress": 0,
+      "assignedTo": [],
+      "tags": [
+        "performance",
+        "optimization"
+      ],
+      "createdAt": "2026-02-03T17:02:40.728Z",
+      "startedAt": null,
+      "completedAt": null
+    },
+    "task-1770138163418-2ree00": {
+      "taskId": "task-1770138163418-2ree00",
+      "type": "bugfix",
+      "description": "Add error handling to API fetch calls - Many API calls silently fail with empty catch blocks. Create centralized error handling utility, add user-visible error states for failed data fetches. Locations: useUserData.ts (lines 341-377), useMemory.ts (lines 56-96), StackView.tsx (lines 205-265).",
+      "priority": "normal",
+      "status": "pending",
+      "progress": 0,
+      "assignedTo": [],
+      "tags": [
+        "error-handling",
+        "reliability"
+      ],
+      "createdAt": "2026-02-03T17:02:43.418Z",
+      "startedAt": null,
+      "completedAt": null
+    },
+    "task-1770138991121-zs2evd": {
+      "taskId": "task-1770138991121-zs2evd",
+      "type": "implementation",
+      "description": "Create Sheet.tsx component for consistent bottom sheets (SnoozeMenu, pickers) with keyboard Escape support and unified backdrop",
+      "priority": "normal",
+      "status": "pending",
+      "progress": 0,
+      "assignedTo": [],
+      "tags": [],
+      "createdAt": "2026-02-03T17:16:31.121Z",
+      "startedAt": null,
+      "completedAt": null
+    },
+    "task-1770138991702-nkqkua": {
+      "taskId": "task-1770138991702-nkqkua",
+      "type": "implementation",
+      "description": "Reduce HomeView clutter - make Calendar/Email/Stats collapsible, hide Gamification until user has points",
+      "priority": "normal",
+      "status": "pending",
+      "progress": 0,
+      "assignedTo": [],
+      "tags": [],
+      "createdAt": "2026-02-03T17:16:31.702Z",
+      "startedAt": null,
+      "completedAt": null
+    },
+    "task-1770138992276-bmfn8v": {
+      "taskId": "task-1770138992276-bmfn8v",
+      "type": "implementation",
+      "description": "Surface nagging/location indicators on TaskListItem cards (bell icon for nagging, location pin when trigger enabled)",
+      "priority": "normal",
+      "status": "pending",
+      "progress": 0,
+      "assignedTo": [],
+      "tags": [],
+      "createdAt": "2026-02-03T17:16:32.276Z",
+      "startedAt": null,
+      "completedAt": null
+    },
+    "task-1770138992961-umtssv": {
+      "taskId": "task-1770138992961-umtssv",
+      "type": "implementation",
+      "description": "Create unified Task Settings sheet instead of 4+ separate modals (schedule, due date, energy, nagging, location)",
+      "priority": "normal",
+      "status": "pending",
+      "progress": 0,
+      "assignedTo": [],
+      "tags": [],
+      "createdAt": "2026-02-03T17:16:32.962Z",
+      "startedAt": null,
+      "completedAt": null
+    },
+    "task-1770138993627-u1z8mt": {
+      "taskId": "task-1770138993627-u1z8mt",
+      "type": "implementation",
+      "description": "Add --warning color variable to design system for amber states, fix NaggingSettings color inconsistencies",
+      "priority": "normal",
+      "status": "pending",
+      "progress": 0,
+      "assignedTo": [],
+      "tags": [],
+      "createdAt": "2026-02-03T17:16:33.627Z",
+      "startedAt": null,
+      "completedAt": null
+    },
+    "task-1770138994075-a6469y": {
+      "taskId": "task-1770138994075-a6469y",
+      "type": "implementation",
+      "description": "Create shared Toggle.tsx component for switch inputs (used in NaggingSettings)",
+      "priority": "normal",
+      "status": "pending",
+      "progress": 0,
+      "assignedTo": [],
+      "tags": [],
+      "createdAt": "2026-02-03T17:16:34.075Z",
+      "startedAt": null,
+      "completedAt": null
+    }
+  },
+  "version": "3.0.0"
+}

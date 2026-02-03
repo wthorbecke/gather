@@ -4,6 +4,7 @@ import { useCallback } from 'react'
 import { Task, Step } from '@/hooks/useUserData'
 import type { UndoAction } from '@/hooks/useUndo'
 import type { MemoryEntry } from '@/hooks/useMemory'
+import { playSound } from '@/lib/sounds'
 
 interface StepHandlersOptions {
   tasks: Task[]
@@ -73,14 +74,24 @@ export function useStepHandlers({
         },
       })
 
+      // Check if this completes all steps
+      const otherSteps = task.steps?.filter(s => s.id !== stepId) || []
+      const allOthersDone = otherSteps.every(s => s.done)
+      const isTaskComplete = allOthersDone && task.steps && task.steps.length > 0
+
+      // Play sound effect (step or task complete)
+      if (isTaskComplete) {
+        playSound('taskComplete')
+      } else {
+        playSound('stepComplete')
+      }
+
       // Award points for completing a step (gamification)
       if (onEarnPoints) {
         onEarnPoints(5, 'step_complete', taskId)
 
-        // Check if this completes all steps (task complete bonus)
-        const otherSteps = task.steps?.filter(s => s.id !== stepId) || []
-        const allOthersDone = otherSteps.every(s => s.done)
-        if (allOthersDone && task.steps && task.steps.length > 0) {
+        // Task complete bonus
+        if (isTaskComplete) {
           // Small delay so animations don't overlap
           setTimeout(() => onEarnPoints(25, 'task_complete', taskId), 300)
         }

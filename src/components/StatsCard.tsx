@@ -369,7 +369,7 @@ export function StatsCard({ tasks, moodEntries = [] }: StatsCardProps) {
   }
 
   return (
-    <div className="mb-6 p-4 bg-card rounded-lg border border-border">
+    <div className="mb-6 p-4 bg-card rounded-xl border border-border-subtle">
       <div className="flex items-center gap-2 mb-3">
         <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-accent">
           <path d="M3 3v18h18" strokeLinecap="round" strokeLinejoin="round" />

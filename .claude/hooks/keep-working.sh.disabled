@@ -1,0 +1,42 @@
+#!/bin/bash
+# Claude-flow swarm coordinator keep-working hook
+INPUT=$(cat)
+COUNT_FILE=".claude/iteration-count"
+
+# Prevent infinite loops
+if [ "$(echo "$INPUT" | jq -r '.stop_hook_active')" = "true" ]; then
+    exit 0
+fi
+
+# Count pending tasks by parsing the table output
+PENDING=$(claude-flow task list 2>/dev/null | grep -c "pending" || echo "0")
+
+# Increment iteration
+count=$(cat "$COUNT_FILE" 2>/dev/null || echo 0)
+count=$((count + 1))
+echo "$count" > "$COUNT_FILE"
+
+# Hard stop at 200
+if [ "$count" -ge 200 ]; then
+    exit 0
+fi
+
+# Every 15 iterations, clear context
+if [ $((count % 15)) -eq 0 ]; then
+    jq -n --arg c "$count" --arg p "$PENDING" '{
+        "decision": "block",
+        "reason": ("Iteration " + $c + "/200. " + $p + " tasks pending. Commit work, git push, run /clear, then re-read PROMPT.md, STATE.md, and .claude-flow/agents/. Continue coordinating the swarm.")
+    }'
+# If there are pending tasks, keep working
+elif [ "$PENDING" -gt 0 ]; then
+    jq -n --arg c "$count" --arg p "$PENDING" '{
+        "decision": "block",
+        "reason": ("Iteration " + $c + "/200. " + $p + " pending tasks. Run: claude-flow task list. Spawn agents using Task tool to work on them. Start with the high-priority QA task.")
+    }'
+# No pending tasks
+else
+    jq -n --arg c "$count" '{
+        "decision": "block",
+        "reason": ("Iteration " + $c + "/200. Task queue empty. Spawn QA/architect/researcher agents to analyze the app and create tasks. Check STATE.md for priorities.")
+    }'
+fi

@@ -120,7 +120,7 @@ export function StackViewMainCard({
         <div className="relative h-full flex flex-col p-6">
           {/* Context label - subtle, top */}
           {contextLabel && (
-            <span className="text-[11px] font-medium uppercase tracking-wider text-[var(--text-muted)] mb-2">
+            <span className="text-xs font-medium text-text-muted uppercase tracking-wide mb-3">
               {contextLabel}
             </span>
           )}

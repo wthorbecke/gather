@@ -349,7 +349,7 @@ export function EmailTasksCard({ onAddTask, onIgnoreSender, isDemoUser }: EmailT
     // Show a connect Gmail button if we need reauth
     if (needsReauth) {
       return (
-        <div className="mb-6 p-4 bg-subtle rounded-lg border border-border-subtle">
+        <div className="mb-6 p-4 bg-subtle rounded-xl border border-border-subtle">
           <div className="flex items-center gap-2 text-sm text-text-soft mb-2">
             <svg width={16} height={16} viewBox="0 0 24 24" className="text-text-muted">
               <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" stroke="currentColor" strokeWidth="2" fill="none"/>
@@ -368,7 +368,7 @@ export function EmailTasksCard({ onAddTask, onIgnoreSender, isDemoUser }: EmailT
 
   if (loading) {
     return (
-      <div className="mb-6 bg-card rounded-lg border border-border-subtle overflow-hidden">
+      <div className="mb-6 bg-card rounded-xl border border-border-subtle overflow-hidden">
         {/* Skeleton header */}
         <div className="px-4 py-3 bg-subtle border-b border-border-subtle flex items-center gap-2">
           <div className="w-4 h-4 rounded bg-surface skeleton" />
@@ -392,7 +392,7 @@ export function EmailTasksCard({ onAddTask, onIgnoreSender, isDemoUser }: EmailT
   // Show retry UI when retries are exhausted
   if (error && !needsReauth && retryCountRef.current >= MAX_RETRIES) {
     return (
-      <div className="mb-6 p-4 bg-subtle rounded-lg border border-border-subtle">
+      <div className="mb-6 p-4 bg-subtle rounded-xl border border-border-subtle">
         <div className="flex items-start gap-3">
           <div className="w-8 h-8 rounded-full bg-danger-soft flex items-center justify-center flex-shrink-0">
             <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-danger">
@@ -423,7 +423,7 @@ export function EmailTasksCard({ onAddTask, onIgnoreSender, isDemoUser }: EmailT
   }
 
   return (
-    <div className="mb-6 bg-card rounded-lg border border-border-subtle overflow-hidden animate-fade-in">
+    <div className="mb-6 bg-card rounded-xl border border-border-subtle overflow-hidden animate-fade-in">
       {/* Collapsed summary bar - clickable to expand */}
       <button
         onClick={() => setIsExpanded(!isExpanded)}

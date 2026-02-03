@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, useState, useEffect, useCallback } from 'react'
 import { type GardenStage } from '@/lib/pointsCalculator'
 
 interface ProgressGardenProps {
@@ -9,6 +9,50 @@ interface ProgressGardenProps {
   progress: number // 0-100 progress to next level
   onClick?: () => void
   size?: 'sm' | 'md' | 'lg'
+}
+
+// Hook to detect reduced motion preference
+function usePrefersReducedMotion(): boolean {
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false)
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
+    setPrefersReducedMotion(mediaQuery.matches)
+
+    const handler = (event: MediaQueryListEvent) => {
+      setPrefersReducedMotion(event.matches)
+    }
+
+    mediaQuery.addEventListener('change', handler)
+    return () => mediaQuery.removeEventListener('change', handler)
+  }, [])
+
+  return prefersReducedMotion
+}
+
+// Sparkle component for occasional particle effects
+interface SparkleProps {
+  x: number
+  y: number
+  size: number
+  delay: number
+}
+
+function Sparkle({ x, y, size, delay }: SparkleProps) {
+  return (
+    <span
+      className="absolute pointer-events-none animate-garden-sparkle"
+      style={{
+        left: `${x}%`,
+        top: `${y}%`,
+        fontSize: `${size}px`,
+        animationDelay: `${delay}ms`,
+      }}
+      aria-hidden="true"
+    >
+      ✨
+    </span>
+  )
 }
 
 // Garden visuals for each stage
@@ -33,6 +77,34 @@ export function ProgressGarden({
   size = 'md',
 }: ProgressGardenProps) {
   const visual = GARDEN_VISUALS[stage]
+  const prefersReducedMotion = usePrefersReducedMotion()
+  const [sparkles, setSparkles] = useState<SparkleProps[]>([])
+  const [isHovering, setIsHovering] = useState(false)
+
+  // Generate occasional sparkles when idle (not hovering/interacting)
+  useEffect(() => {
+    if (prefersReducedMotion || isHovering) return
+
+    const interval = setInterval(() => {
+      // 25% chance to spawn a sparkle every 4 seconds
+      if (Math.random() > 0.75) {
+        const newSparkle: SparkleProps = {
+          x: 20 + Math.random() * 60, // Keep sparkles within center area
+          y: 10 + Math.random() * 50,
+          size: 8 + Math.random() * 6,
+          delay: 0,
+        }
+        setSparkles(prev => [...prev, newSparkle])
+
+        // Remove sparkle after animation completes
+        setTimeout(() => {
+          setSparkles(prev => prev.slice(1))
+        }, 1200)
+      }
+    }, 4000)
+
+    return () => clearInterval(interval)
+  }, [prefersReducedMotion, isHovering])
 
   const sizeClasses = useMemo(() => {
     switch (size) {
@@ -61,9 +133,14 @@ export function ProgressGarden({
   const circumference = 2 * Math.PI * 45 // radius = 45
   const strokeDashoffset = circumference - (progress / 100) * circumference
 
+  const handleMouseEnter = useCallback(() => setIsHovering(true), [])
+  const handleMouseLeave = useCallback(() => setIsHovering(false), [])
+
   return (
     <button
       onClick={onClick}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
       className={`
         relative ${sizeClasses.container}
         flex items-center justify-center
@@ -71,10 +148,11 @@ export function ProgressGarden({
         transition-transform duration-200
         hover:scale-105 active:scale-95
         focus:outline-none focus:ring-2 focus:ring-accent/50 focus:ring-offset-2
+        ${!prefersReducedMotion ? 'animate-garden-breathe' : ''}
       `}
       aria-label={`${visual.label} - Level ${level}, ${progress}% to next level`}
     >
-      {/* Progress ring */}
+      {/* Progress ring with subtle glow animation */}
       <svg
         className={`absolute inset-0 ${sizeClasses.ring} -rotate-90`}
         viewBox="0 0 100 100"
@@ -88,7 +166,7 @@ export function ProgressGarden({
           stroke="var(--border)"
           strokeWidth="6"
         />
-        {/* Progress ring */}
+        {/* Progress ring with glow */}
         <circle
           cx="50"
           cy="50"
@@ -99,16 +177,21 @@ export function ProgressGarden({
           strokeLinecap="round"
           strokeDasharray={circumference}
           strokeDashoffset={strokeDashoffset}
-          className="transition-all duration-500 ease-out"
+          className={`transition-all duration-500 ease-out ${!prefersReducedMotion ? 'animate-garden-ring-glow' : ''}`}
         />
       </svg>
+
+      {/* Sparkle particles */}
+      {!prefersReducedMotion && sparkles.map((sparkle, i) => (
+        <Sparkle key={`sparkle-${i}-${sparkle.x}-${sparkle.y}`} {...sparkle} />
+      ))}
 
       {/* Garden emoji with idle animation */}
       <span
         className={`
           ${sizeClasses.emoji}
-          animate-garden-sway
           select-none
+          ${!prefersReducedMotion ? 'animate-garden-sway' : ''}
         `}
         role="img"
         aria-hidden="true"
@@ -141,11 +224,12 @@ export function ProgressGardenInline({
   onClick,
 }: Omit<ProgressGardenProps, 'size'>) {
   const visual = GARDEN_VISUALS[stage]
+  const prefersReducedMotion = usePrefersReducedMotion()
 
   return (
     <button
       onClick={onClick}
-      className="
+      className={`
         flex items-center gap-2 px-3 py-1.5
         rounded-full
         bg-[var(--surface)]
@@ -154,10 +238,15 @@ export function ProgressGardenInline({
         hover:bg-[var(--subtle)] hover:scale-[1.02]
         active:scale-[0.98]
         focus:outline-none focus:ring-2 focus:ring-accent/50
-      "
+        ${!prefersReducedMotion ? 'animate-garden-breathe-subtle' : ''}
+      `}
       aria-label={`${visual.label} - Level ${level}`}
     >
-      <span className="text-lg animate-garden-sway" role="img" aria-hidden="true">
+      <span
+        className={`text-lg ${!prefersReducedMotion ? 'animate-garden-sway' : ''}`}
+        role="img"
+        aria-hidden="true"
+      >
         {visual.emoji}
       </span>
       <span className="text-xs font-medium text-[var(--text-soft)]">
@@ -166,7 +255,7 @@ export function ProgressGardenInline({
       {/* Mini progress bar */}
       <div className="w-8 h-1.5 rounded-full bg-[var(--border)] overflow-hidden">
         <div
-          className="h-full bg-[var(--success)] rounded-full transition-all duration-300"
+          className={`h-full bg-[var(--success)] rounded-full transition-all duration-300 ${!prefersReducedMotion ? 'animate-garden-progress-shimmer' : ''}`}
           style={{ width: `${progress}%` }}
         />
       </div>

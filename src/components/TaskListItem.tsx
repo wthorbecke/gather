@@ -186,8 +186,8 @@ export const TaskListItem = memo(function TaskListItem({ task, onClick, onDelete
       onClick={onClick}
       className={`
         group
-        bg-card rounded-md
-        border border-border
+        bg-card rounded-xl
+        border border-border-subtle
         cursor-pointer
         hover:bg-card-hover hover:shadow-sm hover:-translate-y-[1px]
         active:scale-[0.995] active:shadow-none active:translate-y-0
