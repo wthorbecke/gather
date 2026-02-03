@@ -1,6 +1,6 @@
 # Gather Product State
 
-**Last Updated:** Mon Feb 2 2026, 21:05 PST
+**Last Updated:** Mon Feb 2 2026, 22:15 PST
 **Session:** 11
 
 ---
@@ -165,7 +165,7 @@ All critical issues fixed:
 - Recurring reminders - Weekly/monthly task recurrence
 - Task sharing/delegation - Share tasks with others
 - Mobile PWA enhancements - Offline support, better notifications
-- Keyboard shortcut overlay - Help modal showing all shortcuts
+- ~~Keyboard shortcut overlay~~ - Done (Session 11) - Help modal showing all shortcuts
 
 ---
 
@@ -221,6 +221,11 @@ All critical issues fixed:
   - Shows "Due Tomorrow" (or other date) badge in input with calendar icon
   - Date text automatically removed from task title
   - dueDate passed through metadata to task creation
+- **Added keyboard shortcuts help modal** - Discoverable shortcuts for power users
+  - Press '?' anywhere in app (outside input fields) to show modal
+  - Organized sections: Global, Task Input, Focus Mode, Date shortcuts
+  - Shows all keyboard shortcuts with visual key caps
+  - Reduces learning curve by making shortcuts discoverable
 - All 189 tests passing, build succeeds
 
 **Commits:**
@@ -232,6 +237,7 @@ All critical issues fixed:
 - `7acc0af` Add ambient sounds to Focus Mode
 - `64eea9c` Add time blocking feature - schedule tasks to specific times
 - `240d85f` Add natural language date parsing for task input
+- `a8d7551` Add keyboard shortcuts help modal (press ? to open)
 
 **Technical notes:**
 - Quick actions feature (from Future Ideas) partially addressed - snooze was the highest-impact quick action
@@ -256,6 +262,10 @@ All critical issues fixed:
 - Date badge shows in input area with calendar icon when date pattern detected
 - formatParsedDate() provides friendly date display (Today, Tomorrow, Friday, Mar 15)
 - Dates in past automatically roll to next year (e.g., "March 15" after March 15 = next year)
+- KeyboardShortcutsModal is a standalone component with ShortcutSection/ShortcutItem types
+- Global '?' key listener in GatherApp.tsx checks for input focus to avoid conflicts
+- Modal uses existing animation patterns (animate-rise, animate-backdrop-in)
+- Supports both '?' and Shift+/ (same key on most keyboards)
 
 ---
 
