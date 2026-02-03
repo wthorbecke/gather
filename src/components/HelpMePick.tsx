@@ -4,6 +4,7 @@ import { useState, useCallback, useEffect, useMemo } from 'react'
 import { Task } from '@/hooks/useUserData'
 import { getAlternativeTasks, getTaskPickReason } from '@/lib/taskPicker'
 import { EnergyBadge } from './EnergyBadge'
+import { CloseButton } from './CloseButton'
 import { EnergyLevel } from '@/lib/constants'
 import { splitStepText } from '@/lib/stepText'
 import { NoTasksEmptyState } from './NoTasksEmptyState'
@@ -165,15 +166,7 @@ export function HelpMePick({
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-lg font-medium text-text">help me pick</h2>
-          <button
-            onClick={onCancel}
-            className="min-w-[44px] min-h-[44px] -mr-2 flex items-center justify-center rounded-lg text-text-muted hover:text-text hover:bg-surface transition-colors"
-            aria-label="Close"
-          >
-            <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-              <path d="M18 6L6 18M6 6l12 12" />
-            </svg>
-          </button>
+          <CloseButton onClick={onCancel} className="-mr-2" />
         </div>
 
         {/* Shuffling state */}

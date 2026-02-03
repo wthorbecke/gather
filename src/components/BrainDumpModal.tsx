@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { Modal } from './Modal'
+import { CloseButton } from './CloseButton'
 import { authFetch } from '@/lib/supabase'
 
 interface ExtractedTask {
@@ -156,15 +157,7 @@ export function BrainDumpModal({ isOpen, onClose, onAddTasks }: BrainDumpModalPr
               {viewState === 'results' && `Found ${extractedTasks.length} tasks`}
             </p>
           </div>
-          <button
-            onClick={onClose}
-            className="min-w-[44px] min-h-[44px] -mr-2 flex items-center justify-center rounded-lg text-text-muted hover:text-text hover:bg-surface transition-colors"
-            aria-label="Close"
-          >
-            <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-              <path d="M18 6L6 18M6 6l12 12" />
-            </svg>
-          </button>
+          <CloseButton onClick={onClose} className="-mr-2" />
         </div>
 
         {/* Content */}

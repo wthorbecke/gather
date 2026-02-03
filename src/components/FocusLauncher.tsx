@@ -4,6 +4,7 @@ import { useState, useCallback, useMemo } from 'react'
 import { Task, Step } from '@/hooks/useUserData'
 import { pickBestTask, getAlternativeTasks, getTaskPickReason } from '@/lib/taskPicker'
 import { EnergyBadge } from './EnergyBadge'
+import { CloseButton } from './CloseButton'
 import { EnergyLevel } from '@/lib/constants'
 import { splitStepText } from '@/lib/stepText'
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
@@ -223,14 +224,7 @@ export function FocusLauncher({
         <div className="fixed inset-0 z-50 bg-canvas/95 backdrop-blur-sm flex flex-col animate-fade-in">
           <div className="p-4 flex items-center justify-between border-b border-border">
             <h2 className="text-lg font-medium text-text">Pick a different task</h2>
-            <button
-              onClick={() => setShowAlternatives(false)}
-              className="min-w-[44px] min-h-[44px] flex items-center justify-center text-text-muted hover:text-text transition-colors"
-            >
-              <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                <path d="M18 6L6 18M6 6l12 12" />
-              </svg>
-            </button>
+            <CloseButton onClick={() => setShowAlternatives(false)} />
           </div>
 
           <div className="flex-1 overflow-auto p-4 max-w-lg mx-auto w-full">
