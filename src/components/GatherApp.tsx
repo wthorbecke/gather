@@ -57,6 +57,10 @@ const HelpMePick = dynamic(() => import('./HelpMePick').then(mod => ({ default: 
   ssr: false,
   loading: () => null,
 })
+const BrainDumpModal = dynamic(() => import('./BrainDumpModal').then(mod => ({ default: mod.BrainDumpModal })), {
+  ssr: false,
+  loading: () => null,
+})
 
 interface GatherAppProps {
   user: User
@@ -86,6 +90,9 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
 
   // Help me pick state
   const [showHelpMePick, setShowHelpMePick] = useState(false)
+
+  // Brain dump modal state
+  const [showBrainDump, setShowBrainDump] = useState(false)
 
   // View state
   const {
@@ -145,11 +152,23 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
         e.preventDefault()
         setShowHelpMePick(false)
       }
+
+      // 'd' to open brain dump (when not in a modal or task view)
+      if (e.key === 'd' && !showKeyboardShortcuts && !showFocusLauncher && !showHelpMePick && !showBrainDump && !currentTaskId) {
+        e.preventDefault()
+        setShowBrainDump(true)
+      }
+
+      // Escape to close brain dump
+      if (e.key === 'Escape' && showBrainDump) {
+        e.preventDefault()
+        setShowBrainDump(false)
+      }
     }
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [showKeyboardShortcuts, showFocusLauncher, showHelpMePick, currentTaskId])
+  }, [showKeyboardShortcuts, showFocusLauncher, showHelpMePick, showBrainDump, currentTaskId])
 
   // Task navigation
   const {
@@ -669,6 +688,33 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
     setCurrentTaskId(task.id)
   }, [setCurrentTaskId])
 
+  // Handle tasks from brain dump
+  const handleBrainDumpTasks = useCallback(async (dumpTasks: Array<{ title: string; firstStep?: string }>) => {
+    for (const dumpTask of dumpTasks) {
+      const newTask = await addTask(
+        dumpTask.title,
+        'soon',
+        undefined, // description
+        undefined, // badge
+        undefined, // clarifyingAnswers
+        undefined, // taskCategory
+        null,      // dueDate
+        'task',    // taskType
+        null       // scheduledAt
+      )
+
+      // If there's a first step, add it
+      if (newTask && dumpTask.firstStep) {
+        const step = {
+          id: `step-${Date.now()}`,
+          text: dumpTask.firstStep,
+          done: false,
+        }
+        await updateTask(newTask.id, { steps: [step] } as Partial<Task>)
+      }
+    }
+  }, [addTask, updateTask])
+
   if (loading) {
     // Skeleton UI - matches actual layout for spatial continuity
     return (
@@ -798,6 +844,7 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
                 canGoBack={Boolean(contextGathering && contextGathering.currentIndex > 0)}
                 isDemoUser={isDemoUser}
                 onOpenTemplates={() => setShowTemplateModal(true)}
+                onOpenBrainDump={() => setShowBrainDump(true)}
               />
             </ErrorBoundary>
           )}
@@ -914,6 +961,13 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
           onCancel={() => setShowHelpMePick(false)}
         />
       )}
+
+      {/* Brain Dump Modal */}
+      <BrainDumpModal
+        isOpen={showBrainDump}
+        onClose={() => setShowBrainDump(false)}
+        onAddTasks={handleBrainDumpTasks}
+      />
 
       {/* Chat FAB - floating action button */}
       <button

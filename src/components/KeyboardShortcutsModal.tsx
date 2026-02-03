@@ -20,6 +20,7 @@ const shortcutSections: ShortcutSection[] = [
     title: 'Global',
     shortcuts: [
       { keys: ['⌘', 'K'], description: 'Focus on input' },
+      { keys: ['D'], description: 'Brain dump - capture everything' },
       { keys: ['F'], description: 'Focus launcher - pick one task' },
       { keys: ['H'], description: 'Help me pick - random task' },
       { keys: ['?'], description: 'Show keyboard shortcuts' },
@@ -35,6 +36,7 @@ const shortcutSections: ShortcutSection[] = [
       { keys: ['/h'], description: 'Create habit' },
       { keys: ['/e'], description: 'Create event' },
       { keys: ['/t'], description: 'Browse templates' },
+      { keys: ['/dump'], description: 'Brain dump mode' },
     ],
   },
   {

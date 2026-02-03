@@ -48,6 +48,7 @@ interface UnifiedInputProps {
   onSelectResult?: (result: SearchResult) => void
   onRemoveTag?: (index: number) => void
   onOpenTemplates?: () => void // Open template picker (/t command)
+  onOpenBrainDump?: () => void // Open brain dump modal (/dump command)
   placeholder?: string
   allowDropdown?: boolean
   autoFocus?: boolean
@@ -67,6 +68,7 @@ export function UnifiedInput({
   onSelectResult,
   onRemoveTag,
   onOpenTemplates,
+  onOpenBrainDump,
   placeholder = content.placeholders.homeInput,
   allowDropdown = true,
   autoFocus = false,
@@ -231,6 +233,13 @@ export function UnifiedInput({
     if (onOpenTemplates && (submitValue === '/t' || submitValue.toLowerCase().startsWith('/t '))) {
       setValue('')
       onOpenTemplates()
+      return
+    }
+
+    // Handle /dump command to open brain dump modal
+    if (onOpenBrainDump && (submitValue === '/dump' || submitValue.toLowerCase().startsWith('/dump '))) {
+      setValue('')
+      onOpenBrainDump()
       return
     }
 
@@ -419,6 +428,14 @@ export function UnifiedInput({
         setValue('')
         setFocused(false)
         onOpenTemplates()
+        return
+      }
+
+      // Handle /dump command to open brain dump modal
+      if (onOpenBrainDump && (submitValue === '/dump' || submitValue.toLowerCase().startsWith('/dump '))) {
+        setValue('')
+        setFocused(false)
+        onOpenBrainDump()
         return
       }
 

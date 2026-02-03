@@ -15,6 +15,7 @@ import { AICard, AICardState } from './AICard'
 import { Checkbox } from './Checkbox'
 import { splitStepText } from '@/lib/stepText'
 import { getNextStep } from '@/hooks/useTaskSearch'
+import { HourTimeline } from './HourTimeline'
 
 interface DayViewProps {
   tasks: Task[]
@@ -207,6 +208,7 @@ export function DayView({
   const [showAllUnscheduled, setShowAllUnscheduled] = useState(false)
   const [showHabits, setShowHabits] = useState(true)
   const [showUnscheduled, setShowUnscheduled] = useState(true)
+  const [showTimeline, setShowTimeline] = useState(true)
 
   const isQuestionFlow = Boolean(aiCard?.question)
   const getDerivedStepTitle = (text: string) => splitStepText(text).title
@@ -348,6 +350,38 @@ export function DayView({
             </svg>
           </button>
         </div>
+
+        {/* Timeline toggle */}
+        <div className="flex items-center justify-between mb-4">
+          <button
+            onClick={() => setShowTimeline(!showTimeline)}
+            className={`
+              flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium
+              transition-all duration-150
+              ${showTimeline
+                ? 'bg-accent/10 text-accent border border-accent/20'
+                : 'bg-surface text-text-muted border border-transparent hover:text-text hover:bg-subtle'
+              }
+            `}
+          >
+            <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="3" y="4" width="18" height="18" rx="2" />
+              <line x1="3" y1="10" x2="21" y2="10" />
+              <line x1="9" y1="4" x2="9" y2="10" />
+              <line x1="15" y1="4" x2="15" y2="10" />
+            </svg>
+            Timeline
+          </button>
+        </div>
+
+        {/* Hour Timeline */}
+        {showTimeline && (
+          <HourTimeline
+            tasks={tasks}
+            selectedDate={selectedDate}
+            onGoToTask={onGoToTask}
+          />
+        )}
 
         {/* AI Card */}
         {aiCard && (
