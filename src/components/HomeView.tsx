@@ -13,6 +13,7 @@ import { getDeadlineUrgency } from './DeadlineBadge'
 import { CalendarWidget } from './CalendarSidebar'
 import { EmailTasksCard } from './EmailTasksCard'
 import { StatsCard } from './StatsCard'
+import { GamificationCard } from './GamificationCard'
 import { content, OTHER_SPECIFY_OPTION } from '@/config/content'
 import { TaskInsight } from './TaskInsight'
 import { EnergySuggestions } from './EnergySuggestions'
@@ -66,6 +67,7 @@ interface HomeViewProps {
   isDemoUser?: boolean
   onOpenTemplates?: () => void
   onOpenBrainDump?: () => void
+  userId?: string | null
 }
 
 export function HomeView({
@@ -91,6 +93,7 @@ export function HomeView({
   isDemoUser = false,
   onOpenTemplates,
   onOpenBrainDump,
+  userId = null,
 }: HomeViewProps) {
   // State for task list visibility
   const [showAllTasks, setShowAllTasks] = useState(false)
@@ -267,6 +270,9 @@ export function HomeView({
 
         {/* Weekly Stats - only show when not in AI conversation */}
         {!aiCard && <StatsCard tasks={tasks} moodEntries={moodEntries} />}
+
+        {/* Gamification - Garden and points */}
+        {!aiCard && <GamificationCard userId={userId} isDemo={isDemoUser} />}
 
         {/* FOCUS: The ONE thing to do now - prominent, impossible to miss */}
         {nextStep && (

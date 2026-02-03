@@ -810,6 +810,7 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
                 isDemoUser={isDemoUser}
                 onOpenTemplates={() => setShowTemplateModal(true)}
                 onOpenBrainDump={() => setShowBrainDump(true)}
+                userId={isDemoUser ? null : user.id}
               />
             </ErrorBoundary>
           )}

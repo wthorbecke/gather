@@ -55,7 +55,7 @@ export interface UseRewardsReturn extends RewardsState {
     description?: string
   ) => Promise<LevelUpEvent | null>
   unlockReward: (rewardId: string) => Promise<boolean>
-  setActiveTheme: (themeId: string) => Promise<void>
+  setActiveTheme: (themeId: string | null) => Promise<void>
   setActiveAccent: (accentId: string | null) => Promise<void>
   pauseMomentum: (untilDate: Date | null) => Promise<void>
   // Computed
@@ -349,19 +349,20 @@ export function useRewards(userId: string | null, isDemo = false): UseRewardsRet
 
   // Set active theme
   const setActiveTheme = useCallback(
-    async (themeId: string) => {
-      if (!state.unlockedRewards.includes(themeId) && themeId !== 'default') return
+    async (themeId: string | null) => {
+      const theme = themeId || 'default'
+      if (!state.unlockedRewards.includes(theme) && theme !== 'default') return
 
-      setState(prev => ({ ...prev, activeTheme: themeId }))
+      setState(prev => ({ ...prev, activeTheme: theme }))
 
       if (isDemo) {
-        saveDemoRewards({ activeTheme: themeId })
+        saveDemoRewards({ activeTheme: theme })
       } else if (userId) {
         try {
-                    await supabase
+          await supabase
             .from('user_rewards')
             .update({
-              active_theme: themeId,
+              active_theme: theme,
               updated_at: new Date().toISOString(),
             })
             .eq('user_id', userId)
