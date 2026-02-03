@@ -345,6 +345,21 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
     await updateTask(taskId, { steps: updatedSteps })
   }, [tasks, updateTask])
 
+  // Handle adding a new step
+  const handleAddStep = useCallback(async (taskId: string, text: string) => {
+    const task = tasks.find((t) => t.id === taskId)
+    if (!task) return
+
+    const newStep: Step = {
+      id: `step-${Date.now()}`,
+      text,
+      done: false,
+    }
+
+    const updatedSteps = [...(task.steps || []), newStep]
+    await updateTask(taskId, { steps: updatedSteps } as Partial<Task>)
+  }, [tasks, updateTask])
+
   // Delete task with undo support
   const handleDeleteTask = useCallback(async (taskId: string) => {
     const task = tasks.find(t => t.id === taskId)
@@ -716,6 +731,7 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
             onToggleStep={(stepId) => handleToggleStep(currentTask.id, stepId)}
             onEditStep={(stepId, newText) => handleEditStep(currentTask.id, stepId, newText)}
             onDeleteStep={(stepId) => handleDeleteStep(currentTask.id, stepId)}
+            onAddStep={(text) => handleAddStep(currentTask.id, text)}
             onSetStepContext={setStepContext}
             onRemoveTag={removeTag}
             onDeleteTask={() => handleDeleteTask(currentTask.id)}

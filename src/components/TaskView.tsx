@@ -46,6 +46,7 @@ interface TaskViewProps {
   onToggleStep: (stepId: string | number) => void
   onEditStep?: (stepId: string | number, newText: string) => void
   onDeleteStep?: (stepId: string | number) => void
+  onAddStep?: (text: string) => void
   onSetStepContext: (step: Step | null) => void
   onRemoveTag: (index: number) => void
   onDeleteTask: () => void
@@ -72,6 +73,7 @@ export function TaskView({
   onToggleStep,
   onEditStep,
   onDeleteStep,
+  onAddStep,
   onSetStepContext,
   onRemoveTag,
   onDeleteTask,
@@ -97,6 +99,8 @@ export function TaskView({
   const [calendarAdded, setCalendarAdded] = useState(false)
   const [removingFromCalendar, setRemovingFromCalendar] = useState(false)
   const [calendarRemoved, setCalendarRemoved] = useState(false)
+  const [showAddStep, setShowAddStep] = useState(false)
+  const [newStepText, setNewStepText] = useState('')
 
   // Handle step expansion
   const handleStepExpand = (step: Step) => {
@@ -555,6 +559,68 @@ export function TaskView({
               </div>
             )
           })}
+
+          {/* Add step button/input */}
+          {onAddStep && (
+            <div className="mt-2">
+              {showAddStep ? (
+                <div className="bg-card border border-border rounded-md p-3 animate-rise">
+                  <input
+                    type="text"
+                    value={newStepText}
+                    onChange={(e) => setNewStepText(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && newStepText.trim()) {
+                        onAddStep(newStepText.trim())
+                        setNewStepText('')
+                        setShowAddStep(false)
+                      } else if (e.key === 'Escape') {
+                        setNewStepText('')
+                        setShowAddStep(false)
+                      }
+                    }}
+                    placeholder="What needs to be done?"
+                    className="w-full text-sm bg-transparent border-none outline-none text-text placeholder:text-text-muted"
+                    autoFocus
+                  />
+                  <div className="flex gap-2 mt-2">
+                    <button
+                      onClick={() => {
+                        if (newStepText.trim()) {
+                          onAddStep(newStepText.trim())
+                          setNewStepText('')
+                          setShowAddStep(false)
+                        }
+                      }}
+                      disabled={!newStepText.trim()}
+                      className="px-3 py-1.5 bg-accent text-white rounded-md text-sm font-medium hover:bg-accent/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      Add
+                    </button>
+                    <button
+                      onClick={() => {
+                        setNewStepText('')
+                        setShowAddStep(false)
+                      }}
+                      className="px-3 py-1.5 bg-subtle text-text-soft rounded-md text-sm hover:bg-card-hover transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setShowAddStep(true)}
+                  className="w-full py-2.5 px-3 border border-dashed border-border rounded-md text-sm text-text-muted hover:text-text hover:border-text-muted transition-colors flex items-center justify-center gap-2"
+                >
+                  <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M12 5v14M5 12h14" strokeLinecap="round" />
+                  </svg>
+                  Add step
+                </button>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Empty state */}
