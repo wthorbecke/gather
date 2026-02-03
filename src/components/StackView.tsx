@@ -7,8 +7,8 @@ import { useDarkMode } from '@/hooks/useDarkMode'
 import { splitStepText } from '@/lib/stepText'
 import { getDeadlineUrgency } from './DeadlineBadge'
 import { AICard, AICardState } from './AICard'
-import { safeGetJSON, safeSetJSON } from '@/lib/storage'
 import { DEMO_EMAILS, getDemoCalendarEvents } from '@/lib/demo-data'
+import { getDismissCounts, incrementDismissCount, clearDismissCount } from '@/lib/dismissCounts'
 
 // Card types
 type EmailCard = { type: 'email'; id: string; subject: string; from: string; snippet: string }
@@ -61,27 +61,6 @@ function getEmptyStateMessage(celebrating: boolean): { symbol: string; title: st
   if (hour >= 12 && hour < 17) return { symbol: '○', title: 'open', subtitle: 'add something whenever' }
   if (hour >= 17 && hour < 21) return { symbol: '○', title: 'quiet', subtitle: 'nothing pressing' }
   return { symbol: '○', title: 'still', subtitle: 'here when you need' }
-}
-
-// Persist dismiss counts using safe storage utilities
-const DISMISS_COUNTS_KEY = 'gather-dismiss-counts'
-
-function getDismissCounts(): Record<string, number> {
-  if (typeof window === 'undefined') return {}
-  return safeGetJSON<Record<string, number>>(DISMISS_COUNTS_KEY, {})
-}
-
-function incrementDismissCount(id: string): number {
-  const counts = getDismissCounts()
-  counts[id] = (counts[id] || 0) + 1
-  safeSetJSON(DISMISS_COUNTS_KEY, counts)
-  return counts[id]
-}
-
-function clearDismissCount(id: string): void {
-  const counts = getDismissCounts()
-  delete counts[id]
-  safeSetJSON(DISMISS_COUNTS_KEY, counts)
 }
 
 export function StackView({
