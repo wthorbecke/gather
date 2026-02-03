@@ -164,6 +164,7 @@ All critical issues fixed:
 - ~~Task templates~~ - Done (Session 11) - Pre-built step breakdowns for common tasks
 - ~~Recurring reminders~~ - Done (Session 11) - Weekly/monthly task recurrence
 - ~~Task duplication~~ - Done (Session 11) - Copy tasks with steps via "Duplicate" menu option
+- ~~Clear completed tasks~~ - Done (Session 11) - Batch delete all finished tasks
 - Task sharing/delegation - Share tasks with others
 - Mobile PWA enhancements - Offline support, better notifications
 - ~~Keyboard shortcut overlay~~ - Done (Session 11) - Help modal showing all shortcuts
@@ -253,6 +254,10 @@ All critical issues fixed:
 - **Fixed Vercel build failures** - ESLint warnings now properly handled
   - AuthProvider useEffect deps array (intentional empty deps for mount-only effect)
   - TaskTemplateModal unescaped quotes
+- **Added "Clear all" for completed tasks** - Batch delete finished work
+  - "Clear all" button appears in expanded completed tasks section
+  - Deletes all tasks that have 100% step completion
+  - Reduces clutter without manually deleting each task
 - All 173 tests passing, build succeeds
 
 **Commits:**
@@ -269,6 +274,7 @@ All critical issues fixed:
 - `5862e98` Add recurring reminders feature
 - `fcad9ab` Add visual recurrence icon to task list items
 - `708f39d` Add task duplication and fix build issues
+- `838ff55` Add "Clear all" button for completed tasks
 
 **Technical notes:**
 - Quick actions feature (from Future Ideas) partially addressed - snooze was the highest-impact quick action
@@ -313,6 +319,8 @@ All critical issues fixed:
 - Task duplication copies all task properties except id (new one generated)
 - Null values converted to undefined to match addTask signature
 - handleDuplicateTask in GatherApp creates task then updates with copied steps and context
+- Clear completed uses handleClearCompleted which finds tasks with all steps done
+- Clear all button styled with hover:bg-danger-soft for clear affordance
 
 ---
 
