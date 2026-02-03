@@ -163,6 +163,7 @@ All critical issues fixed:
 **New Future Ideas:**
 - ~~Task templates~~ - Done (Session 11) - Pre-built step breakdowns for common tasks
 - ~~Recurring reminders~~ - Done (Session 11) - Weekly/monthly task recurrence
+- ~~Task duplication~~ - Done (Session 11) - Copy tasks with steps via "Duplicate" menu option
 - Task sharing/delegation - Share tasks with others
 - Mobile PWA enhancements - Offline support, better notifications
 - ~~Keyboard shortcut overlay~~ - Done (Session 11) - Help modal showing all shortcuts
@@ -244,7 +245,15 @@ All critical issues fixed:
   - Small muted icon appears next to task titles with recurrence set
   - Helps users identify recurring tasks at a glance without opening task detail
   - Excluded for habits (which already have a distinct type icon)
-- All 189 tests passing, build succeeds
+- **Added task duplication** - Copy tasks with all their steps via "Duplicate" menu option
+  - "Duplicate" button in task view menu (before Delete)
+  - Copies title, description, context, steps, due date, type, and scheduling
+  - Step IDs regenerated and completion reset for fresh start
+  - Navigates to the new duplicated task after creation
+- **Fixed Vercel build failures** - ESLint warnings now properly handled
+  - AuthProvider useEffect deps array (intentional empty deps for mount-only effect)
+  - TaskTemplateModal unescaped quotes
+- All 173 tests passing, build succeeds
 
 **Commits:**
 - `d83cc42` Add snooze option to task list view menu
@@ -259,6 +268,7 @@ All critical issues fixed:
 - `dd3a9b1` Add task templates feature (/t command)
 - `5862e98` Add recurring reminders feature
 - `fcad9ab` Add visual recurrence icon to task list items
+- `708f39d` Add task duplication and fix build issues
 
 **Technical notes:**
 - Quick actions feature (from Future Ideas) partially addressed - snooze was the highest-impact quick action
@@ -300,6 +310,9 @@ All critical issues fixed:
 - handleSetRecurrence in GatherApp updates task recurrence via updateTask
 - Visual recurrence icon (repeat arrows) shows next to task titles in list view
 - RecurrenceIcon component shows for tasks/reminders with recurrence (habits excluded - already have type icon)
+- Task duplication copies all task properties except id (new one generated)
+- Null values converted to undefined to match addTask signature
+- handleDuplicateTask in GatherApp creates task then updates with copied steps and context
 
 ---
 
