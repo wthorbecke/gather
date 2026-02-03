@@ -1,7 +1,7 @@
 # Gather Product State
 
-**Last Updated:** Mon Feb 2 2026, 22:57 PST
-**Session:** 12
+**Last Updated:** Mon Feb 2 2026, 23:15 PST
+**Session:** 13
 
 ---
 
@@ -180,6 +180,33 @@ All critical issues fixed:
 ---
 
 ## Session Log
+
+### Session 13 - Feb 2, 2026
+**Accomplished:**
+- **Added energy-based task suggestions** - Shows low-energy alternatives when main task feels overwhelming
+  - EnergySuggestions component appears below "Do this now" section
+  - Time-based messaging: "Late night? Try something easy", "Winding down?", "Need a quick win?"
+  - Green-tinted chips show up to 3 low-energy task alternatives
+  - Only appears when there are low-energy tasks with incomplete steps
+  - Clicking a chip navigates directly to that task
+- All 173 tests passing, build succeeds
+- Verified feature visually with fresh demo data
+
+**Commits:**
+- `538fa0e` Add energy-based task suggestions
+
+**Technical notes:**
+- EnergySuggestions uses useMemo to filter tasks by EnergyLevel.LOW
+- Time-based messaging uses getTimeBasedMessage() with hour-based logic
+- Late night (9pm-6am): "Late night? Try something easy"
+- Evening (5pm-9pm): "Winding down? Try these"
+- Afternoon (2pm-5pm): "Need a quick win?"
+- Default: "Not feeling it? Try these instead"
+- Chips use success color theme to match low-energy badge colors
+- Component excludes currentTaskId to avoid suggesting the "Do this now" task
+- Old localStorage demo data needed clearing to see energy values
+
+---
 
 ### Session 12 - Feb 2, 2026
 **Accomplished:**
