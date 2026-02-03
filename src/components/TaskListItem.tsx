@@ -222,7 +222,22 @@ export const TaskListItem = memo(function TaskListItem({ task, onClick, onDelete
           {showMenu && (
             <>
               <div className="fixed inset-0 z-10" onClick={(e) => { e.stopPropagation(); setShowMenu(false) }} />
-              <div className="absolute right-0 top-full mt-1 z-20 bg-card border border-border rounded-md shadow-md overflow-hidden min-w-[120px] animate-rise">
+              <div className="absolute right-0 top-full mt-1 z-20 bg-card border border-border rounded-md shadow-md overflow-hidden min-w-[140px] animate-rise">
+                {isHabit && onHabitComplete && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setShowMenu(false)
+                      onHabitComplete()
+                    }}
+                    className="w-full px-3 py-3 min-h-[44px] text-left text-sm text-success hover:bg-success/10 flex items-center gap-2 transition-colors duration-150 ease-out"
+                  >
+                    <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-success">
+                      <path d="M20 6L9 17l-5-5" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                    Done for today
+                  </button>
+                )}
                 {onDelete && (
                   <button
                     onClick={(e) => {

@@ -51,6 +51,7 @@ interface HomeViewProps {
   onDismissAI: () => void
   onGoToTask: (taskId: string) => void
   onToggleStep: (taskId: string, stepId: string | number) => void
+  onToggleHabit?: (taskId: string) => void
   onSuggestionClick: (suggestion: string) => void
   onDeleteTask?: (taskId: string) => void
   onAICardAction?: (action: { type: string; stepId?: string | number; title?: string; context?: string }) => void
@@ -69,6 +70,7 @@ export function HomeView({
   onDismissAI,
   onGoToTask,
   onToggleStep,
+  onToggleHabit,
   onSuggestionClick,
   onDeleteTask,
   onAICardAction,
@@ -437,6 +439,7 @@ export function HomeView({
                       task={task}
                       onClick={() => onGoToTask(task.id)}
                       onDelete={onDeleteTask ? () => onDeleteTask(task.id) : undefined}
+                      onHabitComplete={onToggleHabit ? () => onToggleHabit(task.id) : undefined}
                     />
                   </div>
                 ))}
@@ -506,6 +509,7 @@ export function HomeView({
                           task={task}
                           onClick={() => onGoToTask(task.id)}
                           onDelete={onDeleteTask ? () => onDeleteTask(task.id) : undefined}
+                          onHabitComplete={onToggleHabit ? () => onToggleHabit(task.id) : undefined}
                         />
                       </div>
                     ))}

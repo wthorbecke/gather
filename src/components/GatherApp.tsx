@@ -457,6 +457,7 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
                 onDismissAI={dismissAI}
                 onGoToTask={goToTask}
                 onToggleStep={handleToggleStep}
+                onToggleHabit={handleToggleHabit}
                 onSuggestionClick={handleSuggestionClick}
                 onDeleteTask={handleDeleteTask}
                 onAICardAction={handleAICardAction}
