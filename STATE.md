@@ -1,6 +1,6 @@
 # Gather Product State
 
-**Last Updated:** Mon Feb 2 2026, 20:45 PST
+**Last Updated:** Mon Feb 2 2026, 20:55 PST
 **Session:** 11
 
 ---
@@ -153,7 +153,7 @@ All critical issues fixed:
 10. ~~**Habit completion calendar**~~ - Done (Session 10) - 4-week visual calendar in habit view
 
 **Future Ideas:**
-- Time blocking - Schedule tasks into calendar time blocks
+- ~~Time blocking~~ - Done (Session 11) - Schedule tasks into calendar time blocks
 - ~~Statistics/insights~~ - Done (Session 11) - StatsCard shows progress
 - ~~Focus mode enhancements~~ - Done (Session 11) - Pomodoro timer and ambient sounds
 - ~~Quick reschedule~~ - Done (Session 11) - "Later today" and "Tomorrow morning" quick options
@@ -199,7 +199,14 @@ All critical issues fixed:
   - Uses Web Audio API (no external audio files needed)
   - Toggle with 'S' keyboard shortcut or click icon
   - Helps ADHD users focus with background noise
-- All 185 tests passing, build succeeds
+- **Added time blocking feature** - Schedule tasks to specific times
+  - New SchedulePicker component with quick options (Tomorrow 9 AM, 2 PM, Next Monday)
+  - Custom datetime picker for precise scheduling
+  - "Schedule time" / "Reschedule" menu option in task view
+  - Scheduled tasks appear in "Coming up" calendar widget
+  - Tasks show with checkbox icon and "· Task" label to differentiate from events
+  - Clicking a scheduled task in calendar navigates to task view
+- All 173 tests passing, build succeeds
 
 **Commits:**
 - `d83cc42` Add snooze option to task list view menu
@@ -208,6 +215,7 @@ All critical issues fixed:
 - `9cf6a98` Add quick snooze options (Later today, Tomorrow morning)
 - `738a150` Add 7-day activity visualization to StatsCard
 - `7acc0af` Add ambient sounds to Focus Mode
+- `64eea9c` Add time blocking feature - schedule tasks to specific times
 
 **Technical notes:**
 - Quick actions feature (from Future Ideas) partially addressed - snooze was the highest-impact quick action
@@ -222,6 +230,11 @@ All critical issues fixed:
 - Activity visualization shows only when there's at least one active day (non-intrusive)
 - Ambient sounds use Web Audio API with generated noise (white/brown/rain) - no external files
 - useAmbientSound hook manages AudioContext lifecycle and cleanup on unmount
+- Time blocking uses existing `scheduled_at` field on Task interface
+- SchedulePicker component is a modal similar to SnoozeMenu pattern
+- CalendarSidebar and CalendarWidget both updated to merge calendar events with scheduled tasks
+- ScheduledItem interface unifies event and task display
+- Tasks filtered to show only incomplete tasks scheduled within next 7 days
 
 ---
 
