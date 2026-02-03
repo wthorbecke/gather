@@ -20,6 +20,144 @@ function useDebouncedValue<T>(value: T, delay: number): T {
   return debouncedValue
 }
 
+// Type declarations for Web Speech API
+interface SpeechRecognitionEvent {
+  results: SpeechRecognitionResultList
+  resultIndex: number
+}
+
+interface SpeechRecognitionResultList {
+  length: number
+  item(index: number): SpeechRecognitionResult
+  [index: number]: SpeechRecognitionResult
+}
+
+interface SpeechRecognitionResult {
+  isFinal: boolean
+  length: number
+  item(index: number): SpeechRecognitionAlternative
+  [index: number]: SpeechRecognitionAlternative
+}
+
+interface SpeechRecognitionAlternative {
+  transcript: string
+  confidence: number
+}
+
+interface SpeechRecognitionErrorEvent {
+  error: string
+  message: string
+}
+
+interface SpeechRecognition extends EventTarget {
+  continuous: boolean
+  interimResults: boolean
+  lang: string
+  start(): void
+  stop(): void
+  abort(): void
+  onresult: ((event: SpeechRecognitionEvent) => void) | null
+  onerror: ((event: SpeechRecognitionErrorEvent) => void) | null
+  onend: (() => void) | null
+  onstart: (() => void) | null
+}
+
+interface SpeechRecognitionConstructor {
+  new (): SpeechRecognition
+}
+
+declare global {
+  interface Window {
+    SpeechRecognition?: SpeechRecognitionConstructor
+    webkitSpeechRecognition?: SpeechRecognitionConstructor
+  }
+}
+
+// Custom hook for speech recognition
+function useSpeechRecognition(onTranscript: (text: string, isFinal: boolean) => void) {
+  const [isListening, setIsListening] = useState(false)
+  const [isSupported, setIsSupported] = useState(false)
+  const recognitionRef = useRef<SpeechRecognition | null>(null)
+
+  useEffect(() => {
+    // Check for browser support
+    const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition
+    setIsSupported(!!SpeechRecognitionAPI)
+
+    if (SpeechRecognitionAPI) {
+      const recognition = new SpeechRecognitionAPI()
+      recognition.continuous = false
+      recognition.interimResults = true
+      recognition.lang = 'en-US'
+
+      recognition.onresult = (event: SpeechRecognitionEvent) => {
+        let finalTranscript = ''
+        let interimTranscript = ''
+
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const result = event.results[i]
+          if (result.isFinal) {
+            finalTranscript += result[0].transcript
+          } else {
+            interimTranscript += result[0].transcript
+          }
+        }
+
+        if (finalTranscript) {
+          onTranscript(finalTranscript, true)
+        } else if (interimTranscript) {
+          onTranscript(interimTranscript, false)
+        }
+      }
+
+      recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
+        console.error('Speech recognition error:', event.error)
+        setIsListening(false)
+      }
+
+      recognition.onend = () => {
+        setIsListening(false)
+      }
+
+      recognition.onstart = () => {
+        setIsListening(true)
+      }
+
+      recognitionRef.current = recognition
+    }
+
+    return () => {
+      if (recognitionRef.current) {
+        recognitionRef.current.abort()
+      }
+    }
+  }, [onTranscript])
+
+  const startListening = useCallback(() => {
+    if (recognitionRef.current && !isListening) {
+      try {
+        recognitionRef.current.start()
+      } catch (error) {
+        // Recognition might already be running
+        console.error('Failed to start speech recognition:', error)
+      }
+    }
+  }, [isListening])
+
+  const stopListening = useCallback(() => {
+    if (recognitionRef.current && isListening) {
+      recognitionRef.current.stop()
+    }
+  }, [isListening])
+
+  return {
+    isListening,
+    isSupported,
+    startListening,
+    stopListening,
+  }
+}
+
 interface SearchResult {
   type: 'task' | 'step'
   task: Task
@@ -90,6 +228,28 @@ export function UnifiedInput({
   const [focused, setFocused] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
+
+  // Speech recognition for voice input
+  const handleTranscript = useCallback((text: string, isFinal: boolean) => {
+    if (isFinal) {
+      // Append final transcript to existing value
+      setValue(prev => {
+        const trimmed = prev.trim()
+        return trimmed ? `${trimmed} ${text}` : text
+      })
+    }
+    // For interim results, we could show a preview but for simplicity
+    // we just wait for the final result
+  }, [])
+
+  const { isListening, isSupported: isVoiceSupported, startListening, stopListening } = useSpeechRecognition(handleTranscript)
+
+  // Stop listening when input loses focus or component unmounts
+  useEffect(() => {
+    if (!focused && isListening) {
+      stopListening()
+    }
+  }, [focused, isListening, stopListening])
 
   // Typewriter animation state - stored in refs to avoid React re-renders
   const animationRef = useRef({
@@ -556,6 +716,48 @@ export function UnifiedInput({
               <kbd className="px-1.5 py-0.5 rounded bg-surface border border-border text-[11px] font-medium">⌘</kbd>
               <kbd className="px-1.5 py-0.5 rounded bg-surface border border-border text-[11px] font-medium">K</kbd>
             </div>
+          )}
+
+          {/* Voice input button - only show if browser supports Web Speech API */}
+          {isVoiceSupported && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                if (isListening) {
+                  stopListening()
+                } else {
+                  inputRef.current?.focus()
+                  startListening()
+                }
+              }}
+              className={`
+                w-11 h-11 -m-1.5 flex-shrink-0
+                flex items-center justify-center
+                rounded-md transition-all duration-200
+                ${isListening
+                  ? 'text-accent bg-accent/10'
+                  : 'text-text-muted hover:text-text-soft hover:bg-surface'
+                }
+              `}
+              aria-label={isListening ? 'Stop listening' : 'Start voice input'}
+            >
+              <svg
+                width={20}
+                height={20}
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className={isListening ? 'animate-pulse' : ''}
+              >
+                <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
+                <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                <line x1="12" y1="19" x2="12" y2="22" />
+              </svg>
+            </button>
           )}
 
           {/* Type badge when prefix detected */}
