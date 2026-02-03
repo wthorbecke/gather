@@ -4,7 +4,7 @@ import { useCallback, useState, useEffect } from 'react'
 import dynamic from 'next/dynamic'
 import { User } from '@supabase/supabase-js'
 import { useTasks, Task, Step, useMoodEntries } from '@/hooks/useUserData'
-import { MoodPicker, shouldShowMoodPicker, markMoodPickerShown, type MoodValue } from './MoodPicker'
+import { MoodPicker, shouldShowMoodPicker, markMoodPickerShown, setSessionEnergy, getSessionEnergy, type MoodValue } from './MoodPicker'
 import { mapAIStepsToSteps } from '@/lib/taskHelpers'
 import { useMemory } from '@/hooks/useMemory'
 import { useUndo, type UndoAction } from '@/hooks/useUndo'
@@ -95,16 +95,26 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
   // Mood picker state - only show once per session
   const [showMoodPicker, setShowMoodPicker] = useState(false)
 
-  // Check if we should show mood picker on mount
+  // Session energy level - used to filter "Do this now" task
+  const [sessionEnergy, setSessionEnergyState] = useState<EnergyLevel | null>(null)
+
+  // Check if we should show mood picker on mount and load session energy
   useEffect(() => {
     if (!loading && shouldShowMoodPicker()) {
       setShowMoodPicker(true)
     }
+    // Load any previously set session energy
+    const storedEnergy = getSessionEnergy()
+    if (storedEnergy) {
+      setSessionEnergyState(storedEnergy)
+    }
   }, [loading])
 
-  // Handle mood selection
-  const handleMoodSelect = useCallback((mood: MoodValue) => {
+  // Handle mood and energy selection
+  const handleMoodSelect = useCallback((mood: MoodValue, energy: EnergyLevel) => {
     addMoodEntry(mood)
+    setSessionEnergy(energy)
+    setSessionEnergyState(energy)
     markMoodPickerShown()
     setShowMoodPicker(false)
   }, [addMoodEntry])
@@ -801,6 +811,7 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
               <HomeView
                 tasks={tasks}
                 moodEntries={moodEntries}
+                sessionEnergy={sessionEnergy}
                 aiCard={aiCard}
                 pendingInput={pendingInput}
                 onSubmit={handleSubmit}

@@ -4,7 +4,6 @@ import { useMemo, useEffect, useState } from 'react'
 import { Task, MoodEntry } from '@/hooks/useUserData'
 import { useDarkMode } from '@/hooks/useDarkMode'
 import { splitStepText } from '@/lib/stepText'
-import { getNextStep } from '@/hooks/useTaskSearch'
 import { UnifiedInput, ParsedInputMetadata } from './UnifiedInput'
 import { AICard, AICardState } from './AICard'
 import { TaskListItem } from './TaskListItem'
@@ -12,13 +11,12 @@ import { Checkbox } from './Checkbox'
 import { getDeadlineUrgency } from './DeadlineBadge'
 import { CalendarWidget } from './CalendarSidebar'
 import { EmailTasksCard } from './EmailTasksCard'
-import { StatsCard } from './StatsCard'
 import { GamificationIndicator } from './GamificationCard'
 import { CollapsibleSection } from './CollapsibleSection'
 import { content, OTHER_SPECIFY_OPTION } from '@/config/content'
-import { TaskInsight } from './TaskInsight'
-import { EnergySuggestions } from './EnergySuggestions'
-import { PatternInsights } from './PatternInsights'
+import { CoachCard } from './CoachCard'
+import { EnergyLevel } from '@/lib/constants'
+import { pickBestTask } from '@/lib/taskPicker'
 import { getEmptyStateMessage } from '@/lib/emptyStateMessages'
 
 // Time-based ambient style - shared atmosphere with StackView
@@ -50,6 +48,7 @@ function getAmbientStyle(taskCount: number, isDark: boolean) {
 interface HomeViewProps {
   tasks: Task[]
   moodEntries?: MoodEntry[]
+  sessionEnergy?: EnergyLevel | null
   aiCard: AICardState | null
   pendingInput: string | null
   onSubmit: (value: string, metadata?: ParsedInputMetadata) => void
@@ -77,6 +76,7 @@ interface HomeViewProps {
 export function HomeView({
   tasks,
   moodEntries = [],
+  sessionEnergy = null,
   aiCard,
   pendingInput,
   onSubmit,
@@ -128,8 +128,19 @@ export function HomeView({
   }, [activeTasks])
 
   const snoozedCount = tasks.length - activeTasks.length
-  // Use sortedTasks so "Do this now" shows the most urgent task's next step
-  const nextStep = getNextStep(sortedTasks)
+
+  // Pick the best task using smart selection that considers energy level
+  const bestTask = useMemo(() => {
+    return pickBestTask(activeTasks, sessionEnergy)
+  }, [activeTasks, sessionEnergy])
+
+  // Get the next step from the best task (energy-aware selection)
+  const nextStep = useMemo(() => {
+    if (!bestTask) return null
+    const step = bestTask.steps?.find(s => !s.done)
+    if (!step) return null
+    return { task: bestTask, step }
+  }, [bestTask])
   const shouldAutoFocus = Boolean(aiCard?.autoFocusInput) || Boolean(aiCard?.question && (!aiCard.quickReplies || aiCard.quickReplies.length === 0))
   const isQuestionFlow = Boolean(aiCard?.question)
   const inputPlaceholder = isQuestionFlow ? content.placeholders.aiFreeText : content.placeholders.homeInput
@@ -263,9 +274,14 @@ export function HomeView({
           </p>
         )}
 
-        {/* Task Intelligence Insight - only show when there are tasks and no AI conversation */}
+        {/* Unified Coach Card - ONE contextual insight at a time */}
         {!aiCard && activeTasks.length > 0 && (
-          <TaskInsight onGoToTask={onGoToTask} />
+          <CoachCard
+            tasks={tasks}
+            moodEntries={moodEntries}
+            currentTaskId={nextStep?.task?.id}
+            onGoToTask={onGoToTask}
+          />
         )}
 
         {/* FOCUS: The ONE thing to do now - prominent, impossible to miss */}
@@ -410,15 +426,6 @@ export function HomeView({
               })()}
             </div>
           </div>
-        )}
-
-        {/* Low energy alternatives - show when there's a main task */}
-        {nextStep && (
-          <EnergySuggestions
-            tasks={activeTasks}
-            currentTaskId={nextStep.task.id}
-            onGoToTask={onGoToTask}
-          />
         )}
 
         {/* All done state - contextual, time-aware */}
@@ -629,37 +636,28 @@ export function HomeView({
           )
         })()}
 
-        {/* Collapsible secondary sections - reduce cognitive load for ADHD users */}
+        {/* Collapsible integrations - stats/patterns now consolidated in CoachCard */}
         {!aiCard && (
-          <>
-            {/* Overview section - calendar, email, stats */}
-            <CollapsibleSection title="Overview" storageKey="overview" defaultOpen={false}>
-              <div className="space-y-4">
-                <CalendarWidget
-                  isDemoUser={isDemoUser}
-                  tasks={tasks}
-                  onSelectTask={(task) => onGoToTask(task.id)}
-                />
-                <EmailTasksCard
-                  onAddTask={(title) => {
-                    onQuickAdd(title)
-                  }}
-                  isDemoUser={isDemoUser}
-                />
-                <StatsCard tasks={tasks} moodEntries={moodEntries} />
-              </div>
-            </CollapsibleSection>
-
-            {/* Progress section - minimal gamification indicator + patterns */}
-            <CollapsibleSection
-              title="Progress"
-              storageKey="progress"
-              defaultOpen={false}
-              rightElement={<GamificationIndicator userId={userId} isDemo={isDemoUser} />}
-            >
-              <PatternInsights tasks={tasks} />
-            </CollapsibleSection>
-          </>
+          <CollapsibleSection
+            title="Integrations"
+            storageKey="integrations"
+            defaultOpen={false}
+            rightElement={<GamificationIndicator userId={userId} isDemo={isDemoUser} />}
+          >
+            <div className="space-y-4">
+              <CalendarWidget
+                isDemoUser={isDemoUser}
+                tasks={tasks}
+                onSelectTask={(task) => onGoToTask(task.id)}
+              />
+              <EmailTasksCard
+                onAddTask={(title) => {
+                  onQuickAdd(title)
+                }}
+                isDemoUser={isDemoUser}
+              />
+            </div>
+          </CollapsibleSection>
         )}
 
       </div>

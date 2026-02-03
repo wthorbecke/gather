@@ -256,6 +256,19 @@ textarea:focus-visible {
 .radius-md { border-radius: var(--radius-md); }
 
 /* =============================================
+   CARD VARIANTS - Standardized card patterns
+   ============================================= */
+/* Primary Card: interactive, prominent */
+.card-primary {
+  @apply bg-card rounded-xl border border-border-subtle;
+}
+
+/* Surface Card: informational, de-emphasized */
+.card-surface {
+  @apply bg-surface rounded-xl;
+}
+
+/* =============================================
    LOGIN PAGE
    ============================================= */
 .login-gradient {
