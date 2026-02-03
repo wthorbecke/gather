@@ -167,6 +167,7 @@ All critical issues fixed:
 - ~~Clear completed tasks~~ - Done (Session 11) - Batch delete all finished tasks
 - ~~Task pinning~~ - Done (Session 11) - Star tasks to keep at top of list
 - ~~Step deletion~~ - Done (Session 11) - Remove individual steps from tasks
+- ~~Step creation~~ - Done (Session 11) - Add custom steps to tasks manually
 - Task sharing/delegation - Share tasks with others
 - Mobile PWA enhancements - Offline support, better notifications
 - ~~Keyboard shortcut overlay~~ - Done (Session 11) - Help modal showing all shortcuts
@@ -270,6 +271,10 @@ All critical issues fixed:
   - "Delete" button in step expanded view
   - Red styling matches danger action pattern
   - Removes step from task's steps array
+- **Added manual step creation** - Add custom steps to any task
+  - "Add step" button at bottom of steps list
+  - Inline input with Enter to add, Escape to cancel
+  - Dashed border button pattern for add affordance
 - All 173 tests passing, build succeeds
 
 **Commits:**
@@ -290,6 +295,7 @@ All critical issues fixed:
 - `93bb9ab` Add confirmation dialog before clearing completed tasks
 - `218f00a` Add task pinning feature (star to top)
 - `20b975a` Add step deletion feature
+- `0e1e457` Add manual step creation feature
 
 **Technical notes:**
 - Quick actions feature (from Future Ideas) partially addressed - snooze was the highest-impact quick action
@@ -341,6 +347,8 @@ All critical issues fixed:
 - handleTogglePin in GatherApp toggles the pinned state via updateTask
 - Step deletion adds `onDelete` prop chain: StepItem -> TaskView -> GatherApp
 - handleDeleteStep filters out the deleted step from task.steps array
+- Step creation uses inline input at bottom of steps list
+- handleAddStep creates new Step object with timestamp-based ID and appends to steps array
 
 ---
 
