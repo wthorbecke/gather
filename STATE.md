@@ -156,7 +156,7 @@ All critical issues fixed:
 - Time blocking - Schedule tasks into calendar time blocks
 - ~~Statistics/insights~~ - Done (Session 11) - StatsCard shows progress
 - ~~Focus mode enhancements~~ - Pomodoro timer done (Session 11), ambient sounds remaining
-- Quick reschedule - One-tap postpone options (later today, tomorrow)
+- ~~Quick reschedule~~ - Done (Session 11) - "Later today" and "Tomorrow morning" quick options
 - Advanced stats - Completion trends over time, productivity hours analysis
 
 ---
@@ -184,12 +184,18 @@ All critical issues fixed:
   - Break prompts after each pomodoro (5 min short break, 15 min long break after 4 pomodoros)
   - Visual pulse animation when timer completes
   - Pomodoro count tracked during focus session
+- **Added quick snooze options** - Faster postponement for when you need a short break
+  - "In 1 hour" and "In 2 hours" options (shows before 9 PM)
+  - "Tomorrow morning" (9 AM) always available as featured option
+  - Section headers organize time-based vs date-based options
+  - Reduces friction for short postponements (no need to pick a date)
 - All 189 tests passing, build succeeds
 
 **Commits:**
 - `d83cc42` Add snooze option to task list view menu
 - `abf8c7b` Add progress statistics card to home view
 - `d83b440` Add Pomodoro timer to Focus Mode
+- `9cf6a98` Add quick snooze options (Later today, Tomorrow morning)
 
 **Technical notes:**
 - Quick actions feature (from Future Ideas) partially addressed - snooze was the highest-impact quick action
@@ -198,6 +204,8 @@ All critical issues fixed:
 - StatsCard uses local task data, no additional API calls needed
 - Pomodoro uses existing FocusMode component, no new components needed
 - Timer mode persists during focus session but resets when exiting
+- Quick snooze uses ISO datetime strings for time-based options (supports hour-level precision)
+- useMemo calculates available options based on current time to avoid showing past times
 
 ---
 
