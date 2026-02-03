@@ -1286,13 +1286,17 @@ export function useAIConversation(deps: AIConversationDeps): AIConversationState
     if (action.type === 'create_task' && action.title) {
       const newTask = await addTask(action.title, 'soon')
       if (newTask) {
-        if (action.context) {
-          await updateTask(newTask.id, { context_text: action.context } as Partial<Task>)
-        }
+        // Generate steps for the new task using fallback steps
+        const steps = createFallbackSteps(action.title, action.context || '')
+        await updateTask(newTask.id, {
+          steps,
+          context_text: action.context || undefined,
+        } as Partial<Task>)
         setAiCard({
           message: `Created "${action.title}".`,
           taskCreated: {
             ...newTask,
+            steps,
             context_text: action.context || null,
           },
         })

@@ -117,34 +117,61 @@ export function normalizeForMatch(text: string): string {
     .replace(/\s+/g, ' ')
 }
 
+// Common words that shouldn't count toward duplicate matching
+const STOPWORDS = new Set([
+  'a', 'an', 'the', 'my', 'your', 'our', 'their', 'his', 'her', 'its',
+  'i', 'me', 'we', 'you', 'it', 'this', 'that', 'these', 'those',
+  'to', 'for', 'of', 'in', 'on', 'at', 'by', 'with', 'from', 'about',
+  'and', 'or', 'but', 'so', 'if', 'then', 'when', 'where', 'how', 'what',
+  'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had',
+  'do', 'does', 'did', 'will', 'would', 'could', 'should', 'can', 'may',
+  'get', 'make', 'go', 'come', 'take', 'put', 'set', 'give', 'keep',
+  'new', 'old', 'some', 'any', 'all', 'most', 'more', 'less', 'other',
+  'up', 'out', 'off', 'down', 'over', 'under', 'through', 'into',
+])
+
+/**
+ * Filter out stopwords from tokens for more meaningful matching
+ */
+function filterStopwords(tokens: Set<string>): Set<string> {
+  return new Set(Array.from(tokens).filter(t => !STOPWORDS.has(t) && t.length > 2))
+}
+
 /**
  * Find a potentially duplicate task based on title similarity
  */
 export function findDuplicateTask(input: string, tasks: Task[]): Task | null {
   const inputNorm = normalizeForMatch(input)
   if (!inputNorm) return null
-  const inputTokens = new Set(inputNorm.split(' '))
+  const inputTokens = filterStopwords(new Set(inputNorm.split(' ')))
+
+  // Need at least one meaningful word to match
+  if (inputTokens.size === 0) return null
 
   for (const task of tasks) {
     const titleNorm = normalizeForMatch(task.title)
     if (!titleNorm) continue
 
-    // Exact match
+    // Exact match (normalized)
     if (inputNorm === titleNorm) return task
 
     // Substring match for longer strings
-    if (inputNorm.length >= 6 && titleNorm.length >= 6) {
+    if (inputNorm.length >= 8 && titleNorm.length >= 8) {
       if (inputNorm.includes(titleNorm) || titleNorm.includes(inputNorm)) {
         return task
       }
     }
 
-    // Token overlap match
-    const titleTokens = new Set(titleNorm.split(' '))
+    // Token overlap match - using filtered tokens
+    const titleTokens = filterStopwords(new Set(titleNorm.split(' ')))
+    if (titleTokens.size === 0) continue
+
     const shared = Array.from(inputTokens).filter((t) => titleTokens.has(t))
     const minTokens = Math.min(inputTokens.size, titleTokens.size)
-    const required = Math.max(1, Math.floor(minTokens / 2))
-    if (shared.length >= required && shared.length >= 2) {
+
+    // Require at least 2 meaningful shared tokens, or 60%+ of the smaller set
+    const requiredByRatio = Math.ceil(minTokens * 0.6)
+    if (shared.length >= 2 && shared.length >= requiredByRatio) {
       return task
     }
   }
