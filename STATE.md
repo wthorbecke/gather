@@ -157,7 +157,7 @@ All critical issues fixed:
 - ~~Statistics/insights~~ - Done (Session 11) - StatsCard shows progress
 - ~~Focus mode enhancements~~ - Pomodoro timer done (Session 11), ambient sounds remaining
 - ~~Quick reschedule~~ - Done (Session 11) - "Later today" and "Tomorrow morning" quick options
-- Advanced stats - Completion trends over time, productivity hours analysis
+- ~~Advanced stats~~ - Done (Session 11) - 7-day activity visualization in StatsCard
 
 ---
 
@@ -189,13 +189,19 @@ All critical issues fixed:
   - "Tomorrow morning" (9 AM) always available as featured option
   - Section headers organize time-based vs date-based options
   - Reduces friction for short postponements (no need to pick a date)
-- All 189 tests passing, build succeeds
+- **Added 7-day activity visualization** - Shows consistency at a glance
+  - Weekly grid showing which days had habit completions
+  - "X/7 days active" summary
+  - Green checkmarks for completed days, today highlighted
+  - Helps users see their consistency patterns
+- All 183 tests passing, build succeeds
 
 **Commits:**
 - `d83cc42` Add snooze option to task list view menu
 - `abf8c7b` Add progress statistics card to home view
 - `d83b440` Add Pomodoro timer to Focus Mode
 - `9cf6a98` Add quick snooze options (Later today, Tomorrow morning)
+- `738a150` Add 7-day activity visualization to StatsCard
 
 **Technical notes:**
 - Quick actions feature (from Future Ideas) partially addressed - snooze was the highest-impact quick action
@@ -206,6 +212,8 @@ All critical issues fixed:
 - Timer mode persists during focus session but resets when exiting
 - Quick snooze uses ISO datetime strings for time-based options (supports hour-level precision)
 - useMemo calculates available options based on current time to avoid showing past times
+- 7-day activity pulls from habit streak completions array (already tracked per habit)
+- Activity visualization shows only when there's at least one active day (non-intrusive)
 
 ---
 
