@@ -61,6 +61,10 @@ const BrainDumpModal = dynamic(() => import('./BrainDumpModal').then(mod => ({ d
   ssr: false,
   loading: () => null,
 })
+const ContextCaptureModal = dynamic(() => import('./ContextCaptureModal').then(mod => ({ default: mod.ContextCaptureModal })), {
+  ssr: false,
+  loading: () => null,
+})
 
 interface GatherAppProps {
   user: User
@@ -93,6 +97,11 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
 
   // Brain dump modal state
   const [showBrainDump, setShowBrainDump] = useState(false)
+
+  // Context capture modal state (for "where I left off" notes)
+  const [showContextCapture, setShowContextCapture] = useState(false)
+  const [contextCaptureTask, setContextCaptureTask] = useState<Task | null>(null)
+  const [taskViewStartTime, setTaskViewStartTime] = useState<number | null>(null)
 
   // View state
   const {
@@ -237,20 +246,91 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
 
   const currentTask = tasks.find((t) => t.id === currentTaskId)
 
+  // Track when entering a task view
+  useEffect(() => {
+    if (currentTaskId) {
+      setTaskViewStartTime(Date.now())
+    } else {
+      setTaskViewStartTime(null)
+    }
+  }, [currentTaskId])
+
+  // Minimum time spent (30 seconds) before prompting for context note
+  const MIN_TIME_FOR_CONTEXT_PROMPT = 30 * 1000
+
+  // Check if we should prompt for a context note when leaving a task
+  const checkForContextPrompt = useCallback((task: Task | undefined) => {
+    if (!task || !taskViewStartTime) return false
+
+    const timeSpent = Date.now() - taskViewStartTime
+
+    // Only prompt if:
+    // 1. User spent at least 30 seconds on the task
+    // 2. Task has incomplete steps (still in progress)
+    // 3. Task doesn't already have a "where I left off" note
+    const hasIncompleteSteps = task.steps?.some(s => !s.done)
+    const hasExistingNote = Boolean(task.notes?.trim())
+
+    return timeSpent >= MIN_TIME_FOR_CONTEXT_PROMPT && hasIncompleteSteps && !hasExistingNote
+  }, [taskViewStartTime])
+
   // Navigate to task - combines navigation with AI state cleanup
   const goToTask = useCallback((taskId: string) => {
+    // Check if we should prompt for context note before navigating away
+    if (currentTask && checkForContextPrompt(currentTask)) {
+      setContextCaptureTask(currentTask)
+      setShowContextCapture(true)
+      // Store the target task ID to navigate after modal is handled
+      return
+    }
+
     navGoToTask(taskId, tasks)
     setCurrentTaskId(taskId)
     clearConversation()
-  }, [navGoToTask, tasks, setCurrentTaskId, clearConversation])
+  }, [navGoToTask, tasks, setCurrentTaskId, clearConversation, currentTask, checkForContextPrompt])
 
   // Go back to home - combines navigation with AI state cleanup
   const goHome = useCallback(() => {
+    // Check if we should prompt for context note before navigating away
+    if (currentTask && checkForContextPrompt(currentTask)) {
+      setContextCaptureTask(currentTask)
+      setShowContextCapture(true)
+      return
+    }
+
+    setCurrentTaskId(null)
+    navGoHome()
+    clearConversation()
+    clearContextTags()
+  }, [setCurrentTaskId, navGoHome, clearConversation, clearContextTags, currentTask, checkForContextPrompt])
+
+  // Complete the navigation after context capture is handled
+  const completeNavigation = useCallback(() => {
+    setShowContextCapture(false)
+    setContextCaptureTask(null)
     setCurrentTaskId(null)
     navGoHome()
     clearConversation()
     clearContextTags()
   }, [setCurrentTaskId, navGoHome, clearConversation, clearContextTags])
+
+  // Save context note and complete navigation
+  const handleSaveContextNote = useCallback(async (note: string) => {
+    if (contextCaptureTask) {
+      await updateTask(contextCaptureTask.id, { notes: note })
+    }
+    completeNavigation()
+  }, [contextCaptureTask, updateTask, completeNavigation])
+
+  // Skip context note and complete navigation
+  const handleSkipContextNote = useCallback(() => {
+    completeNavigation()
+  }, [completeNavigation])
+
+  // Clear the "where I left off" note
+  const handleClearLeftOffNote = useCallback(async (taskId: string) => {
+    await updateTask(taskId, { notes: null })
+  }, [updateTask])
 
   // Handle quick add - creates task immediately, then generates AI steps in background
   const handleQuickAdd = useCallback(async (value: string, metadata?: { type?: string; scheduledAt?: Date | null; dueDate?: Date | null }) => {
@@ -891,6 +971,7 @@ export function GatherApp({ user, onSignOut }: GatherAppProps) {
             onDuplicateTask={() => handleDuplicateTask(currentTask)}
             focusStepId={focusStepId}
             onStuckOnStep={handleStuckOnStep}
+            onClearLeftOffNote={() => handleClearLeftOffNote(currentTask.id)}
           />
         </ErrorBoundary>
       ) : null}

@@ -61,6 +61,7 @@ interface TaskViewProps {
   onSetEnergy?: (energy: EnergyLevel | null) => void
   focusStepId?: string | number | null
   onStuckOnStep?: (step: Step) => void
+  onClearLeftOffNote?: () => void
 }
 
 export function TaskView({
@@ -90,6 +91,7 @@ export function TaskView({
   onSetEnergy,
   focusStepId,
   onStuckOnStep,
+  onClearLeftOffNote,
 }: TaskViewProps) {
   const { theme, toggleTheme } = useTheme()
   const [expandedStepId, setExpandedStepId] = useState<string | number | null>(null)
@@ -463,6 +465,36 @@ export function TaskView({
               >
                 Cancel
               </button>
+            </div>
+          </div>
+        )}
+
+        {/* Where I left off - context preservation note */}
+        {task.notes && (
+          <div className="mb-5 p-4 bg-accent/10 dark:bg-accent/20 rounded-xl border border-accent/20 animate-fade-in">
+            <div className="flex items-start gap-3">
+              <div className="flex-shrink-0 mt-0.5">
+                <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-accent">
+                  <path d="M12 20h9" strokeLinecap="round" />
+                  <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-medium text-accent mb-1">Where you left off</p>
+                <p className="text-sm text-text leading-relaxed">{task.notes}</p>
+              </div>
+              {onClearLeftOffNote && (
+                <button
+                  onClick={onClearLeftOffNote}
+                  className="flex-shrink-0 p-1.5 rounded-md text-text-muted hover:text-text hover:bg-surface transition-colors"
+                  aria-label="Clear note"
+                  title="Clear note"
+                >
+                  <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M18 6L6 18M6 6l12 12" strokeLinecap="round" />
+                  </svg>
+                </button>
+              )}
             </div>
           </div>
         )}
