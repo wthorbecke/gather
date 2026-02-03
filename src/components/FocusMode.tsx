@@ -63,8 +63,8 @@ export function FocusMode({
   const [elapsedTime, setElapsedTime] = useState(0)
   const [isTimerRunning, setIsTimerRunning] = useState(true)
 
-  // Ambient sound
-  const { soundType, toggleSound } = useAmbientSound()
+  // Ambient sound and work-along mode
+  const { soundType, toggleSound, workAlongEnabled, toggleWorkAlong } = useAmbientSound()
 
   // Pomodoro state
   const [timerMode, setTimerMode] = useState<TimerMode>('stopwatch')
@@ -189,7 +189,12 @@ export function FocusMode({
       action: toggleSound,
       description: 'Cycle ambient sound',
     },
-  ], [onExit, onToggleStep, onNext, onPrevious, step.done, toggleTimerMode, toggleSound])
+    {
+      key: 'w',
+      action: toggleWorkAlong,
+      description: 'Toggle work-along mode',
+    },
+  ], [onExit, onToggleStep, onNext, onPrevious, step.done, toggleTimerMode, toggleSound, toggleWorkAlong])
 
   useKeyboardShortcuts({ shortcuts, enabled: !showBreakPrompt })
 
@@ -282,6 +287,30 @@ export function FocusMode({
             {SOUND_ICONS[soundType]}
           </button>
 
+          {/* Work-along mode toggle (body doubling) */}
+          <button
+            onClick={toggleWorkAlong}
+            className={`
+              px-2 py-1 min-h-[36px] rounded-lg text-xs font-medium
+              transition-all duration-150 ease-out
+              ${workAlongEnabled
+                ? 'bg-accent/20 text-accent'
+                : 'text-text-muted hover:text-text hover:bg-surface'
+              }
+            `}
+            aria-label={workAlongEnabled ? 'Disable work-along mode' : 'Enable work-along mode'}
+            title={`Work-along mode ${workAlongEnabled ? 'on' : 'off'} (Press W to toggle)`}
+          >
+            <span className="flex items-center gap-1">
+              <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="9" cy="7" r="4" />
+                <path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2" />
+                <circle cx="19" cy="11" r="2" />
+                <path d="M19 8v1M19 14v1" strokeLinecap="round" />
+              </svg>
+            </span>
+          </button>
+
           <div className="group relative">
             <button className="text-text-muted hover:text-text transition-colors duration-150 ease-out min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg hover:bg-surface" aria-label="Keyboard shortcuts">
               <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -306,6 +335,7 @@ export function FocusMode({
                 <div className="flex justify-between"><span className="text-text-soft">Pause timer</span><span className="text-text-muted">Space</span></div>
                 <div className="flex justify-between"><span className="text-text-soft">Pomodoro</span><span className="text-text-muted">P</span></div>
                 <div className="flex justify-between"><span className="text-text-soft">Sound</span><span className="text-text-muted">S</span></div>
+                <div className="flex justify-between"><span className="text-text-soft">Work-along</span><span className="text-text-muted">W</span></div>
                 <div className="flex justify-between"><span className="text-text-soft">Exit</span><span className="text-text-muted">Esc</span></div>
               </div>
             </div>
