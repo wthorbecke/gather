@@ -165,6 +165,7 @@ All critical issues fixed:
 - ~~Recurring reminders~~ - Done (Session 11) - Weekly/monthly task recurrence
 - ~~Task duplication~~ - Done (Session 11) - Copy tasks with steps via "Duplicate" menu option
 - ~~Clear completed tasks~~ - Done (Session 11) - Batch delete all finished tasks
+- ~~Task pinning~~ - Done (Session 11) - Star tasks to keep at top of list
 - Task sharing/delegation - Share tasks with others
 - Mobile PWA enhancements - Offline support, better notifications
 - ~~Keyboard shortcut overlay~~ - Done (Session 11) - Help modal showing all shortcuts
@@ -259,6 +260,11 @@ All critical issues fixed:
   - Deletes all tasks that have 100% step completion
   - Confirmation dialog shows count of tasks to be deleted
   - Reduces clutter without manually deleting each task
+- **Added task pinning (star to top)** - Keep important tasks visible
+  - Star icon on pinned tasks for visual indicator
+  - "Pin to top" / "Unpin" in task menu
+  - Pinned tasks sort before deadline urgency
+  - Works in demo and production modes
 - All 173 tests passing, build succeeds
 
 **Commits:**
@@ -277,6 +283,7 @@ All critical issues fixed:
 - `708f39d` Add task duplication and fix build issues
 - `838ff55` Add "Clear all" button for completed tasks
 - `93bb9ab` Add confirmation dialog before clearing completed tasks
+- `218f00a` Add task pinning feature (star to top)
 
 **Technical notes:**
 - Quick actions feature (from Future Ideas) partially addressed - snooze was the highest-impact quick action
@@ -323,6 +330,9 @@ All critical issues fixed:
 - handleDuplicateTask in GatherApp creates task then updates with copied steps and context
 - Clear completed uses handleClearCompleted which finds tasks with all steps done
 - Clear all button styled with hover:bg-danger-soft for clear affordance
+- Task pinning adds `pinned?: boolean` field to Task interface
+- sortedTasks in HomeView puts pinned tasks first (before deadline sort)
+- handleTogglePin in GatherApp toggles the pinned state via updateTask
 
 ---
 
