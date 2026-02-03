@@ -1,7 +1,7 @@
 # Gather Product State
 
-**Last Updated:** Mon Feb 2 2026, 18:30 PST
-**Session:** 8
+**Last Updated:** Mon Feb 2 2026, 19:30 PST
+**Session:** 9
 
 ---
 
@@ -100,6 +100,9 @@ All critical issues fixed:
 - ✅ TypeScript errors in test files (Session 6)
 - ✅ Test failures from onboarding modal (Session 6)
 - ✅ Skip button touch target (Session 6 - commit 2cd5a21)
+- ✅ Stripe console error in demo mode (Session 9) - only init when key configured
+- ✅ Chat modal 401 error in demo mode (Session 9) - use requireAuthOrDemo
+- ✅ "Do this now" not prioritizing by deadline (Session 9) - use sortedTasks
 
 ---
 
@@ -150,6 +153,23 @@ All critical issues fixed:
 ---
 
 ## Session Log
+
+### Session 9 - Feb 2, 2026
+**Accomplished:**
+- Fixed Stripe initialization error in demo mode (only load when publishable key configured)
+- Fixed chat-assistant API 401 error in demo mode (use `requireAuthOrDemo` instead of `requireAuth`)
+- Fixed "Do this now" section not prioritizing by deadline (use `sortedTasks` instead of `activeTasks`)
+- Build succeeds, unauthenticated tests passing
+
+**Commits:**
+- `c33a089` Fix demo mode bugs: Stripe init and chat API auth
+- `3b65521` Prioritize "Do this now" by deadline urgency
+
+**Technical notes:**
+- Chat modal now works properly in demo mode with AI responses
+- "Do this now" shows the most urgent task's next step based on deadline
+
+---
 
 ### Session 8 - Feb 2, 2026
 **Accomplished:**
