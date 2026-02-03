@@ -155,9 +155,14 @@ All critical issues fixed:
 - Built useSubscription React hook
 - Created UpgradeModal component with pricing UI
 - Updated .env.local.example with Stripe config
+- Integrated subscription management into settings modal (upgrade/billing buttons)
+- Improved error logging in email scan endpoint
 
 **Commits:**
 - `d5ec2c8` Add Stripe subscription integration
+- `4111733` Update STATE.md for session 7
+- `6dbf045` Add subscription management to settings modal
+- `85081f9` Improve error logging in email scan endpoint
 
 **Technical notes:**
 - Using Stripe API version 2026-01-28.clover
