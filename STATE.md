@@ -148,8 +148,9 @@ All critical issues fixed:
 5. ~~**Habit completion from list view**~~ - Done (Session 8)
 6. **Create Stripe products** - Set up products/prices in Stripe Dashboard
 7. ~~**Add calendar event create/edit**~~ - Done (Session 9) - "Add to Calendar" in task menu
-8. **Habit streak visualization** - History view, streak calendar display
+8. ~~**Habit streak visualization**~~ - Done (Session 9) - Streak stats in task view
 9. **Calendar event editing** - Allow editing/removing events added from Gather
+10. **Habit completion calendar** - Full calendar showing completion history
 
 ---
 
@@ -167,11 +168,13 @@ All critical issues fixed:
 - `c33a089` Fix demo mode bugs: Stripe init and chat API auth
 - `3b65521` Prioritize "Do this now" by deadline urgency
 - `7fcece7` Add "Add to Calendar" option in task menu
+- `ca0aade` Add habit streak visualization in task view
 
 **Technical notes:**
 - Chat modal now works properly in demo mode with AI responses
 - "Do this now" shows the most urgent task's next step based on deadline
 - Calendar integration uses existing `/api/calendar/create-event` API
+- Habit streak stats show current/best streak and encouragement message
 
 ---
 
