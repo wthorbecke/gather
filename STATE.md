@@ -154,9 +154,10 @@ All critical issues fixed:
 
 **Future Ideas:**
 - Time blocking - Schedule tasks into calendar time blocks
-- Statistics/insights - Show users their productivity patterns
+- ~~Statistics/insights~~ - Done (Session 11) - StatsCard shows progress
 - Focus mode enhancements - Pomodoro timer, ambient sounds
 - Quick reschedule - One-tap postpone options (later today, tomorrow)
+- Advanced stats - Completion trends over time, productivity hours analysis
 
 ---
 
@@ -171,15 +172,22 @@ All critical issues fixed:
   - Options: Tomorrow, In 3 days, Next week, In 2 weeks, Next month, or custom date
 - Fixed click propagation issues with stopPropagation in SnoozeMenu
 - Added z-index fixes for modal overlay interactions
-- All 173 tests passing, build succeeds
+- **Added progress statistics card** - Shows users their productivity at a glance
+  - Steps completed count
+  - Tasks finished count
+  - Best active habit streak
+  - Only displays when there's meaningful progress (non-intrusive)
+- All 183 tests passing, build succeeds
 
 **Commits:**
 - `d83cc42` Add snooze option to task list view menu
+- `abf8c7b` Add progress statistics card to home view
 
 **Technical notes:**
 - Quick actions feature (from Future Ideas) partially addressed - snooze was the highest-impact quick action
 - SnoozeMenu now includes `stopPropagation` and `z-10` on menu content to prevent click issues
 - Snooze filters tasks from list view (shows "X snoozed" indicator in Other tasks header)
+- StatsCard uses local task data, no additional API calls needed
 
 ---
 
